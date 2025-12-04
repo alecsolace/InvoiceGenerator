@@ -7,9 +7,11 @@ struct InvoiceListView: View {
     @State private var viewModel: InvoiceViewModel?
     @State private var searchText = ""
     @State private var selectedStatus: InvoiceStatus?
+    @State private var selectedClientID: UUID?
     @State private var showingAddInvoice = false
     @State private var showingInvoiceDetail = false
     @State private var selectedInvoice: Invoice?
+    @Query(sort: [SortDescriptor(\Client.name)]) private var clients: [Client]
     
     var body: some View {
         NavigationStack {
@@ -49,6 +51,13 @@ struct InvoiceListView: View {
         }
         .onChange(of: searchText) { _, newValue in
             viewModel?.searchInvoices(query: newValue)
+        }
+        .onChange(of: selectedClientID) { _, newValue in
+            if let id = newValue, let client = clients.first(where: { $0.id == id }) {
+                viewModel?.filterByClient(client)
+            } else {
+                viewModel?.filterByClient(nil)
+            }
         }
     }
     
@@ -98,12 +107,18 @@ struct InvoiceListView: View {
         ToolbarItem(placement: .navigationBarLeading) {
             filterMenu
         }
+        ToolbarItem(placement: .navigationBarLeading) {
+            clientFilterMenu
+        }
         #else
         ToolbarItem(placement: .automatic) {
             addInvoiceButton
         }
         ToolbarItem(placement: .automatic) {
             filterMenu
+        }
+        ToolbarItem(placement: .automatic) {
+            clientFilterMenu
         }
         #endif
     }
@@ -130,6 +145,30 @@ struct InvoiceListView: View {
         } label: {
             Label("Filter", systemImage: "line.3.horizontal.decrease.circle")
         }
+    }
+
+    private var clientFilterMenu: some View {
+        Menu {
+            Button("All Clients") {
+                selectedClientID = nil
+            }
+
+            ForEach(clients) { client in
+                Button(client.name) {
+                    selectedClientID = client.id
+                }
+            }
+        } label: {
+            Label(clientFilterLabel, systemImage: "person.2.crop.square.stack")
+        }
+    }
+
+    private var clientFilterLabel: String {
+        if let id = selectedClientID, let client = clients.first(where: { $0.id == id }) {
+            return client.name
+        }
+
+        return "Client"
     }
 }
 
@@ -191,7 +230,7 @@ struct InvoiceRowView: View {
 
 #Preview {
     InvoiceListView()
-        .modelContainer(for: [Invoice.self, InvoiceItem.self, CompanyProfile.self])
+        .modelContainer(for: [Invoice.self, InvoiceItem.self, CompanyProfile.self, Client.self])
 }
 
 // MARK: - Platform helpers
