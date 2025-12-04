@@ -5,8 +5,10 @@ import SwiftData
 struct InvoiceListView: View {
     @Environment(\.modelContext) private var modelContext
     @State private var viewModel: InvoiceViewModel?
+    @Query(sort: [SortDescriptor(\.name)]) private var clients: [Client]
     @State private var searchText = ""
     @State private var selectedStatus: InvoiceStatus?
+    @State private var selectedClient: Client?
     @State private var showingAddInvoice = false
     @State private var showingInvoiceDetail = false
     @State private var selectedInvoice: Invoice?
@@ -48,7 +50,7 @@ struct InvoiceListView: View {
             }
         }
         .onChange(of: searchText) { _, newValue in
-            viewModel?.searchInvoices(query: newValue)
+            applyFilters()
         }
     }
     
@@ -98,12 +100,18 @@ struct InvoiceListView: View {
         ToolbarItem(placement: .navigationBarLeading) {
             filterMenu
         }
+        ToolbarItem(placement: .navigationBarLeading) {
+            clientFilterMenu
+        }
         #else
         ToolbarItem(placement: .automatic) {
             addInvoiceButton
         }
         ToolbarItem(placement: .automatic) {
             filterMenu
+        }
+        ToolbarItem(placement: .automatic) {
+            clientFilterMenu
         }
         #endif
     }
@@ -118,18 +126,44 @@ struct InvoiceListView: View {
         Menu {
             Button("All Invoices") {
                 selectedStatus = nil
-                viewModel?.filterByStatus(nil)
+                applyFilters()
             }
             
             ForEach(InvoiceStatus.allCases, id: \.self) { status in
                 Button(status.rawValue) {
                     selectedStatus = status
-                    viewModel?.filterByStatus(status)
+                    applyFilters()
                 }
             }
         } label: {
             Label("Filter", systemImage: "line.3.horizontal.decrease.circle")
         }
+    }
+
+    private var clientFilterMenu: some View {
+        Menu {
+            Button("All Clients") {
+                selectedClient = nil
+                applyFilters()
+            }
+
+            ForEach(clients) { client in
+                Button(client.name) {
+                    selectedClient = client
+                    applyFilters()
+                }
+            }
+        } label: {
+            Label("Client", systemImage: "person.crop.circle")
+        }
+    }
+
+    private func applyFilters() {
+        viewModel?.applyFilters(
+            searchQuery: searchText,
+            status: selectedStatus,
+            client: selectedClient
+        )
     }
 }
 
@@ -191,7 +225,7 @@ struct InvoiceRowView: View {
 
 #Preview {
     InvoiceListView()
-        .modelContainer(for: [Invoice.self, InvoiceItem.self, CompanyProfile.self])
+        .modelContainer(for: [Invoice.self, InvoiceItem.self, CompanyProfile.self, Client.self])
 }
 
 // MARK: - Platform helpers

@@ -9,6 +9,8 @@ final class Invoice {
     var clientName: String
     var clientEmail: String
     var clientAddress: String
+    @Relationship(deleteRule: .nullify, inverse: \Client.invoices)
+    var client: Client?
     var issueDate: Date
     var dueDate: Date
     var status: InvoiceStatus
@@ -27,6 +29,7 @@ final class Invoice {
         clientName: String,
         clientEmail: String = "",
         clientAddress: String = "",
+        client: Client? = nil,
         issueDate: Date = Date(),
         dueDate: Date = Date().addingTimeInterval(30 * 24 * 60 * 60),
         status: InvoiceStatus = .draft,
@@ -35,9 +38,10 @@ final class Invoice {
     ) {
         self.id = id
         self.invoiceNumber = invoiceNumber
-        self.clientName = clientName
-        self.clientEmail = clientEmail
-        self.clientAddress = clientAddress
+        self.client = client
+        self.clientName = client?.name ?? clientName
+        self.clientEmail = client?.email ?? clientEmail
+        self.clientAddress = client?.address ?? clientAddress
         self.issueDate = issueDate
         self.dueDate = dueDate
         self.status = status
