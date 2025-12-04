@@ -32,18 +32,14 @@ final class InvoiceViewModel {
         do {
             let descriptor = FetchDescriptor<Invoice>(
                 predicate: #Predicate<Invoice> { invoice in
-                    let matchesStatus = currentStatus == nil || invoice.status == currentStatus!
-                    let matchesClient = currentClientID == nil || invoice.client?.id == currentClientID!
-
-                    let matchesQuery: Bool
-                    if !currentQuery.isEmpty {
-                        matchesQuery = invoice.clientName.localizedStandardContains(currentQuery) ||
-                            invoice.invoiceNumber.localizedStandardContains(currentQuery)
-                    } else {
-                        matchesQuery = true
-                    }
-
-                    return matchesStatus && matchesClient && matchesQuery
+                    // Status matches if no filter or equals filtered status
+                    (currentStatus == nil || invoice.status == currentStatus!) &&
+                    // Client matches if no filter or equals filtered client id
+                    (currentClientID == nil || invoice.client?.id == currentClientID!) &&
+                    // Query matches if empty or found in clientName or invoiceNumber
+                    (currentQuery.isEmpty ||
+                     invoice.clientName.localizedStandardContains(currentQuery) ||
+                     invoice.invoiceNumber.localizedStandardContains(currentQuery))
                 },
                 sortBy: [SortDescriptor(\.issueDate, order: .reverse)]
             )

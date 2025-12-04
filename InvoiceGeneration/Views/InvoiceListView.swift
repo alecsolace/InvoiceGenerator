@@ -11,7 +11,7 @@ struct InvoiceListView: View {
     @State private var showingAddInvoice = false
     @State private var showingInvoiceDetail = false
     @State private var selectedInvoice: Invoice?
-    @Query(sort: [SortDescriptor(\.name)]) private var clients: [Client]
+    @Query(sort: [SortDescriptor(\Client.name)]) private var clients: [Client]
     
     var body: some View {
         NavigationStack {

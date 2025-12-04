@@ -1,4 +1,5 @@
 import SwiftUI
+import SwiftData
 
 /// View for creating a new client
 struct AddClientView: View {
