@@ -6,24 +6,45 @@ import Observation
 @Observable
 final class InvoiceViewModel {
     private var modelContext: ModelContext
-    
+
     var invoices: [Invoice] = []
     var selectedInvoice: Invoice?
     var isLoading = false
     var errorMessage: String?
-    
+    var statusFilter: InvoiceStatus?
+    var clientFilterID: UUID?
+    var searchQuery = ""
+
     init(modelContext: ModelContext) {
         self.modelContext = modelContext
         fetchInvoices()
     }
-    
+
     /// Fetch all invoices from SwiftData
     func fetchInvoices() {
         isLoading = true
         errorMessage = nil
-        
+
+        let currentStatus = statusFilter
+        let currentClientID = clientFilterID
+        let currentQuery = searchQuery
+
         do {
             let descriptor = FetchDescriptor<Invoice>(
+                predicate: #Predicate<Invoice> { invoice in
+                    let matchesStatus = currentStatus == nil || invoice.status == currentStatus!
+                    let matchesClient = currentClientID == nil || invoice.client?.id == currentClientID!
+
+                    let matchesQuery: Bool
+                    if !currentQuery.isEmpty {
+                        matchesQuery = invoice.clientName.localizedStandardContains(currentQuery) ||
+                            invoice.invoiceNumber.localizedStandardContains(currentQuery)
+                    } else {
+                        matchesQuery = true
+                    }
+
+                    return matchesStatus && matchesClient && matchesQuery
+                },
                 sortBy: [SortDescriptor(\.issueDate, order: .reverse)]
             )
             invoices = try modelContext.fetch(descriptor)
@@ -39,15 +60,17 @@ final class InvoiceViewModel {
         invoiceNumber: String,
         clientName: String,
         clientEmail: String = "",
-        clientAddress: String = ""
+        clientAddress: String = "",
+        client: Client? = nil
     ) {
         let invoice = Invoice(
             invoiceNumber: invoiceNumber,
             clientName: clientName,
             clientEmail: clientEmail,
-            clientAddress: clientAddress
+            clientAddress: clientAddress,
+            client: client
         )
-        
+
         modelContext.insert(invoice)
         saveContext()
         fetchInvoices()
@@ -105,45 +128,20 @@ final class InvoiceViewModel {
     
     /// Search invoices by client name or invoice number
     func searchInvoices(query: String) {
-        guard !query.isEmpty else {
-            fetchInvoices()
-            return
-        }
-        
-        do {
-            let predicate = #Predicate<Invoice> { invoice in
-                invoice.clientName.localizedStandardContains(query) ||
-                invoice.invoiceNumber.localizedStandardContains(query)
-            }
-            let descriptor = FetchDescriptor<Invoice>(
-                predicate: predicate,
-                sortBy: [SortDescriptor(\.issueDate, order: .reverse)]
-            )
-            invoices = try modelContext.fetch(descriptor)
-        } catch {
-            errorMessage = "Search failed: \(error.localizedDescription)"
-        }
+        searchQuery = query
+        fetchInvoices()
     }
-    
+
     /// Filter invoices by status
     func filterByStatus(_ status: InvoiceStatus?) {
-        guard let status = status else {
-            fetchInvoices()
-            return
-        }
-        
-        do {
-            let predicate = #Predicate<Invoice> { invoice in
-                invoice.status == status
-            }
-            let descriptor = FetchDescriptor<Invoice>(
-                predicate: predicate,
-                sortBy: [SortDescriptor(\.issueDate, order: .reverse)]
-            )
-            invoices = try modelContext.fetch(descriptor)
-        } catch {
-            errorMessage = "Filter failed: \(error.localizedDescription)"
-        }
+        statusFilter = status
+        fetchInvoices()
+    }
+
+    /// Filter invoices by client
+    func filterByClient(_ client: Client?) {
+        clientFilterID = client?.id
+        fetchInvoices()
     }
     
     // MARK: - Private Methods

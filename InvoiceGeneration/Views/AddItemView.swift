@@ -150,7 +150,7 @@ struct EditInvoiceView: View {
 #Preview("Add Item") {
     let config = ModelConfiguration(isStoredInMemoryOnly: true)
     let container = try! ModelContainer(
-        for: Invoice.self, InvoiceItem.self, CompanyProfile.self,
+        for: Invoice.self, InvoiceItem.self, CompanyProfile.self, Client.self,
         configurations: config
     )
     
@@ -168,7 +168,7 @@ struct EditInvoiceView: View {
 #Preview("Edit Invoice") {
     let config = ModelConfiguration(isStoredInMemoryOnly: true)
     let container = try! ModelContainer(
-        for: Invoice.self, InvoiceItem.self, CompanyProfile.self,
+        for: Invoice.self, InvoiceItem.self, CompanyProfile.self, Client.self,
         configurations: config
     )
     
