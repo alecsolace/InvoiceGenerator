@@ -15,6 +15,7 @@
 		0D2DB2792EE1D2B8000C327E /* BUILDING.md in Resources */ = {isa = PBXBuildFile; fileRef = 0D2DB26D2EE1D2B8000C327E /* BUILDING.md */; };
 		0D2DB27A2EE1D2B8000C327E /* CONVENTIONS.md in Resources */ = {isa = PBXBuildFile; fileRef = 0D2DB26F2EE1D2B8000C327E /* CONVENTIONS.md */; };
 		0D2DB27B2EE1D2B8000C327E /* LICENSE in Resources */ = {isa = PBXBuildFile; fileRef = 0D2DB2702EE1D2B8000C327E /* LICENSE */; };
+		0D2DB2AC2EE1E500000C327E /* Localizable.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = 0D2DB2AB2EE1E500000C327E /* Localizable.xcstrings */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -46,6 +47,7 @@
 		0D2DB2712EE1D2B8000C327E /* PROJECT_SUMMARY.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = PROJECT_SUMMARY.md; sourceTree = "<group>"; };
 		0D2DB2722EE1D2B8000C327E /* QUICKSTART.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = QUICKSTART.md; sourceTree = "<group>"; };
 		0D2DB2732EE1D2B8000C327E /* VERIFICATION.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = VERIFICATION.md; sourceTree = "<group>"; };
+		0D2DB2AB2EE1E500000C327E /* Localizable.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = Localizable.xcstrings; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -107,6 +109,7 @@
 		0D2DB2152EE1D275000C327E = {
 			isa = PBXGroup;
 			children = (
+				0D2DB2AB2EE1E500000C327E /* Localizable.xcstrings */,
 				0D2DB26C2EE1D2B8000C327E /* ARCHITECTURE.md */,
 				0D2DB26D2EE1D2B8000C327E /* BUILDING.md */,
 				0D2DB26E2EE1D2B8000C327E /* CLOUDKIT.md */,
@@ -232,6 +235,7 @@
 			knownRegions = (
 				en,
 				Base,
+				es,
 			);
 			mainGroup = 0D2DB2152EE1D275000C327E;
 			minimizedProjectReferenceProxies = 1;
@@ -257,6 +261,7 @@
 				0D2DB2762EE1D2B8000C327E /* ARCHITECTURE.md in Resources */,
 				0D2DB2772EE1D2B8000C327E /* QUICKSTART.md in Resources */,
 				0D2DB2782EE1D2B8000C327E /* VERIFICATION.md in Resources */,
+				0D2DB2AC2EE1E500000C327E /* Localizable.xcstrings in Resources */,
 				0D2DB2792EE1D2B8000C327E /* BUILDING.md in Resources */,
 				0D2DB27A2EE1D2B8000C327E /* CONVENTIONS.md in Resources */,
 				0D2DB27B2EE1D2B8000C327E /* LICENSE in Resources */,
@@ -331,6 +336,7 @@
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = InvoiceGeneration/Info.plist;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.business";
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphonesimulator*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents[sdk=iphoneos*]" = YES;
@@ -376,6 +382,7 @@
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = InvoiceGeneration/Info.plist;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.business";
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphonesimulator*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents[sdk=iphoneos*]" = YES;
@@ -465,6 +472,7 @@
 				MTL_FAST_MATH = YES;
 				ONLY_ACTIVE_ARCH = YES;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
+				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 			};
 			name = Debug;
@@ -520,6 +528,7 @@
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
 				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_EMIT_LOC_STRINGS = YES;
 			};
 			name = Release;
 		};
