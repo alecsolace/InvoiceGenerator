@@ -16,7 +16,7 @@ struct InvoiceListView: View {
             Group {
                 if let viewModel = viewModel {
                     if viewModel.isLoading {
-                        ProgressView("Loading invoices...")
+                        ProgressView(L10n.InvoiceList.loading)
                     } else if viewModel.invoices.isEmpty {
                         emptyStateView
                     } else {
@@ -26,8 +26,8 @@ struct InvoiceListView: View {
                     ProgressView()
                 }
             }
-            .navigationTitle("Invoices")
-            .searchable(text: $searchText, prompt: "Search invoices")
+            .navigationTitle(L10n.InvoiceList.title)
+            .searchable(text: $searchText, prompt: L10n.InvoiceList.searchPrompt)
             .toolbar {
                 toolbarContent
             }
@@ -58,15 +58,15 @@ struct InvoiceListView: View {
                 .font(.system(size: 60))
                 .foregroundStyle(.secondary)
             
-            Text("No Invoices")
+            Text(L10n.InvoiceList.emptyTitle)
                 .font(.title2)
                 .fontWeight(.semibold)
-            
-            Text("Create your first invoice to get started")
+
+            Text(L10n.InvoiceList.emptyMessage)
                 .foregroundStyle(.secondary)
-            
+
             Button(action: { showingAddInvoice = true }) {
-                Label("Create Invoice", systemImage: "plus.circle.fill")
+                Label(L10n.InvoiceList.createInvoice, systemImage: "plus.circle.fill")
                     .font(.headline)
             }
             .buttonStyle(.borderedProminent)
@@ -110,25 +110,25 @@ struct InvoiceListView: View {
     
     private var addInvoiceButton: some View {
         Button(action: { showingAddInvoice = true }) {
-            Label("Add Invoice", systemImage: "plus")
+            Label(L10n.InvoiceList.addInvoice, systemImage: "plus")
         }
     }
-    
+
     private var filterMenu: some View {
         Menu {
-            Button("All Invoices") {
+            Button(L10n.InvoiceList.allInvoices) {
                 selectedStatus = nil
                 viewModel?.filterByStatus(nil)
             }
-            
+
             ForEach(InvoiceStatus.allCases, id: \.self) { status in
-                Button(status.rawValue) {
+                Button(status.localizedName) {
                     selectedStatus = status
                     viewModel?.filterByStatus(status)
                 }
             }
         } label: {
-            Label("Filter", systemImage: "line.3.horizontal.decrease.circle")
+            Label(L10n.Common.filter, systemImage: "line.3.horizontal.decrease.circle")
         }
     }
 }
@@ -168,7 +168,7 @@ struct InvoiceRowView: View {
     }
     
     private var statusBadge: some View {
-        Text(invoice.status.rawValue)
+        Text(invoice.status.localizedName)
             .font(.caption)
             .fontWeight(.medium)
             .padding(.horizontal, 8)
@@ -202,13 +202,13 @@ private extension View {
         #if os(iOS)
         self.swipeActions(edge: .trailing, allowsFullSwipe: false) {
             Button(role: .destructive, action: onDelete) {
-                Label("Delete", systemImage: "trash")
+                Label(L10n.Common.delete, systemImage: "trash")
             }
         }
         #else
         self.contextMenu {
             Button(role: .destructive, action: onDelete) {
-                Label("Delete Invoice", systemImage: "trash")
+                Label(L10n.Common.deleteInvoice, systemImage: "trash")
             }
         }
         #endif

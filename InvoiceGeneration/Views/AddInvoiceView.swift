@@ -17,39 +17,43 @@ struct AddInvoiceView: View {
     var body: some View {
         NavigationStack {
             Form {
-                Section("Invoice Details") {
-                    TextField("Invoice Number", text: $invoiceNumber)
-                    
-                    DatePicker("Issue Date", selection: $issueDate, displayedComponents: .date)
-                    
-                    DatePicker("Due Date", selection: $dueDate, displayedComponents: .date)
+                Section {
+                    TextField(L10n.InvoiceForm.invoiceNumber, text: $invoiceNumber)
+
+                    DatePicker(L10n.InvoiceForm.issueDate, selection: $issueDate, displayedComponents: .date)
+
+                    DatePicker(L10n.InvoiceForm.dueDate, selection: $dueDate, displayedComponents: .date)
+                } header: {
+                    Text(L10n.InvoiceForm.invoiceDetails)
                 }
-                
-                Section("Client Information") {
-                    TextField("Client Name", text: $clientName)
-                    
-                    TextField("Email", text: $clientEmail)
+
+                Section {
+                    TextField(L10n.InvoiceForm.clientName, text: $clientName)
+
+                    TextField(L10n.InvoiceForm.email, text: $clientEmail)
                         .textContentType(.emailAddress)
                         .disableAutocorrection(true)
 
-                    
-                    TextField("Address", text: $clientAddress, axis: .vertical)
+
+                    TextField(L10n.InvoiceForm.address, text: $clientAddress, axis: .vertical)
                         .lineLimit(3...6)
+                } header: {
+                    Text(L10n.InvoiceForm.clientInformation)
                 }
             }
-            .navigationTitle("New Invoice")
+            .navigationTitle(L10n.InvoiceForm.newInvoiceTitle)
 #if os(iOS)
             .navigationBarTitleDisplayMode(.inline)
 #endif
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") {
+                    Button(L10n.Common.cancel) {
                         dismiss()
                     }
                 }
-                
+
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Create") {
+                    Button(L10n.Common.create) {
                         createInvoice()
                     }
                     .disabled(clientName.isEmpty || invoiceNumber.isEmpty)

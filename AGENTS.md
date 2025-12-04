@@ -20,3 +20,6 @@ Commits should read in present tense (“Add CloudKit sync hook”), include a s
 
 ## Security & Configuration Tips
 Never hard-code Apple IDs, CloudKit container IDs, or secrets—keep them in your local Xcode signing settings. If you change entitlements or container names, update `InvoiceGeneration.entitlements` and `CloudKitService.swift` together and document the new container in the PR. PDFs may contain user data, so audit logging calls to avoid leaking invoice contents.
+
+## Localization Expectations
+All user-facing strings must use the localization helpers in `Utils/Localization.swift` and have entries in `Base.lproj/Localizable.strings`. When adding new UI text, prefer reusing existing keys before introducing new ones, and ensure any interpolated values rely on `String(localized:defaultValue:arguments:)` for proper formatting across locales.

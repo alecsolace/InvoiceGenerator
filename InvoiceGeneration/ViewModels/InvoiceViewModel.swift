@@ -28,7 +28,12 @@ final class InvoiceViewModel {
             )
             invoices = try modelContext.fetch(descriptor)
         } catch {
-            errorMessage = "Failed to fetch invoices: \(error.localizedDescription)"
+            errorMessage = String(
+                localized: "invoice_fetch_error",
+                defaultValue: "Failed to fetch invoices: %@",
+                comment: "Error shown when invoices cannot be fetched",
+                arguments: error.localizedDescription
+            )
         }
         
         isLoading = false
@@ -121,7 +126,12 @@ final class InvoiceViewModel {
             )
             invoices = try modelContext.fetch(descriptor)
         } catch {
-            errorMessage = "Search failed: \(error.localizedDescription)"
+            errorMessage = String(
+                localized: "invoice_search_error",
+                defaultValue: "Search failed: %@",
+                comment: "Error shown when invoice search fails",
+                arguments: error.localizedDescription
+            )
         }
     }
     
@@ -142,7 +152,12 @@ final class InvoiceViewModel {
             )
             invoices = try modelContext.fetch(descriptor)
         } catch {
-            errorMessage = "Filter failed: \(error.localizedDescription)"
+            errorMessage = String(
+                localized: "invoice_filter_error",
+                defaultValue: "Filter failed: %@",
+                comment: "Error shown when filtering invoices fails",
+                arguments: error.localizedDescription
+            )
         }
     }
     
@@ -152,7 +167,12 @@ final class InvoiceViewModel {
         do {
             try modelContext.save()
         } catch {
-            errorMessage = "Failed to save: \(error.localizedDescription)"
+            errorMessage = String(
+                localized: "invoice_save_error",
+                defaultValue: "Failed to save: %@",
+                comment: "Error shown when saving an invoice fails",
+                arguments: error.localizedDescription
+            )
         }
     }
 }

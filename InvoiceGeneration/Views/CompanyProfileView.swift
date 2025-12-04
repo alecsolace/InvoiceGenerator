@@ -17,35 +17,39 @@ struct CompanyProfileView: View {
     var body: some View {
         NavigationStack {
             Form {
-                Section("Company Information") {
-                    TextField("Company Name", text: $companyName)
-                    
-                    TextField("Owner Name", text: $ownerName)
-                    
-                    TextField("Tax ID", text: $taxId)
+                Section {
+                    TextField(L10n.CompanyProfile.companyName, text: $companyName)
+
+                    TextField(L10n.CompanyProfile.ownerName, text: $ownerName)
+
+                    TextField(L10n.CompanyProfile.taxId, text: $taxId)
+                } header: {
+                    Text(L10n.CompanyProfile.companyInformation)
                 }
-                
-                Section("Contact Information") {
-                    TextField("Email", text: $email)
+
+                Section {
+                    TextField(L10n.InvoiceForm.email, text: $email)
                     #if iOS
                         .keyboardType(.emailAddress)
                         .textContentType(.emailAddress)
                         .autocapitalization(.none)
                     #endif
-                    TextField("Phone", text: $phone)
+                    TextField(L10n.CompanyProfile.phone, text: $phone)
                     #if iOS
                         .keyboardType(.phonePad)
                         .textContentType(.telephoneNumber)
                     #endif
-                    TextField("Address", text: $address, axis: .vertical)
+                    TextField(L10n.InvoiceForm.address, text: $address, axis: .vertical)
                         .lineLimit(3...6)
+                } header: {
+                    Text(L10n.CompanyProfile.contactInformation)
                 }
-                
+
                 Section {
                     Button(action: saveProfile) {
                         HStack {
                             Spacer()
-                            Text("Save Profile")
+                            Text(L10n.CompanyProfile.saveProfile)
                                 .fontWeight(.semibold)
                             Spacer()
                         }
@@ -53,11 +57,11 @@ struct CompanyProfileView: View {
                     .disabled(companyName.isEmpty)
                 }
             }
-            .navigationTitle("Company Profile")
-            .alert("Profile Saved", isPresented: $showingSaveConfirmation) {
-                Button("OK", role: .cancel) {}
+            .navigationTitle(L10n.CompanyProfile.title)
+            .alert(L10n.CompanyProfile.profileSavedTitle, isPresented: $showingSaveConfirmation) {
+                Button(L10n.Common.ok, role: .cancel) {}
             } message: {
-                Text("Your company profile has been saved successfully.")
+                Text(L10n.CompanyProfile.profileSavedMessage)
             }
         }
         .onAppear {

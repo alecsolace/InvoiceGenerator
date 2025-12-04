@@ -15,37 +15,41 @@ struct AddItemView: View {
     var body: some View {
         NavigationStack {
             Form {
-                Section("Item Details") {
-                    TextField("Description", text: $itemDescription, axis: .vertical)
+                Section {
+                    TextField(L10n.InvoiceItemForm.description, text: $itemDescription, axis: .vertical)
                         .lineLimit(2...4)
-                    
-                    Stepper("Quantity: \(quantity)", value: $quantity, in: 1...999)
-                    
-                    TextField("Unit Price", text: $unitPrice)
+
+                    Stepper(value: $quantity, in: 1...999) {
+                        Text(L10n.Messages.quantity(quantity))
+                    }
+
+                    TextField(L10n.InvoiceItemForm.unitPrice, text: $unitPrice)
 #if os(iOS)
                         .keyboardType(.decimalPad)
 #endif
+                } header: {
+                    Text(L10n.InvoiceItemForm.itemDetails)
                 }
-                
+
                 if let price = Decimal(string: unitPrice), price > 0 {
                     Section {
-                        LabeledContent("Total", value: (price * Decimal(quantity)).formattedAsCurrency)
+                        LabeledContent(L10n.InvoiceDetail.total, value: (price * Decimal(quantity)).formattedAsCurrency)
                     }
                 }
             }
-            .navigationTitle("Add Item")
+            .navigationTitle(L10n.InvoiceItemForm.addItemTitle)
 #if os(iOS)
             .navigationBarTitleDisplayMode(.inline)
 #endif
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") {
+                    Button(L10n.Common.cancel) {
                         dismiss()
                     }
                 }
-                
+
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Add") {
+                    Button(L10n.Common.add) {
                         addItem()
                     }
                     .disabled(!isValid)
@@ -95,39 +99,43 @@ struct EditInvoiceView: View {
     var body: some View {
         NavigationStack {
             Form {
-                Section("Client Information") {
-                    TextField("Client Name", text: $clientName)
-                    
-                    TextField("Email", text: $clientEmail)
+                Section {
+                    TextField(L10n.InvoiceForm.clientName, text: $clientName)
+
+                    TextField(L10n.InvoiceForm.email, text: $clientEmail)
 #if os(iOS)
                         .keyboardType(.emailAddress)
                         .textContentType(.emailAddress)
                         .textInputAutocapitalization(.never)
                         .autocorrectionDisabled(true)
 #endif
-                    
-                    TextField("Address", text: $clientAddress, axis: .vertical)
+
+                    TextField(L10n.InvoiceForm.address, text: $clientAddress, axis: .vertical)
                         .lineLimit(3...6)
+                } header: {
+                    Text(L10n.InvoiceForm.clientInformation)
                 }
-                
-                Section("Notes") {
-                    TextField("Notes", text: $notes, axis: .vertical)
+
+                Section {
+                    TextField(L10n.InvoiceDetail.notes, text: $notes, axis: .vertical)
                         .lineLimit(4...8)
+                } header: {
+                    Text(L10n.InvoiceDetail.notes)
                 }
             }
-            .navigationTitle("Edit Invoice")
+            .navigationTitle(L10n.InvoiceForm.editInvoiceTitle)
 #if os(iOS)
             .navigationBarTitleDisplayMode(.inline)
 #endif
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") {
+                    Button(L10n.Common.cancel) {
                         dismiss()
                     }
                 }
-                
+
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Save") {
+                    Button(L10n.Common.save) {
                         saveChanges()
                     }
                     .disabled(clientName.isEmpty)

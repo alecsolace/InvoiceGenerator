@@ -17,39 +17,43 @@ struct InvoiceDetailView: View {
     var body: some View {
         NavigationStack {
             List {
-                Section("Invoice Information") {
-                    LabeledContent("Invoice Number", value: invoice.invoiceNumber)
-                    LabeledContent("Issue Date", value: invoice.issueDate.mediumFormat)
-                    LabeledContent("Due Date", value: invoice.dueDate.mediumFormat)
-                    
+                Section {
+                    LabeledContent(L10n.InvoiceForm.invoiceNumber, value: invoice.invoiceNumber)
+                    LabeledContent(L10n.InvoiceForm.issueDate, value: invoice.issueDate.mediumFormat)
+                    LabeledContent(L10n.InvoiceForm.dueDate, value: invoice.dueDate.mediumFormat)
+
                     HStack {
-                        Text("Status")
+                        Text(L10n.InvoiceDetail.status)
                         Spacer()
                         Menu {
                             ForEach(InvoiceStatus.allCases, id: \.self) { status in
-                                Button(status.rawValue) {
+                                Button(status.localizedName) {
                                     viewModel.updateStatus(invoice, status: status)
                                 }
                             }
                         } label: {
                             HStack {
-                                Text(invoice.status.rawValue)
+                                Text(invoice.status.localizedName)
                                 Image(systemName: "chevron.up.chevron.down")
                                     .font(.caption)
                             }
                             .foregroundStyle(statusColor)
                         }
                     }
+                } header: {
+                    Text(L10n.InvoiceDetail.information)
                 }
-                
-                Section("Client Information") {
-                    LabeledContent("Name", value: invoice.clientName)
+
+                Section {
+                    LabeledContent(L10n.InvoiceForm.clientName, value: invoice.clientName)
                     if !invoice.clientEmail.isEmpty {
-                        LabeledContent("Email", value: invoice.clientEmail)
+                        LabeledContent(L10n.InvoiceForm.email, value: invoice.clientEmail)
                     }
                     if !invoice.clientAddress.isEmpty {
-                        LabeledContent("Address", value: invoice.clientAddress)
+                        LabeledContent(L10n.InvoiceForm.address, value: invoice.clientAddress)
                     }
+                } header: {
+                    Text(L10n.InvoiceForm.clientInformation)
                 }
                 
                 Section {
@@ -64,7 +68,10 @@ struct InvoiceDetailView: View {
                             }
                             
                             HStack {
-                                Text("\(item.quantity) × \(item.unitPrice.formattedAsCurrency)")
+                                Text(L10n.Messages.itemQuantityPrice(
+                                    quantity: item.quantity,
+                                    unitPrice: item.unitPrice.formattedAsCurrency
+                                ))
                                     .font(.caption)
                                     .foregroundStyle(.secondary)
                                 Spacer()
@@ -74,19 +81,19 @@ struct InvoiceDetailView: View {
                             Button(role: .destructive) {
                                 viewModel.removeItem(item, from: invoice)
                             } label: {
-                                Label("Delete", systemImage: "trash")
+                                Label(L10n.Common.delete, systemImage: "trash")
                             }
                         }
                     }
-                    
+
                     Button(action: { showingAddItem = true }) {
-                        Label("Add Item", systemImage: "plus.circle")
+                        Label(L10n.InvoiceItemForm.addItemTitle, systemImage: "plus.circle")
                     }
                 } header: {
-                    Text("Items")
+                    Text(L10n.InvoiceDetail.items)
                 } footer: {
                     HStack {
-                        Text("Total")
+                        Text(L10n.InvoiceDetail.total)
                             .font(.headline)
                         Spacer()
                         Text(invoice.totalAmount.formattedAsCurrency)
@@ -96,48 +103,50 @@ struct InvoiceDetailView: View {
                 }
                 
                 if !invoice.notes.isEmpty {
-                    Section("Notes") {
+                    Section {
                         Text(invoice.notes)
+                    } header: {
+                        Text(L10n.InvoiceDetail.notes)
                     }
                 }
             }
-            .navigationTitle("Invoice Details")
+            .navigationTitle(L10n.InvoiceDetail.title)
             #if iOS
             .navigationBarTitleDisplayMode(.inline)
             #endif
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Done") {
+                    Button(L10n.Common.done) {
                         dismiss()
                     }
                 }
-                
+
                 #if os(iOS)
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Menu {
                         Button(action: { generatePDF() }) {
-                            Label("Generate PDF", systemImage: "doc.fill")
+                            Label(L10n.InvoiceDetail.generatePDF, systemImage: "doc.fill")
                         }
-                        
+
                         Button(action: { showingEditInvoice = true }) {
-                            Label("Edit", systemImage: "pencil")
+                            Label(L10n.Common.edit, systemImage: "pencil")
                         }
                     } label: {
-                        Label("More", systemImage: "ellipsis.circle")
+                        Label(L10n.Common.more, systemImage: "ellipsis.circle")
                     }
                 }
                 #else
                 ToolbarItem(placement: .automatic) {
                     Menu {
                         Button(action: { generatePDF() }) {
-                            Label("Generate PDF", systemImage: "doc.fill")
+                            Label(L10n.InvoiceDetail.generatePDF, systemImage: "doc.fill")
                         }
-                        
+
                         Button(action: { showingEditInvoice = true }) {
-                            Label("Edit", systemImage: "pencil")
+                            Label(L10n.Common.edit, systemImage: "pencil")
                         }
                     } label: {
-                        Label("More", systemImage: "ellipsis.circle")
+                        Label(L10n.Common.more, systemImage: "ellipsis.circle")
                     }
                 }
                 #endif
@@ -175,7 +184,7 @@ struct InvoiceDetailView: View {
             invoice: invoice,
             companyProfile: profile
         ) {
-            let fileName = "Invoice_\(invoice.invoiceNumber)"
+            let fileName = L10n.PDF.fileName(invoice.invoiceNumber)
             if let url = PDFGeneratorService.savePDF(pdfDocument, fileName: fileName) {
                 pdfURL = url
                 showingShareSheet = true

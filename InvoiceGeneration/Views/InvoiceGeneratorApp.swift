@@ -21,13 +21,13 @@ struct ContentView: View {
         TabView(selection: $selectedTab) {
             InvoiceListView()
                 .tabItem {
-                    Label("Invoices", systemImage: "doc.text")
+                    Label(L10n.Tabs.invoices, systemImage: "doc.text")
                 }
                 .tag(0)
-            
+
             CompanyProfileView()
                 .tabItem {
-                    Label("Profile", systemImage: "building.2")
+                    Label(L10n.Tabs.profile, systemImage: "building.2")
                 }
                 .tag(1)
         }

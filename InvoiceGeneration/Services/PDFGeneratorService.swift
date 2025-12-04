@@ -19,8 +19,8 @@ final class PDFGeneratorService {
     ) -> PDFDocument? {
         let pdfMetaData: [CFString: Any] = [
             kCGPDFContextCreator: "InvoiceGenerator",
-            kCGPDFContextAuthor: companyProfile?.companyName ?? "Invoice Generator",
-            kCGPDFContextTitle: "Invoice \(invoice.invoiceNumber)"
+            kCGPDFContextAuthor: companyProfile?.companyName ?? L10n.PDF.authorFallback,
+            kCGPDFContextTitle: L10n.PDF.title(invoice.invoiceNumber)
         ]
         
         let data = NSMutableData()
@@ -168,7 +168,7 @@ final class PDFGeneratorService {
         var yPosition = startY
         
         drawText(
-            "INVOICE",
+            L10n.PDF.heading,
             style: .bold(size: 32),
             at: CGPoint(x: 50, y: yPosition),
             in: context
@@ -181,7 +181,7 @@ final class PDFGeneratorService {
         
         // Invoice number
         drawText(
-            "Invoice #:",
+            L10n.PDF.invoiceNumber,
             style: labelStyle,
             at: CGPoint(x: 50, y: yPosition),
             in: context
@@ -196,7 +196,7 @@ final class PDFGeneratorService {
         
         // Issue date
         drawText(
-            "Issue Date:",
+            L10n.PDF.issueDate,
             style: labelStyle,
             at: CGPoint(x: 50, y: yPosition),
             in: context
@@ -211,7 +211,7 @@ final class PDFGeneratorService {
         
         // Due date
         drawText(
-            "Due Date:",
+            L10n.PDF.dueDate,
             style: labelStyle,
             at: CGPoint(x: 50, y: yPosition),
             in: context
@@ -226,13 +226,13 @@ final class PDFGeneratorService {
         
         // Status
         drawText(
-            "Status:",
+            L10n.PDF.status,
             style: labelStyle,
             at: CGPoint(x: 50, y: yPosition),
             in: context
         )
         drawText(
-            invoice.status.rawValue,
+            invoice.status.localizedName,
             style: valueStyle,
             at: CGPoint(x: 150, y: yPosition),
             in: context
@@ -251,7 +251,7 @@ final class PDFGeneratorService {
         var yPosition = startY
         
         drawText(
-            "BILL TO:",
+            L10n.PDF.billTo,
             style: .bold(size: 14),
             at: CGPoint(x: 50, y: yPosition),
             in: context
@@ -309,10 +309,10 @@ final class PDFGeneratorService {
         context.setFillColor(PDFColor.tableHeader)
         context.fill(headerRect)
         
-        drawText("Description", style: headerStyle, at: CGPoint(x: 60, y: yPosition + 8), in: context)
-        drawText("Qty", style: headerStyle, at: CGPoint(x: 350, y: yPosition + 8), in: context)
-        drawText("Price", style: headerStyle, at: CGPoint(x: 410, y: yPosition + 8), in: context)
-        drawText("Total", style: headerStyle, at: CGPoint(x: 480, y: yPosition + 8), in: context)
+        drawText(L10n.PDF.description, style: headerStyle, at: CGPoint(x: 60, y: yPosition + 8), in: context)
+        drawText(L10n.PDF.quantity, style: headerStyle, at: CGPoint(x: 350, y: yPosition + 8), in: context)
+        drawText(L10n.PDF.price, style: headerStyle, at: CGPoint(x: 410, y: yPosition + 8), in: context)
+        drawText(L10n.PDF.total, style: headerStyle, at: CGPoint(x: 480, y: yPosition + 8), in: context)
         
         yPosition += 35
         
@@ -332,7 +332,8 @@ final class PDFGeneratorService {
                 in: context
             )
             
-            let price = formatter.string(from: item.unitPrice as NSDecimalNumber) ?? "$0.00"
+            let price = formatter.string(from: item.unitPrice as NSDecimalNumber) ??
+                (formatter.string(from: 0) ?? "")
             drawText(
                 price,
                 style: cellStyle,
@@ -340,7 +341,8 @@ final class PDFGeneratorService {
                 in: context
             )
             
-            let total = formatter.string(from: item.total as NSDecimalNumber) ?? "$0.00"
+            let total = formatter.string(from: item.total as NSDecimalNumber) ??
+                (formatter.string(from: 0) ?? "")
             drawText(
                 total,
                 style: cellStyle,
@@ -372,13 +374,14 @@ final class PDFGeneratorService {
         let yPosition = startY
         
         let totalStyle = PDFTextStyle(font: PDFFont.bold(16), color: PDFColor.black)
-        drawText("TOTAL:", style: totalStyle, at: CGPoint(x: 350, y: yPosition), in: context)
+        drawText(L10n.PDF.totalAmount, style: totalStyle, at: CGPoint(x: 350, y: yPosition), in: context)
         
         let formatter = NumberFormatter()
         formatter.numberStyle = .currency
         formatter.locale = Locale.current
         
-        let totalAmount = formatter.string(from: invoice.totalAmount as NSDecimalNumber) ?? "$0.00"
+        let totalAmount = formatter.string(from: invoice.totalAmount as NSDecimalNumber) ??
+            (formatter.string(from: 0) ?? "")
         drawText(totalAmount, style: totalStyle, at: CGPoint(x: 450, y: yPosition), in: context)
         
         return yPosition + 25
@@ -392,7 +395,7 @@ final class PDFGeneratorService {
     ) -> CGFloat {
         var yPosition = startY
         
-        drawText("Notes:", style: .bold(size: 12), at: CGPoint(x: 50, y: yPosition), in: context)
+        drawText(L10n.PDF.notes, style: .bold(size: 12), at: CGPoint(x: 50, y: yPosition), in: context)
         yPosition += 20
         
         let notesRect = CGRect(x: 50, y: yPosition, width: pageRect.width - 100, height: 100)

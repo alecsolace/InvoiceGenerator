@@ -26,7 +26,12 @@ final class CompanyProfileViewModel {
             let profiles = try modelContext.fetch(descriptor)
             profile = profiles.first
         } catch {
-            errorMessage = "Failed to fetch profile: \(error.localizedDescription)"
+            errorMessage = String(
+                localized: "profile_fetch_error",
+                defaultValue: "Failed to fetch profile: %@",
+                comment: "Error shown when company profile cannot be loaded",
+                arguments: error.localizedDescription
+            )
         }
         
         isLoading = false
@@ -86,7 +91,12 @@ final class CompanyProfileViewModel {
         do {
             try modelContext.save()
         } catch {
-            errorMessage = "Failed to save profile: \(error.localizedDescription)"
+            errorMessage = String(
+                localized: "profile_save_error",
+                defaultValue: "Failed to save profile: %@",
+                comment: "Error shown when saving the company profile fails",
+                arguments: error.localizedDescription
+            )
         }
     }
 }
