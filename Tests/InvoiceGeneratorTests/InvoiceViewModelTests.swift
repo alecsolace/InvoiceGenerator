@@ -19,9 +19,7 @@ final class InvoiceViewModelTests: XCTestCase {
     }
     
     override func tearDown() async throws {
-        viewModel = nil
-        modelContainer = nil
-        modelContext = nil
+        // Objects will be automatically deallocated by ARC
     }
     
     func testCreateInvoice() throws {

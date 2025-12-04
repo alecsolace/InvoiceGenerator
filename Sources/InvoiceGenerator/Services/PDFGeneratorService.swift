@@ -3,14 +3,18 @@ import PDFKit
 
 #if canImport(UIKit)
 import UIKit
-typealias PlatformImage = UIImage
 #elseif canImport(AppKit)
 import AppKit
-typealias PlatformImage = NSImage
 #endif
 
 /// Service for generating PDF invoices using PDFKit
 final class PDFGeneratorService {
+    
+    // MARK: - Constants
+    
+    /// A4 page dimensions in points (210mm x 297mm)
+    private static let pageWidth: CGFloat = 595
+    private static let pageHeight: CGFloat = 842
     
     /// Generate a PDF document for an invoice
     static func generateInvoicePDF(
@@ -25,7 +29,7 @@ final class PDFGeneratorService {
         let format = UIGraphicsPDFRendererFormat()
         format.documentInfo = pdfMetaData as [String: Any]
         
-        let pageRect = CGRect(x: 0, y: 0, width: 595, height: 842) // A4 size in points
+        let pageRect = CGRect(x: 0, y: 0, width: pageWidth, height: pageHeight)
         let renderer = UIGraphicsPDFRenderer(bounds: pageRect, format: format)
         
         let data = renderer.pdfData { context in
@@ -302,7 +306,7 @@ final class PDFGeneratorService {
             
             let formatter = NumberFormatter()
             formatter.numberStyle = .currency
-            formatter.currencyCode = "USD"
+            formatter.locale = Locale.current
             
             let price = formatter.string(from: item.unitPrice as NSDecimalNumber) ?? "$0.00"
             (price as NSString).draw(at: CGPoint(x: 410, y: yPosition), withAttributes: cellAttributes)
@@ -344,7 +348,7 @@ final class PDFGeneratorService {
         
         let formatter = NumberFormatter()
         formatter.numberStyle = .currency
-        formatter.currencyCode = "USD"
+        formatter.locale = Locale.current
         
         let totalAmount = formatter.string(from: invoice.totalAmount as NSDecimalNumber) ?? "$0.00"
         (totalAmount as NSString).draw(at: CGPoint(x: 450, y: yPosition), withAttributes: totalAttributes)

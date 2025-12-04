@@ -166,7 +166,8 @@ struct InvoiceDetailView: View {
     }
 }
 
-/// Share sheet for iOS
+/// Share sheet for sharing PDF documents - iOS/macOS compatible
+#if canImport(UIKit)
 struct ShareSheet: UIViewControllerRepresentable {
     let items: [Any]
     
@@ -176,6 +177,24 @@ struct ShareSheet: UIViewControllerRepresentable {
     
     func updateUIViewController(_ uiViewController: UIActivityViewController, context: Context) {}
 }
+#elseif canImport(AppKit)
+struct ShareSheet: NSViewRepresentable {
+    let items: [Any]
+    
+    func makeNSView(context: Context) -> NSView {
+        let view = NSView()
+        // On macOS, use NSSharingService
+        DispatchQueue.main.async {
+            guard let url = items.first as? URL else { return }
+            let sharingService = NSSharingService(named: .sendViaAirDrop)
+            sharingService?.perform(withItems: [url])
+        }
+        return view
+    }
+    
+    func updateNSView(_ nsView: NSView, context: Context) {}
+}
+#endif
 
 #Preview {
     let config = ModelConfiguration(isStoredInMemoryOnly: true)
