@@ -8,7 +8,7 @@ struct InvoiceGeneratorApp: App {
         WindowGroup {
             ContentView()
         }
-        .modelContainer(for: [Invoice.self, InvoiceItem.self, CompanyProfile.self])
+        .modelContainer(for: [Invoice.self, InvoiceItem.self, CompanyProfile.self, Client.self])
     }
 }
 
@@ -24,17 +24,23 @@ struct ContentView: View {
                     Label("Invoices", systemImage: "doc.text")
                 }
                 .tag(0)
-            
+
+            ClientListView()
+                .tabItem {
+                    Label("Clients", systemImage: "person.2")
+                }
+                .tag(1)
+
             CompanyProfileView()
                 .tabItem {
                     Label("Profile", systemImage: "building.2")
                 }
-                .tag(1)
+                .tag(2)
         }
     }
 }
 
 #Preview {
     ContentView()
-        .modelContainer(for: [Invoice.self, InvoiceItem.self, CompanyProfile.self])
+        .modelContainer(for: [Invoice.self, InvoiceItem.self, CompanyProfile.self, Client.self])
 }

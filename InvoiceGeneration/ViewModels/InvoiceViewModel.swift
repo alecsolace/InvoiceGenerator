@@ -39,15 +39,21 @@ final class InvoiceViewModel {
         invoiceNumber: String,
         clientName: String,
         clientEmail: String = "",
-        clientAddress: String = ""
+        clientAddress: String = "",
+        client: Client? = nil,
+        issueDate: Date = Date(),
+        dueDate: Date = Date().addingTimeInterval(30 * 24 * 60 * 60)
     ) {
         let invoice = Invoice(
             invoiceNumber: invoiceNumber,
             clientName: clientName,
             clientEmail: clientEmail,
-            clientAddress: clientAddress
+            clientAddress: clientAddress,
+            client: client,
+            issueDate: issueDate,
+            dueDate: dueDate
         )
-        
+
         modelContext.insert(invoice)
         saveContext()
         fetchInvoices()
@@ -103,39 +109,20 @@ final class InvoiceViewModel {
         fetchInvoices()
     }
     
-    /// Search invoices by client name or invoice number
-    func searchInvoices(query: String) {
-        guard !query.isEmpty else {
-            fetchInvoices()
-            return
+    /// Apply search and filter parameters to invoices
+    func applyFilters(
+        query: String,
+        status: InvoiceStatus?,
+        client: Client?
+    ) {
+        let predicate = #Predicate<Invoice> { invoice in
+            let matchesStatus = status == nil || invoice.status == status!
+            let matchesClient = client == nil || invoice.client?.id == client!.id
+            let matchesQuery = query.isEmpty || invoice.clientName.localizedStandardContains(query) || invoice.invoiceNumber.localizedStandardContains(query)
+            return matchesStatus && matchesClient && matchesQuery
         }
-        
+
         do {
-            let predicate = #Predicate<Invoice> { invoice in
-                invoice.clientName.localizedStandardContains(query) ||
-                invoice.invoiceNumber.localizedStandardContains(query)
-            }
-            let descriptor = FetchDescriptor<Invoice>(
-                predicate: predicate,
-                sortBy: [SortDescriptor(\.issueDate, order: .reverse)]
-            )
-            invoices = try modelContext.fetch(descriptor)
-        } catch {
-            errorMessage = "Search failed: \(error.localizedDescription)"
-        }
-    }
-    
-    /// Filter invoices by status
-    func filterByStatus(_ status: InvoiceStatus?) {
-        guard let status = status else {
-            fetchInvoices()
-            return
-        }
-        
-        do {
-            let predicate = #Predicate<Invoice> { invoice in
-                invoice.status == status
-            }
             let descriptor = FetchDescriptor<Invoice>(
                 predicate: predicate,
                 sortBy: [SortDescriptor(\.issueDate, order: .reverse)]

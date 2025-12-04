@@ -7,9 +7,12 @@ struct InvoiceListView: View {
     @State private var viewModel: InvoiceViewModel?
     @State private var searchText = ""
     @State private var selectedStatus: InvoiceStatus?
+    @State private var selectedClient: Client?
     @State private var showingAddInvoice = false
     @State private var showingInvoiceDetail = false
     @State private var selectedInvoice: Invoice?
+
+    @Query(sort: [SortDescriptor(\.name)]) private var clients: [Client]
     
     var body: some View {
         NavigationStack {
@@ -48,7 +51,13 @@ struct InvoiceListView: View {
             }
         }
         .onChange(of: searchText) { _, newValue in
-            viewModel?.searchInvoices(query: newValue)
+            refreshFilters(query: newValue)
+        }
+        .onChange(of: selectedStatus) { _, _ in
+            refreshFilters()
+        }
+        .onChange(of: selectedClient) { _, _ in
+            refreshFilters()
         }
     }
     
@@ -118,18 +127,39 @@ struct InvoiceListView: View {
         Menu {
             Button("All Invoices") {
                 selectedStatus = nil
-                viewModel?.filterByStatus(nil)
+                selectedClient = nil
+                refreshFilters()
             }
-            
-            ForEach(InvoiceStatus.allCases, id: \.self) { status in
-                Button(status.rawValue) {
-                    selectedStatus = status
-                    viewModel?.filterByStatus(status)
+
+            Section("Status") {
+                ForEach(InvoiceStatus.allCases, id: \.self) { status in
+                    Button(status.rawValue) {
+                        selectedStatus = status
+                    }
+                }
+            }
+
+            if !clients.isEmpty {
+                Section("Client") {
+                    Button("All Clients") {
+                        selectedClient = nil
+                    }
+
+                    ForEach(clients) { client in
+                        Button(client.name) {
+                            selectedClient = client
+                        }
+                    }
                 }
             }
         } label: {
             Label("Filter", systemImage: "line.3.horizontal.decrease.circle")
         }
+    }
+
+    private func refreshFilters(query: String? = nil) {
+        let currentQuery = query ?? searchText
+        viewModel?.applyFilters(query: currentQuery, status: selectedStatus, client: selectedClient)
     }
 }
 
@@ -191,7 +221,7 @@ struct InvoiceRowView: View {
 
 #Preview {
     InvoiceListView()
-        .modelContainer(for: [Invoice.self, InvoiceItem.self, CompanyProfile.self])
+        .modelContainer(for: [Invoice.self, InvoiceItem.self, CompanyProfile.self, Client.self])
 }
 
 // MARK: - Platform helpers
