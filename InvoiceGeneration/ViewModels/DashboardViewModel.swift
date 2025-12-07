@@ -45,7 +45,7 @@ final class DashboardViewModel {
         let calendar = Calendar.current
 
         let revenueByMonth: [Date: Double] = paidInvoices.reduce(into: [:]) { partialResult, invoice in
-            let components = calendar.dateComponents([.year, .month], from: invoice.issueDate)
+            let components = calendar.dateComponents([.year, .month], from: invoice.updatedAt)
             guard let monthDate = calendar.date(from: components) else { return }
 
             let total = NSDecimalNumber(decimal: invoice.totalAmount).doubleValue
