@@ -26,11 +26,19 @@ struct ClientListView: View {
             .navigationTitle("Clients")
             .searchable(text: $searchText, prompt: "Search clients")
             .toolbar {
+                #if os(iOS)
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button(action: { showingAddClient = true }) {
                         Label("Add Client", systemImage: "plus")
                     }
                 }
+                #else
+                ToolbarItem(placement: .automatic) {
+                    Button(action: { showingAddClient = true }) {
+                        Label("Add Client", systemImage: "plus")
+                    }
+                }
+                #endif
             }
             .sheet(isPresented: $showingAddClient) {
                 if let viewModel = viewModel {

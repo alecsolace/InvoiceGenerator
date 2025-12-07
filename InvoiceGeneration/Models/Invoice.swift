@@ -72,6 +72,13 @@ enum InvoiceStatus: String, Codable, CaseIterable {
     case cancelled = "Cancelled"
 }
 
+extension InvoiceStatus {
+    /// Localized title for display purposes
+    var localizedTitle: String {
+        NSLocalizedString(rawValue, comment: "Invoice status label")
+    }
+}
+
 /// Individual line item in an invoice
 @Model
 final class InvoiceItem {

@@ -9,8 +9,6 @@ struct InvoiceListView: View {
     @State private var selectedStatus: InvoiceStatus?
     @State private var selectedClientID: UUID?
     @State private var showingAddInvoice = false
-    @State private var showingInvoiceDetail = false
-    @State private var selectedInvoice: Invoice?
     @Query(sort: [SortDescriptor(\Client.name)]) private var clients: [Client]
     
     var body: some View {
@@ -36,11 +34,6 @@ struct InvoiceListView: View {
             .sheet(isPresented: $showingAddInvoice) {
                 if let viewModel = viewModel {
                     AddInvoiceView(viewModel: viewModel)
-                }
-            }
-            .sheet(item: $selectedInvoice) { invoice in
-                if let viewModel = viewModel {
-                    InvoiceDetailView(invoice: invoice, viewModel: viewModel)
                 }
             }
         }
@@ -86,14 +79,14 @@ struct InvoiceListView: View {
     private func invoiceList(viewModel: InvoiceViewModel) -> some View {
         List {
             ForEach(viewModel.invoices) { invoice in
-                InvoiceRowView(invoice: invoice)
-                    .contentShape(Rectangle())
-                    .onTapGesture {
-                        selectedInvoice = invoice
-                    }
-                    .platformContextActions {
-                        viewModel.deleteInvoice(invoice)
-                    }
+                NavigationLink {
+                    InvoiceDetailView(invoice: invoice, viewModel: viewModel)
+                } label: {
+                    InvoiceRowView(invoice: invoice)
+                }
+                .platformContextActions {
+                    viewModel.deleteInvoice(invoice)
+                }
             }
         }
     }
@@ -137,7 +130,7 @@ struct InvoiceListView: View {
             }
             
             ForEach(InvoiceStatus.allCases, id: \.self) { status in
-                Button(status.rawValue) {
+                Button(status.localizedTitle) {
                     selectedStatus = status
                     viewModel?.filterByStatus(status)
                 }
@@ -207,7 +200,7 @@ struct InvoiceRowView: View {
     }
     
     private var statusBadge: some View {
-        Text(invoice.status.rawValue)
+        Text(invoice.status.localizedTitle)
             .font(.caption)
             .fontWeight(.medium)
             .padding(.horizontal, 8)

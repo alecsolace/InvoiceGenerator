@@ -1,0 +1,288 @@
+ (cd "$(git rev-parse --show-toplevel)" && git apply --3way <<'EOF' 
+diff --git a/InvoiceGeneration/ViewModels/DashboardViewModel.swift b/InvoiceGeneration/ViewModels/DashboardViewModel.swift
+new file mode 100644
+index 0000000000000000000000000000000000000000..92f7edfbd74a1b49fd2514514e024f47ffa1a89b
+--- /dev/null
++++ b/InvoiceGeneration/ViewModels/DashboardViewModel.swift
+@@ -0,0 +1,75 @@
++import Foundation
++import Observation
++import SwiftData
++
++/// ViewModel for dashboard analytics
++@Observable
++final class DashboardViewModel {
++    private let modelContext: ModelContext
++
++    var invoices: [Invoice] = []
++    var errorMessage: String?
++
++    init(modelContext: ModelContext) {
++        self.modelContext = modelContext
++        fetchInvoices()
++    }
++
++    /// Refresh invoices for analytics calculations
++    func fetchInvoices() {
++        do {
++            let descriptor = FetchDescriptor<Invoice>(
++                sortBy: [SortDescriptor(\.issueDate, order: .reverse)]
++            )
++            invoices = try modelContext.fetch(descriptor)
++        } catch {
++            errorMessage = "Failed to load invoices: \(error.localizedDescription)"
++        }
++    }
++
++    /// Count invoices by status for donut chart
++    var statusSummaries: [InvoiceStatusSummary] {
++        let counts = invoices.reduce(into: [:]) { partialResult, invoice in
++            partialResult[invoice.status, default: 0] += 1
++        }
++
++        return InvoiceStatus.allCases.compactMap { status in
++            guard let count = counts[status] else { return nil }
++            return InvoiceStatusSummary(status: status, count: count)
++        }
++    }
++
++    /// Monthly revenue based on paid invoices
++    var monthlyRevenue: [MonthlyRevenue] {
++        let paidInvoices = invoices.filter { $0.status == .paid }
++        let calendar = Calendar.current
++
++        let revenueByMonth = paidInvoices.reduce(into: [:]) { partialResult, invoice in
++            let components = calendar.dateComponents([.year, .month], from: invoice.issueDate)
++            guard let monthDate = calendar.date(from: components) else { return }
++
++            let total = NSDecimalNumber(decimal: invoice.totalAmount).doubleValue
++            partialResult[monthDate, default: 0] += total
++        }
++
++        return revenueByMonth
++            .map { MonthlyRevenue(month: $0.key, total: $0.value) }
++            .sorted { $0.month < $1.month }
++    }
++}
++
++/// Aggregated invoice status data
++struct InvoiceStatusSummary: Identifiable {
++    let status: InvoiceStatus
++    let count: Int
++
++    var id: InvoiceStatus { status }
++}
++
++/// Aggregated monthly revenue from paid invoices
++struct MonthlyRevenue: Identifiable {
++    let month: Date
++    let total: Double
++
++    var id: Date { month }
++}
+diff --git a/InvoiceGeneration/Views/DashboardView.swift b/InvoiceGeneration/Views/DashboardView.swift
+new file mode 100644
+index 0000000000000000000000000000000000000000..8845c462219caa143bc93b76029d8f0bd6692428
+--- /dev/null
++++ b/InvoiceGeneration/Views/DashboardView.swift
+@@ -0,0 +1,137 @@
++import Charts
++import SwiftUI
++import SwiftData
++
++/// Dashboard with invoice status and revenue charts
++struct DashboardView: View {
++    @Environment(\.modelContext) private var modelContext
++    @State private var viewModel: DashboardViewModel?
++
++    var body: some View {
++        NavigationStack {
++            Group {
++                if let viewModel = viewModel {
++                    ScrollView {
++                        VStack(alignment: .leading, spacing: 24) {
++                            statusSection(viewModel: viewModel)
++                            revenueSection(viewModel: viewModel)
++                        }
++                        .padding()
++                    }
++                } else {
++                    ProgressView("Loading dashboard…")
++                }
++            }
++            .navigationTitle("Dashboard")
++            .toolbar { refreshButton }
++        }
++        .onAppear { loadViewModelIfNeeded() }
++    }
++
++    private func statusSection(viewModel: DashboardViewModel) -> some View {
++        VStack(alignment: .leading, spacing: 12) {
++            Text("Estados de facturas")
++                .font(.title2)
++                .fontWeight(.semibold)
++
++            if viewModel.statusSummaries.isEmpty {
++                Text("Aún no hay facturas para mostrar.")
++                    .foregroundStyle(.secondary)
++            } else {
++                Chart(viewModel.statusSummaries) { summary in
++                    SectorMark(
++                        angle: .value("Cantidad", summary.count),
++                        innerRadius: .ratio(0.6)
++                    )
++                    .foregroundStyle(by: .value("Estado", summary.status.rawValue))
++                    .annotation(position: .overlay) {
++                        VStack {
++                            Text(summary.status.rawValue)
++                                .font(.caption)
++                            Text("\(summary.count)")
++                                .font(.headline)
++                        }
++                        .padding(6)
++                        .background(.thinMaterial)
++                        .clipShape(RoundedRectangle(cornerRadius: 8))
++                    }
++                }
++                .chartLegend(.visible)
++                .chartForegroundStyleScale(statusColorScale)
++                .frame(height: 260)
++            }
++        }
++    }
++
++    private func revenueSection(viewModel: DashboardViewModel) -> some View {
++        VStack(alignment: .leading, spacing: 12) {
++            Text("Ingresos cobrados por mes")
++                .font(.title2)
++                .fontWeight(.semibold)
++
++            if viewModel.monthlyRevenue.isEmpty {
++                Text("No hay facturas pagadas todavía.")
++                    .foregroundStyle(.secondary)
++            } else {
++                Chart(viewModel.monthlyRevenue) { revenue in
++                    BarMark(
++                        x: .value("Mes", revenue.month, unit: .month),
++                        y: .value("Ingresos", revenue.total)
++                    )
++                    .foregroundStyle(.blue.gradient)
++                }
++                .chartXAxis {
++                    AxisMarks(values: .stride(by: .month)) { value in
++                        if let dateValue = value.as(Date.self) {
++                            AxisGridLine()
++                            AxisValueLabel(monthLabel(for: dateValue))
++                        }
++                    }
++                }
++                .chartYAxis {
++                    AxisMarks(position: .leading)
++                }
++                .frame(height: 260)
++            }
++        }
++    }
++
++    @ToolbarContentBuilder
++    private var refreshButton: some ToolbarContent {
++        ToolbarItem(placement: .primaryAction) {
++            Button(action: { viewModel?.fetchInvoices() }) {
++                Label("Refrescar", systemImage: "arrow.clockwise")
++            }
++        }
++    }
++
++    private func monthLabel(for date: Date) -> String {
++        let formatter = DateFormatter()
++        formatter.locale = Locale.current
++        formatter.dateFormat = "MMM yyyy"
++        return formatter.string(from: date)
++    }
++
++    private func loadViewModelIfNeeded() {
++        if viewModel == nil {
++            viewModel = DashboardViewModel(modelContext: modelContext)
++        } else {
++            viewModel?.fetchInvoices()
++        }
++    }
++
++    private var statusColorScale: [String: Color] {
++        [
++            InvoiceStatus.draft.rawValue: .gray,
++            InvoiceStatus.sent.rawValue: .blue,
++            InvoiceStatus.paid.rawValue: .green,
++            InvoiceStatus.overdue.rawValue: .red,
++            InvoiceStatus.cancelled.rawValue: .orange
++        ]
++    }
++}
++
++#Preview {
++    DashboardView()
++        .modelContainer(for: [Invoice.self, InvoiceItem.self, CompanyProfile.self, Client.self])
++}
+diff --git a/InvoiceGeneration/Views/InvoiceGeneratorApp.swift b/InvoiceGeneration/Views/InvoiceGeneratorApp.swift
+index 3fe1073ac0f228affc0d73fd28f14424eb56984f..dfc6e80965eb548c2b3d2cbe8c745d88a2073b34 100644
+--- a/InvoiceGeneration/Views/InvoiceGeneratorApp.swift
++++ b/InvoiceGeneration/Views/InvoiceGeneratorApp.swift
+@@ -1,46 +1,52 @@
+ import SwiftUI
+ import SwiftData
+ 
+ /// Main app entry point with SwiftData configuration
+ @main
+ struct InvoiceGeneratorApp: App {
+     var body: some Scene {
+         WindowGroup {
+             ContentView()
+         }
+         .modelContainer(for: [Invoice.self, InvoiceItem.self, CompanyProfile.self, Client.self])
+     }
+ }
+ 
+ /// Main content view
+ struct ContentView: View {
+     @Environment(\.modelContext) private var modelContext
+     @State private var selectedTab = 0
+     
+     var body: some View {
+         TabView(selection: $selectedTab) {
++            DashboardView()
++                .tabItem {
++                    Label("Dashboard", systemImage: "chart.pie")
++                }
++                .tag(0)
++
+             InvoiceListView()
+                 .tabItem {
+                     Label("Invoices", systemImage: "doc.text")
+                 }
+-                .tag(0)
++                .tag(1)
+ 
+             ClientListView()
+                 .tabItem {
+                     Label("Clients", systemImage: "person.3")
+                 }
+-                .tag(1)
++                .tag(2)
+ 
+             CompanyProfileView()
+                 .tabItem {
+                     Label("Profile", systemImage: "building.2")
+                 }
+-                .tag(2)
++                .tag(3)
+         }
+     }
+ }
+ 
+ #Preview {
+     ContentView()
+         .modelContainer(for: [Invoice.self, InvoiceItem.self, CompanyProfile.self, Client.self])
+ }
+ 
+EOF
+)

@@ -19,23 +19,29 @@ struct ContentView: View {
     
     var body: some View {
         TabView(selection: $selectedTab) {
+            DashboardView()
+                .tabItem {
+                    Label("Dashboard", systemImage: "chart.pie")
+                }
+                .tag(0)
+
             InvoiceListView()
                 .tabItem {
                     Label("Invoices", systemImage: "doc.text")
                 }
-                .tag(0)
+                .tag(1)
 
             ClientListView()
                 .tabItem {
                     Label("Clients", systemImage: "person.3")
                 }
-                .tag(1)
+                .tag(2)
 
             CompanyProfileView()
                 .tabItem {
                     Label("Profile", systemImage: "building.2")
                 }
-                .tag(2)
+                .tag(3)
         }
     }
 }

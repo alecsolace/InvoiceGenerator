@@ -1,18 +1,24 @@
+import Foundation
 import SwiftUI
 import SwiftData
+#if canImport(AppKit)
+import AppKit
+#endif
 
 /// Detailed view for a single invoice
 struct InvoiceDetailView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
     
-    let invoice: Invoice
+    @Bindable var invoice: Invoice
     @Bindable var viewModel: InvoiceViewModel
     
     @State private var showingAddItem = false
     @State private var showingEditInvoice = false
     @State private var showingShareSheet = false
+    @State private var showingPDFSaveConfirmation = false
     @State private var pdfURL: URL?
+    @State private var savedPDFURL: URL?
     
     var body: some View {
         NavigationStack {
@@ -27,13 +33,13 @@ struct InvoiceDetailView: View {
                         Spacer()
                         Menu {
                             ForEach(InvoiceStatus.allCases, id: \.self) { status in
-                                Button(status.rawValue) {
+                                Button(status.localizedTitle) {
                                     viewModel.updateStatus(invoice, status: status)
                                 }
                             }
                         } label: {
                             HStack {
-                                Text(invoice.status.rawValue)
+                                Text(invoice.status.localizedTitle)
                                 Image(systemName: "chevron.up.chevron.down")
                                     .font(.caption)
                             }
@@ -119,6 +125,12 @@ struct InvoiceDetailView: View {
                             Label("Generate PDF", systemImage: "doc.fill")
                         }
                         
+                        if savedPDFURL != nil {
+                            Button(action: { shareSavedPDF() }) {
+                                Label("Share Saved PDF", systemImage: "square.and.arrow.up")
+                            }
+                        }
+                        
                         Button(action: { showingEditInvoice = true }) {
                             Label("Edit", systemImage: "pencil")
                         }
@@ -131,6 +143,12 @@ struct InvoiceDetailView: View {
                     Menu {
                         Button(action: { generatePDF() }) {
                             Label("Generate PDF", systemImage: "doc.fill")
+                        }
+                        
+                        if savedPDFURL != nil {
+                            Button(action: { shareSavedPDF() }) {
+                                Label("Share Saved PDF", systemImage: "square.and.arrow.up")
+                            }
                         }
                         
                         Button(action: { showingEditInvoice = true }) {
@@ -154,6 +172,27 @@ struct InvoiceDetailView: View {
                 }
             }
         }
+        .alert("Invoice Saved", isPresented: $showingPDFSaveConfirmation, actions: {
+            if savedPDFURL != nil {
+                Button("Share") { shareSavedPDF() }
+                #if canImport(AppKit)
+                Button("Show in Finder") { revealPDFInFinder() }
+                #endif
+            }
+            Button("OK", role: .cancel) {}
+        }, message: {
+            if let savedPDFURL {
+                Text(
+                    String(
+                        format: NSLocalizedString(
+                            "The PDF was saved to %@ in your Documents folder.",
+                            comment: "Alert message when PDF is saved locally"
+                        ),
+                        savedPDFURL.lastPathComponent
+                    )
+                )
+            }
+        })
     }
     
     private var statusColor: Color {
@@ -175,13 +214,33 @@ struct InvoiceDetailView: View {
             invoice: invoice,
             companyProfile: profile
         ) {
-            let fileName = "Invoice_\(invoice.invoiceNumber)"
+            let fileName = String(
+                format: NSLocalizedString(
+                    "Invoice_%@",
+                    comment: "Saved invoice PDF file name format"
+                ),
+                invoice.invoiceNumber
+            )
             if let url = PDFGeneratorService.savePDF(pdfDocument, fileName: fileName) {
                 pdfURL = url
-                showingShareSheet = true
+                savedPDFURL = url
+                showingPDFSaveConfirmation = true
             }
         }
     }
+    
+    private func shareSavedPDF() {
+        guard let url = savedPDFURL else { return }
+        pdfURL = url
+        showingShareSheet = true
+    }
+    
+    #if canImport(AppKit)
+    private func revealPDFInFinder() {
+        guard let url = savedPDFURL else { return }
+        NSWorkspace.shared.activateFileViewerSelecting([url])
+    }
+    #endif
 }
 
 /// Share sheet for sharing PDF documents - iOS/macOS compatible
@@ -201,11 +260,9 @@ struct ShareSheet: NSViewRepresentable {
     
     func makeNSView(context: Context) -> NSView {
         let view = NSView()
-        // On macOS, use NSSharingService
         DispatchQueue.main.async {
-            guard let url = items.first as? URL else { return }
-            let sharingService = NSSharingService(named: .sendViaAirDrop)
-            sharingService?.perform(withItems: [url])
+            let picker = NSSharingServicePicker(items: items)
+            picker.show(relativeTo: .zero, of: view, preferredEdge: .minY)
         }
         return view
     }
