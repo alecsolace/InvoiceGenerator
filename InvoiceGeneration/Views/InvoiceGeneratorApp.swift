@@ -4,9 +4,12 @@ import SwiftData
 /// Main app entry point with SwiftData configuration
 @main
 struct InvoiceGeneratorApp: App {
+    @StateObject private var subscriptionService = SubscriptionService.shared
+
     var body: some Scene {
         WindowGroup {
             ContentView()
+                .environmentObject(subscriptionService)
         }
         .modelContainer(for: [Invoice.self, InvoiceItem.self, CompanyProfile.self, Client.self])
     }
@@ -14,8 +17,9 @@ struct InvoiceGeneratorApp: App {
 
 /// Main content view
 struct ContentView: View {
-    @Environment(\.modelContext) private var modelContext
+    @AppStorage("hasCompletedOnboarding") private var hasCompletedOnboarding = false
     @State private var selectedTab = 0
+    @State private var showingOnboarding = false
     
     var body: some View {
         TabView(selection: $selectedTab) {
@@ -42,6 +46,25 @@ struct ContentView: View {
                     Label("Profile", systemImage: "building.2")
                 }
                 .tag(3)
+
+            SettingsView()
+                .tabItem {
+                    Label("Settings", systemImage: "gearshape")
+                }
+                .tag(4)
+        }
+        .onAppear {
+            showingOnboarding = !hasCompletedOnboarding
+        }
+        .sheet(isPresented: $showingOnboarding) {
+            OnboardingView(isPresented: $showingOnboarding) {
+                hasCompletedOnboarding = true
+            }
+            #if os(iOS)
+            .presentationDetents([.large])
+            #endif
+            .presentationDragIndicator(.visible)
+            .interactiveDismissDisabled()
         }
     }
 }

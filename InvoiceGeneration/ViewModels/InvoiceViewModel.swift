@@ -57,17 +57,36 @@ final class InvoiceViewModel {
         clientName: String,
         clientEmail: String = "",
         clientAddress: String = "",
-        client: Client? = nil
+        client: Client? = nil,
+        issueDate: Date = Date(),
+        dueDate: Date = Date().addingTimeInterval(30 * 24 * 60 * 60),
+        notes: String = "",
+        items: [InvoiceLineItemInput] = []
     ) {
         let invoice = Invoice(
             invoiceNumber: invoiceNumber,
             clientName: clientName,
             clientEmail: clientEmail,
             clientAddress: clientAddress,
-            client: client
+            client: client,
+            issueDate: issueDate,
+            dueDate: dueDate,
+            notes: notes
         )
 
         modelContext.insert(invoice)
+
+        for item in items {
+            let invoiceItem = InvoiceItem(
+                description: item.description,
+                quantity: item.quantity,
+                unitPrice: item.unitPrice
+            )
+            invoiceItem.invoice = invoice
+            invoice.items.append(invoiceItem)
+            modelContext.insert(invoiceItem)
+        }
+        invoice.calculateTotal()
         saveContext()
         fetchInvoices()
     }
@@ -115,6 +134,24 @@ final class InvoiceViewModel {
             fetchInvoices()
         }
     }
+
+    /// Update an existing invoice item with new values
+    func updateItem(
+        _ item: InvoiceItem,
+        from invoice: Invoice,
+        description: String,
+        quantity: Int,
+        unitPrice: Decimal
+    ) {
+        item.itemDescription = description
+        item.quantity = quantity
+        item.unitPrice = unitPrice
+        item.updateTotal()
+        invoice.calculateTotal()
+        invoice.updateTimestamp()
+        saveContext()
+        fetchInvoices()
+    }
     
     /// Update invoice status
     func updateStatus(_ invoice: Invoice, status: InvoiceStatus) {
@@ -151,4 +188,11 @@ final class InvoiceViewModel {
             errorMessage = "Failed to save: \(error.localizedDescription)"
         }
     }
+}
+
+/// Lightweight container so callers can seed invoices with items
+struct InvoiceLineItemInput {
+    let description: String
+    let quantity: Int
+    let unitPrice: Decimal
 }

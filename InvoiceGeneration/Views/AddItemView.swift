@@ -73,41 +73,72 @@ struct AddItemView: View {
 
 /// View for editing an invoice
 struct EditInvoiceView: View {
+    @EnvironmentObject private var subscriptionService: SubscriptionService
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.modelContext) private var modelContext
     
     let invoice: Invoice
     @Bindable var viewModel: InvoiceViewModel
     
+    @State private var clientViewModel: ClientViewModel?
+    @State private var selectedClientID: UUID?
+    @State private var showingAddClient = false
+    @State private var showingPaywall = false
     @State private var clientName: String
     @State private var clientEmail: String
     @State private var clientAddress: String
     @State private var notes: String
+    private let initialClientName: String
+    private let initialClientEmail: String
+    private let initialClientAddress: String
     
     init(invoice: Invoice, viewModel: InvoiceViewModel) {
         self.invoice = invoice
         self.viewModel = viewModel
+        self.initialClientName = invoice.clientName
+        self.initialClientEmail = invoice.clientEmail
+        self.initialClientAddress = invoice.clientAddress
         _clientName = State(initialValue: invoice.clientName)
         _clientEmail = State(initialValue: invoice.clientEmail)
         _clientAddress = State(initialValue: invoice.clientAddress)
         _notes = State(initialValue: invoice.notes)
+        _selectedClientID = State(initialValue: invoice.client?.id)
     }
     
     var body: some View {
         NavigationStack {
             Form {
+                Section("Saved Clients") {
+                    if let clients = clientViewModel?.clients, !clients.isEmpty {
+                        Picker("Client", selection: $selectedClientID) {
+                            Text("None")
+                                .tag(UUID?.none)
+                            ForEach(clients) { client in
+                                Text(client.name)
+                                    .tag(Optional(client.id))
+                            }
+                        }
+                    } else {
+                        Text("No saved clients yet")
+                            .foregroundStyle(.secondary)
+                    }
+                    
+                    Button {
+                        handleAddClientTap()
+                    } label: {
+                        Label("Add Client", systemImage: "plus")
+                    }
+                }
+                
                 Section("Client Information") {
-                    TextField("Client Name", text: $clientName)
-                    
-                    TextField("Email", text: $clientEmail)
-#if os(iOS)
-                        .keyboardType(.emailAddress)
-                        .textContentType(.emailAddress)
-                        .textInputAutocapitalization(.never)
-                        .autocorrectionDisabled(true)
-#endif
-                    
-                    TextField("Address", text: $clientAddress, axis: .vertical)
-                        .lineLimit(3...6)
+                    LabeledContent("Client Name", value: clientName.isEmpty ? "—" : clientName)
+                    LabeledContent("Email", value: clientEmail.isEmpty ? "—" : clientEmail)
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Address")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        Text(clientAddress.isEmpty ? "—" : clientAddress)
+                    }
                 }
                 
                 Section("Notes") {
@@ -134,9 +165,49 @@ struct EditInvoiceView: View {
                 }
             }
         }
+        .onAppear {
+            if clientViewModel == nil {
+                clientViewModel = ClientViewModel(modelContext: modelContext)
+            }
+        }
+        .onChange(of: selectedClientID) { _, newValue in
+            guard
+                let id = newValue,
+                let client = clientViewModel?.clients.first(where: { $0.id == id })
+            else {
+                clientName = initialClientName
+                clientEmail = initialClientEmail
+                clientAddress = initialClientAddress
+                return
+            }
+            clientName = client.name
+            clientEmail = client.email
+            clientAddress = client.address
+        }
+        .sheet(isPresented: $showingAddClient) {
+            if let clientViewModel {
+                AddClientView(viewModel: clientViewModel) { client in
+                    selectedClientID = client.id
+                    clientName = client.name
+                    clientEmail = client.email
+                    clientAddress = client.address
+                }
+            }
+        }
+        .sheet(isPresented: $showingPaywall) {
+            PaywallView(reason: .clientLimit)
+                .environmentObject(subscriptionService)
+        }
     }
     
     private func saveChanges() {
+        if let clientViewModel,
+           let selectedClientID,
+           let selectedClient = clientViewModel.clients.first(where: { $0.id == selectedClientID }) {
+            invoice.client = selectedClient
+        } else {
+            invoice.client = nil
+        }
         invoice.clientName = clientName
         invoice.clientEmail = clientEmail
         invoice.clientAddress = clientAddress
@@ -144,6 +215,15 @@ struct EditInvoiceView: View {
         
         viewModel.updateInvoice(invoice)
         dismiss()
+    }
+
+    private func handleAddClientTap() {
+        let count = clientViewModel?.clients.count ?? 0
+        if subscriptionService.canAddClient(currentCount: count) {
+            showingAddClient = true
+        } else {
+            showingPaywall = true
+        }
     }
 }
 
@@ -181,4 +261,5 @@ struct EditInvoiceView: View {
     let viewModel = InvoiceViewModel(modelContext: container.mainContext)
     
     return EditInvoiceView(invoice: invoice, viewModel: viewModel)
+        .environmentObject(SubscriptionService())
 }

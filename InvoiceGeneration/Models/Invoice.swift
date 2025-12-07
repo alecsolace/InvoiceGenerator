@@ -22,6 +22,7 @@ final class Invoice {
     
     var createdAt: Date
     var updatedAt: Date
+    var pdfLastGeneratedAt: Date?
     
     init(
         id: UUID = UUID(),
@@ -50,7 +51,8 @@ final class Invoice {
         self.totalAmount = 0
         self.createdAt = Date()
         self.updatedAt = Date()
-        
+        self.pdfLastGeneratedAt = nil
+
         calculateTotal()
     }
     
@@ -77,6 +79,11 @@ extension InvoiceStatus {
     var localizedTitle: String {
         NSLocalizedString(rawValue, comment: "Invoice status label")
     }
+}
+
+extension Invoice {
+    /// Flag indicating if we previously generated a PDF for this invoice
+    var hasGeneratedPDF: Bool { pdfLastGeneratedAt != nil }
 }
 
 /// Individual line item in an invoice

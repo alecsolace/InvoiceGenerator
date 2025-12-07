@@ -39,7 +39,7 @@ struct DashboardView: View {
                 Text("Aún no hay facturas para mostrar.")
                     .foregroundStyle(.secondary)
             } else {
-                let statusLabel = statusDimensionLabel
+                let statusDimLabel = statusDimensionLabel
                 let countLabel = statusCountLabel
                 
                 Chart(viewModel.statusSummaries) { summary in
@@ -47,7 +47,7 @@ struct DashboardView: View {
                         angle: .value(countLabel, summary.count),
                         innerRadius: .ratio(0.6)
                     )
-                    .foregroundStyle(by: .value(statusLabel, summary.status.localizedTitle))
+                    .foregroundStyle(by: .value(statusDimLabel, summary.status.localizedTitle))
                     .annotation(position: .overlay) {
                         VStack {
                             Text(summary.status.localizedTitle)
@@ -77,13 +77,13 @@ struct DashboardView: View {
                 Text("No hay facturas pagadas todavía.")
                     .foregroundStyle(.secondary)
             } else {
-                let monthLabel = monthAxisLabel
-                let revenueLabel = revenueAxisTitle
+                let monthAxisLabelText = monthAxisLabel
+                let revenueAxisTitleText = revenueAxisTitle
                 
                 Chart(viewModel.monthlyRevenue) { revenue in
                     BarMark(
-                        x: .value(monthLabel, revenue.month, unit: .month),
-                        y: .value(revenueLabel, revenue.total)
+                        x: .value(monthAxisLabelText, revenue.month, unit: .month),
+                        y: .value(revenueAxisTitleText, revenue.total)
                     )
                     .foregroundStyle(.blue.gradient)
                 }
@@ -91,7 +91,7 @@ struct DashboardView: View {
                     AxisMarks(values: .stride(by: .month)) { value in
                         if let dateValue = value.as(Date.self) {
                             AxisGridLine()
-                            AxisValueLabel(monthLabel(for: dateValue))
+                            AxisValueLabel(self.monthLabel(for: dateValue))
                         }
                     }
                 }

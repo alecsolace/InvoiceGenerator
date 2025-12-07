@@ -2,6 +2,17 @@ import Foundation
 import CloudKit
 import SwiftData
 
+enum CloudKitServiceError: LocalizedError {
+    case subscriptionRequired
+
+    var errorDescription: String? {
+        switch self {
+        case .subscriptionRequired:
+            return String(localized: "iCloud sync requires an active Pro subscription.", comment: "Error shown when sync is blocked without Pro")
+        }
+    }
+}
+
 /// Service for managing CloudKit synchronization
 final class CloudKitService {
     static let shared = CloudKitService()
@@ -24,6 +35,7 @@ final class CloudKitService {
     
     /// Sync invoices to CloudKit
     func syncInvoices(_ invoices: [Invoice]) async throws {
+        try guardSubscriptionAccess()
         let records = invoices.map { invoiceToRecord($0) }
         
         try await withThrowingTaskGroup(of: Void.self) { group in
@@ -39,6 +51,7 @@ final class CloudKitService {
     
     /// Fetch invoices from CloudKit
     func fetchInvoices() async throws -> [CKRecord] {
+        try guardSubscriptionAccess()
         let query = CKQuery(recordType: "Invoice", predicate: NSPredicate(value: true))
         query.sortDescriptors = [NSSortDescriptor(key: "issueDate", ascending: false)]
         
@@ -84,12 +97,14 @@ final class CloudKitService {
     
     /// Delete record from CloudKit
     func deleteInvoice(with id: UUID) async throws {
+        try guardSubscriptionAccess()
         let recordID = CKRecord.ID(recordName: id.uuidString)
         try await privateDatabase.deleteRecord(withID: recordID)
     }
     
     /// Subscribe to changes in CloudKit
     func setupSubscription() async throws {
+        try guardSubscriptionAccess()
         let subscription = CKQuerySubscription(
             recordType: "Invoice",
             predicate: NSPredicate(value: true),
@@ -101,5 +116,11 @@ final class CloudKitService {
         subscription.notificationInfo = notificationInfo
         
         try await privateDatabase.save(subscription)
+    }
+
+    private func guardSubscriptionAccess() throws {
+        if !SubscriptionService.shared.syncEnabled {
+            throw CloudKitServiceError.subscriptionRequired
+        }
     }
 }

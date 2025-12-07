@@ -411,12 +411,9 @@ final class PDFGeneratorService {
     
     /// Save PDF to file
     static func savePDF(_ pdfDocument: PDFDocument, fileName: String) -> URL? {
-        let fileManager = FileManager.default
-        guard let documentDirectory = fileManager.urls(for: .documentDirectory, in: .userDomainMask).first else {
+        guard let fileURL = PDFStorageManager.targetURL(for: fileName) else {
             return nil
         }
-        
-        let fileURL = documentDirectory.appendingPathComponent("\(fileName).pdf")
         
         if pdfDocument.write(to: fileURL) {
             return fileURL

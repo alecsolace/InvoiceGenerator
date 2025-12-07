@@ -3,9 +3,12 @@ import SwiftData
 
 /// View displaying list of clients
 struct ClientListView: View {
+    @EnvironmentObject private var subscriptionService: SubscriptionService
     @Environment(\.modelContext) private var modelContext
     @State private var viewModel: ClientViewModel?
     @State private var showingAddClient = false
+    @State private var showingPaywall = false
+    @State private var paywallReason: PaywallReason = .clientLimit
     @State private var searchText = ""
 
     var body: some View {
@@ -28,13 +31,13 @@ struct ClientListView: View {
             .toolbar {
                 #if os(iOS)
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    Button(action: { showingAddClient = true }) {
+                    Button(action: { handleAddClientTap() }) {
                         Label("Add Client", systemImage: "plus")
                     }
                 }
                 #else
                 ToolbarItem(placement: .automatic) {
-                    Button(action: { showingAddClient = true }) {
+                    Button(action: { handleAddClientTap() }) {
                         Label("Add Client", systemImage: "plus")
                     }
                 }
@@ -53,6 +56,10 @@ struct ClientListView: View {
         }
         .onChange(of: searchText) { _, newValue in
             viewModel?.searchClients(query: newValue)
+        }
+        .sheet(isPresented: $showingPaywall) {
+            PaywallView(reason: paywallReason)
+                .environmentObject(subscriptionService)
         }
     }
 
@@ -80,6 +87,11 @@ struct ClientListView: View {
 
     private func clientList(viewModel: ClientViewModel) -> some View {
         List {
+            let currentCount = viewModel.clients.count
+            if !subscriptionService.isPro && currentCount >= subscriptionService.freeClientLimit {
+                paywallBanner(currentCount: viewModel.clients.count)
+            }
+
             ForEach(viewModel.clients) { client in
                 VStack(alignment: .leading, spacing: 6) {
                     Text(client.name)
@@ -103,6 +115,54 @@ struct ClientListView: View {
                 }
             }
         }
+    }
+
+    private func handleAddClientTap() {
+        guard let viewModel else { return }
+
+        if subscriptionService.canAddClient(currentCount: viewModel.clients.count) {
+            showingAddClient = true
+        } else {
+            paywallReason = .clientLimit
+            showingPaywall = true
+        }
+    }
+
+    private func paywallBanner(currentCount: Int) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Label(
+                    String(localized: "Free plan: 2 clients included", comment: "Banner title for free plan limit"),
+                    systemImage: "star"
+                )
+                .font(.headline)
+                Spacer()
+                Text("\(currentCount)/\(subscriptionService.freeClientLimit)")
+                    .font(.subheadline)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 4)
+                    .background(Color.accentColor.opacity(0.12))
+                    .clipShape(Capsule())
+            }
+
+            Text(String(localized: "Unlock Pro to add unlimited clients and enable iCloud sync.", comment: "Banner description for Pro upgrade"))
+                .foregroundStyle(.secondary)
+                .font(.subheadline)
+
+            Button {
+                paywallReason = .clientLimit
+                showingPaywall = true
+            } label: {
+                Text(String(localized: "View Pro options", comment: "Button to open paywall from client list"))
+                    .font(.subheadline)
+                    .fontWeight(.semibold)
+                    .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.borderedProminent)
+        }
+        .padding()
+        .listRowInsets(EdgeInsets())
+        .listRowBackground(Color.clear)
     }
 }
 
@@ -136,4 +196,5 @@ private extension View {
 
     return ClientListView()
         .modelContainer(container)
+        .environmentObject(SubscriptionService())
 }

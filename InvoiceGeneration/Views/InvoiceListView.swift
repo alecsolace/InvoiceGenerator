@@ -193,7 +193,10 @@ struct InvoiceRowView: View {
                 
                 Spacer()
                 
-                statusBadge
+                HStack(spacing: 8) {
+                    statusBadge
+                    pdfBadge
+                }
             }
         }
         .padding(.vertical, 4)
@@ -208,6 +211,20 @@ struct InvoiceRowView: View {
             .background(statusColor.opacity(0.2))
             .foregroundStyle(statusColor)
             .cornerRadius(8)
+    }
+    
+    private var pdfBadge: some View {
+        Label(
+            invoice.hasGeneratedPDF ? "PDF Ready" : "PDF Pending",
+            systemImage: invoice.hasGeneratedPDF ? "doc.richtext.fill" : "doc.badge.gearshape"
+        )
+        .font(.caption2)
+        .padding(.horizontal, 8)
+        .padding(.vertical, 4)
+        .background(.thinMaterial)
+        .clipShape(Capsule())
+        .foregroundStyle(invoice.hasGeneratedPDF ? .teal : .secondary)
+        .animation(.easeInOut(duration: 0.2), value: invoice.hasGeneratedPDF)
     }
     
     private var statusColor: Color {
