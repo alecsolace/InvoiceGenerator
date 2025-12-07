@@ -29,7 +29,7 @@ final class DashboardViewModel {
 
     /// Count invoices by status for donut chart
     var statusSummaries: [InvoiceStatusSummary] {
-        let counts = invoices.reduce(into: [:]) { partialResult, invoice in
+        let counts: [InvoiceStatus: Int] = invoices.reduce(into: [:]) { partialResult, invoice in
             partialResult[invoice.status, default: 0] += 1
         }
 
@@ -44,7 +44,7 @@ final class DashboardViewModel {
         let paidInvoices = invoices.filter { $0.status == .paid }
         let calendar = Calendar.current
 
-        let revenueByMonth = paidInvoices.reduce(into: [:]) { partialResult, invoice in
+        let revenueByMonth: [Date: Double] = paidInvoices.reduce(into: [:]) { partialResult, invoice in
             let components = calendar.dateComponents([.year, .month], from: invoice.issueDate)
             guard let monthDate = calendar.date(from: components) else { return }
 
@@ -73,3 +73,4 @@ struct MonthlyRevenue: Identifiable {
 
     var id: Date { month }
 }
+

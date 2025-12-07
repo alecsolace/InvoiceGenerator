@@ -1,4 +1,5 @@
 import Charts
+import Foundation
 import SwiftUI
 import SwiftData
 
@@ -38,15 +39,18 @@ struct DashboardView: View {
                 Text("Aún no hay facturas para mostrar.")
                     .foregroundStyle(.secondary)
             } else {
+                let statusLabel = statusDimensionLabel
+                let countLabel = statusCountLabel
+                
                 Chart(viewModel.statusSummaries) { summary in
                     SectorMark(
-                        angle: .value("Cantidad", summary.count),
+                        angle: .value(countLabel, summary.count),
                         innerRadius: .ratio(0.6)
                     )
-                    .foregroundStyle(by: .value("Estado", summary.status.rawValue))
+                    .foregroundStyle(by: .value(statusLabel, summary.status.localizedTitle))
                     .annotation(position: .overlay) {
                         VStack {
-                            Text(summary.status.rawValue)
+                            Text(summary.status.localizedTitle)
                                 .font(.caption)
                             Text("\(summary.count)")
                                 .font(.headline)
@@ -73,10 +77,13 @@ struct DashboardView: View {
                 Text("No hay facturas pagadas todavía.")
                     .foregroundStyle(.secondary)
             } else {
+                let monthLabel = monthAxisLabel
+                let revenueLabel = revenueAxisTitle
+                
                 Chart(viewModel.monthlyRevenue) { revenue in
                     BarMark(
-                        x: .value("Mes", revenue.month, unit: .month),
-                        y: .value("Ingresos", revenue.total)
+                        x: .value(monthLabel, revenue.month, unit: .month),
+                        y: .value(revenueLabel, revenue.total)
                     )
                     .foregroundStyle(.blue.gradient)
                 }
@@ -120,13 +127,29 @@ struct DashboardView: View {
         }
     }
 
-    private var statusColorScale: [String: Color] {
+    private var statusCountLabel: String {
+        NSLocalizedString("Cantidad", comment: "Chart label for invoice count")
+    }
+    
+    private var statusDimensionLabel: String {
+        NSLocalizedString("Estado", comment: "Chart label for invoice status")
+    }
+    
+    private var monthAxisLabel: String {
+        NSLocalizedString("Mes", comment: "Chart label for months")
+    }
+    
+    private var revenueAxisTitle: String {
+        NSLocalizedString("Ingresos", comment: "Chart label for revenue")
+    }
+    
+    private var statusColorScale: KeyValuePairs<String, Color> {
         [
-            InvoiceStatus.draft.rawValue: .gray,
-            InvoiceStatus.sent.rawValue: .blue,
-            InvoiceStatus.paid.rawValue: .green,
-            InvoiceStatus.overdue.rawValue: .red,
-            InvoiceStatus.cancelled.rawValue: .orange
+            InvoiceStatus.draft.localizedTitle: .gray,
+            InvoiceStatus.sent.localizedTitle: .blue,
+            InvoiceStatus.paid.localizedTitle: .green,
+            InvoiceStatus.overdue.localizedTitle: .red,
+            InvoiceStatus.cancelled.localizedTitle: .orange
         ]
     }
 }

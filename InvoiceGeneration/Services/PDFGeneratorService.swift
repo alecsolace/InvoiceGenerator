@@ -19,8 +19,11 @@ final class PDFGeneratorService {
     ) -> PDFDocument? {
         let pdfMetaData: [CFString: Any] = [
             kCGPDFContextCreator: "InvoiceGenerator",
-            kCGPDFContextAuthor: companyProfile?.companyName ?? "Invoice Generator",
-            kCGPDFContextTitle: "Invoice \(invoice.invoiceNumber)"
+            kCGPDFContextAuthor: companyProfile?.companyName ?? localized("Invoice Generator", comment: "Default PDF author"),
+            kCGPDFContextTitle: String(
+                format: localized("Invoice %@", comment: "PDF document title format"),
+                invoice.invoiceNumber
+            )
         ]
         
         let data = NSMutableData()
@@ -168,7 +171,7 @@ final class PDFGeneratorService {
         var yPosition = startY
         
         drawText(
-            "INVOICE",
+            localized("INVOICE", comment: "PDF invoice title"),
             style: .bold(size: 32),
             at: CGPoint(x: 50, y: yPosition),
             in: context
@@ -181,7 +184,7 @@ final class PDFGeneratorService {
         
         // Invoice number
         drawText(
-            "Invoice #:",
+            localized("Invoice #:", comment: "PDF invoice number label"),
             style: labelStyle,
             at: CGPoint(x: 50, y: yPosition),
             in: context
@@ -196,7 +199,7 @@ final class PDFGeneratorService {
         
         // Issue date
         drawText(
-            "Issue Date:",
+            localized("Issue Date:", comment: "PDF issue date label"),
             style: labelStyle,
             at: CGPoint(x: 50, y: yPosition),
             in: context
@@ -211,7 +214,7 @@ final class PDFGeneratorService {
         
         // Due date
         drawText(
-            "Due Date:",
+            localized("Due Date:", comment: "PDF due date label"),
             style: labelStyle,
             at: CGPoint(x: 50, y: yPosition),
             in: context
@@ -226,13 +229,13 @@ final class PDFGeneratorService {
         
         // Status
         drawText(
-            "Status:",
+            localized("Status:", comment: "PDF status label"),
             style: labelStyle,
             at: CGPoint(x: 50, y: yPosition),
             in: context
         )
         drawText(
-            invoice.status.rawValue,
+            localized(invoice.status.rawValue, comment: "Localized invoice status"),
             style: valueStyle,
             at: CGPoint(x: 150, y: yPosition),
             in: context
@@ -251,7 +254,7 @@ final class PDFGeneratorService {
         var yPosition = startY
         
         drawText(
-            "BILL TO:",
+            localized("BILL TO:", comment: "PDF bill-to header"),
             style: .bold(size: 14),
             at: CGPoint(x: 50, y: yPosition),
             in: context
@@ -309,10 +312,10 @@ final class PDFGeneratorService {
         context.setFillColor(PDFColor.tableHeader)
         context.fill(headerRect)
         
-        drawText("Description", style: headerStyle, at: CGPoint(x: 60, y: yPosition + 8), in: context)
-        drawText("Qty", style: headerStyle, at: CGPoint(x: 350, y: yPosition + 8), in: context)
-        drawText("Price", style: headerStyle, at: CGPoint(x: 410, y: yPosition + 8), in: context)
-        drawText("Total", style: headerStyle, at: CGPoint(x: 480, y: yPosition + 8), in: context)
+        drawText(localized("Description", comment: "PDF table header for description"), style: headerStyle, at: CGPoint(x: 60, y: yPosition + 8), in: context)
+        drawText(localized("Qty", comment: "PDF table header for quantity"), style: headerStyle, at: CGPoint(x: 350, y: yPosition + 8), in: context)
+        drawText(localized("Price", comment: "PDF table header for price"), style: headerStyle, at: CGPoint(x: 410, y: yPosition + 8), in: context)
+        drawText(localized("Total", comment: "PDF table header for total"), style: headerStyle, at: CGPoint(x: 480, y: yPosition + 8), in: context)
         
         yPosition += 35
         
@@ -372,7 +375,7 @@ final class PDFGeneratorService {
         let yPosition = startY
         
         let totalStyle = PDFTextStyle(font: PDFFont.bold(16), color: PDFColor.black)
-        drawText("TOTAL:", style: totalStyle, at: CGPoint(x: 350, y: yPosition), in: context)
+        drawText(localized("TOTAL:", comment: "PDF total label"), style: totalStyle, at: CGPoint(x: 350, y: yPosition), in: context)
         
         let formatter = NumberFormatter()
         formatter.numberStyle = .currency
@@ -392,7 +395,7 @@ final class PDFGeneratorService {
     ) -> CGFloat {
         var yPosition = startY
         
-        drawText("Notes:", style: .bold(size: 12), at: CGPoint(x: 50, y: yPosition), in: context)
+        drawText(localized("Notes:", comment: "PDF notes header"), style: .bold(size: 12), at: CGPoint(x: 50, y: yPosition), in: context)
         yPosition += 20
         
         let notesRect = CGRect(x: 50, y: yPosition, width: pageRect.width - 100, height: 100)
@@ -420,6 +423,12 @@ final class PDFGeneratorService {
         }
         
         return nil
+    }
+}
+
+private extension PDFGeneratorService {
+    static func localized(_ key: String, comment: String = "") -> String {
+        NSLocalizedString(key, comment: comment)
     }
 }
 

@@ -101,6 +101,7 @@ final class InvoiceViewModel {
         
         modelContext.insert(item)
         saveContext()
+        fetchInvoices()
     }
     
     /// Remove item from invoice
@@ -111,6 +112,7 @@ final class InvoiceViewModel {
             invoice.calculateTotal()
             invoice.updateTimestamp()
             saveContext()
+            fetchInvoices()
         }
     }
     
