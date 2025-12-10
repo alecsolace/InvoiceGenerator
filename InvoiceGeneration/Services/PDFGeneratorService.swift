@@ -48,8 +48,8 @@ final class PDFGeneratorService {
         
         context.beginPDFPage(nil)
         context.saveGState()
-        context.translateBy(x: 0, y: pageHeight)
         context.scaleBy(x: 1, y: -1)
+        context.translateBy(x: 0, y: -pageHeight)
         context.textMatrix = .identity
         
         var yPosition: CGFloat = 24
