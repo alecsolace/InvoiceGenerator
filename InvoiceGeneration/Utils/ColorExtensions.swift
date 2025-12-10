@@ -47,14 +47,27 @@ extension Color {
     }
 
     var hexString: String? {
-        #if canImport(UIKit) || canImport(AppKit)
+        #if canImport(UIKit)
         let platformColor = PlatformColor(self)
         var red: CGFloat = 0
         var green: CGFloat = 0
         var blue: CGFloat = 0
         var alpha: CGFloat = 0
 
-        guard platformColor.usingColorSpace(.sRGB)?.getRed(&red, green: &green, blue: &blue, alpha: &alpha) ?? false else {
+        guard platformColor.getRed(&red, green: &green, blue: &blue, alpha: &alpha) else {
+            return nil
+        }
+
+        return String(format: "#%02X%02X%02X", Int(red * 255), Int(green * 255), Int(blue * 255))
+        #elseif canImport(AppKit)
+        let platformColor = PlatformColor(self)
+        var red: CGFloat = 0
+        var green: CGFloat = 0
+        var blue: CGFloat = 0
+        var alpha: CGFloat = 0
+
+        guard let convertedColor = platformColor.usingColorSpace(NSColorSpace.sRGB),
+              convertedColor.getRed(&red, green: &green, blue: &blue, alpha: &alpha) else {
             return nil
         }
 

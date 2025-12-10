@@ -11,15 +11,15 @@ final class Client {
     var email: String
     var address: String
     var accentColorHex: String
-
+    
     @Relationship(deleteRule: .nullify)
     var invoices: [Invoice]?
-
+    
     var createdAt: Date
     var updatedAt: Date
-
+    
     static let defaultAccentHex = "#1F5FB8"
-
+    
     init(
         id: UUID = UUID(),
         name: String,
@@ -35,22 +35,20 @@ final class Client {
         self.createdAt = Date()
         self.updatedAt = Date()
     }
-
+    
     func updateTimestamp() {
         updatedAt = Date()
     }
-
+    
     var accentColor: Color {
         Color(hex: accentColorHex) ?? Color(hex: Client.defaultAccentHex) ?? .blue
     }
-
+    
+    private static let fallbackAccentColor: CGColor = {
+        Color(hex: Client.defaultAccentHex)?.cgColorRepresentation ?? CGColor(gray: 0.12, alpha: 1)
+    }()
+    
     var accentCGColor: CGColor {
-        CGColor.fromHex(accentColorHex, defaultColor: CGColor(accentColor: Client.defaultAccentHex))
-    }
-}
-
-private extension CGColor {
-    init(accentColor hex: String) {
-        self = CGColor.fromHex(hex, defaultColor: CGColor(gray: 0.12, alpha: 1))
+        CGColor.fromHex(accentColorHex, defaultColor: Client.fallbackAccentColor)
     }
 }
