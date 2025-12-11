@@ -40,8 +40,13 @@ final class ClientViewModel {
     }
 
     @discardableResult
-    func createClient(name: String, email: String = "", address: String = "") -> Client? {
-        let client = Client(name: name, email: email, address: address)
+    func createClient(
+        name: String,
+        email: String = "",
+        address: String = "",
+        accentColorHex: String = Client.defaultAccentHex
+    ) -> Client? {
+        let client = Client(name: name, email: email, address: address, accentColorHex: accentColorHex)
         modelContext.insert(client)
 
         do {
