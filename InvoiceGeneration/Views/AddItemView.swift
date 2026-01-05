@@ -1,5 +1,6 @@
 import SwiftUI
 import SwiftData
+import Foundation
 
 /// View for adding an item to an invoice
 struct AddItemView: View {
@@ -89,6 +90,8 @@ struct EditInvoiceView: View {
     @State private var clientIdentificationNumber: String
     @State private var clientAddress: String
     @State private var notes: String
+    @State private var ivaPercentage: String
+    @State private var irpfPercentage: String
     private let initialClientName: String
     private let initialClientEmail: String
     private let initialClientIdentificationNumber: String
@@ -106,6 +109,8 @@ struct EditInvoiceView: View {
         _clientIdentificationNumber = State(initialValue: invoice.clientIdentificationNumber)
         _clientAddress = State(initialValue: invoice.clientAddress)
         _notes = State(initialValue: invoice.notes)
+        _ivaPercentage = State(initialValue: NSDecimalNumber(decimal: invoice.ivaPercentage).stringValue)
+        _irpfPercentage = State(initialValue: NSDecimalNumber(decimal: invoice.irpfPercentage).stringValue)
         _selectedClientID = State(initialValue: invoice.client?.id)
     }
     
@@ -152,6 +157,29 @@ struct EditInvoiceView: View {
                 Section("Notes") {
                     TextField("Notes", text: $notes, axis: .vertical)
                         .lineLimit(4...8)
+                }
+
+                Section("Taxes") {
+                    TextField("IVA %", text: $ivaPercentage)
+#if os(iOS)
+                        .keyboardType(.decimalPad)
+#endif
+
+                    TextField("IRPF %", text: $irpfPercentage)
+#if os(iOS)
+                        .keyboardType(.decimalPad)
+#endif
+
+                    LabeledContent("Subtotal", value: invoice.itemsSubtotal.formattedAsCurrency)
+                    LabeledContent(
+                        "IVA (\(ivaPercentageValue.formattedAsPercent))",
+                        value: ivaAmount.formattedAsCurrency
+                    )
+                    LabeledContent(
+                        "IRPF (\(irpfPercentageValue.formattedAsPercent))",
+                        value: (-irpfAmount).formattedAsCurrency
+                    )
+                    LabeledContent("Total", value: invoiceTotal.formattedAsCurrency)
                 }
             }
             .navigationTitle("Edit Invoice")
@@ -224,9 +252,31 @@ struct EditInvoiceView: View {
         invoice.clientIdentificationNumber = clientIdentificationNumber
         invoice.clientAddress = clientAddress
         invoice.notes = notes
+        invoice.ivaPercentage = ivaPercentageValue
+        invoice.irpfPercentage = irpfPercentageValue
         
         viewModel.updateInvoice(invoice)
         dismiss()
+    }
+
+    private var ivaPercentageValue: Decimal {
+        Decimal(string: ivaPercentage) ?? 0
+    }
+
+    private var irpfPercentageValue: Decimal {
+        Decimal(string: irpfPercentage) ?? 0
+    }
+
+    private var ivaAmount: Decimal {
+        (invoice.itemsSubtotal * ivaPercentageValue) / Decimal(100)
+    }
+
+    private var irpfAmount: Decimal {
+        (invoice.itemsSubtotal * irpfPercentageValue) / Decimal(100)
+    }
+
+    private var invoiceTotal: Decimal {
+        invoice.itemsSubtotal + ivaAmount - irpfAmount
     }
 
     private func handleAddClientTap() {

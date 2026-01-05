@@ -64,6 +64,8 @@ final class InvoiceViewModel {
         issueDate: Date = Date(),
         dueDate: Date = Date().addingTimeInterval(30 * 24 * 60 * 60),
         notes: String = "",
+        ivaPercentage: Decimal = 0,
+        irpfPercentage: Decimal = 0,
         items: [InvoiceLineItemInput] = []
     ) {
         let invoice = Invoice(
@@ -75,7 +77,9 @@ final class InvoiceViewModel {
             client: client,
             issueDate: issueDate,
             dueDate: dueDate,
-            notes: notes
+            notes: notes,
+            ivaPercentage: ivaPercentage,
+            irpfPercentage: irpfPercentage
         )
 
         modelContext.insert(invoice)

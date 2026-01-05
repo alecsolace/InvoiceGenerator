@@ -22,6 +22,8 @@ struct AddInvoiceView: View {
     @State private var showingAddClient = false
     @State private var showingPaywall = false
     @State private var draftItems: [DraftInvoiceItem] = []
+    @State private var ivaPercentage = "0"
+    @State private var irpfPercentage = "0"
     @State private var showingAddItem = false
     @State private var editingDraftItem: DraftInvoiceItem?
 
@@ -109,7 +111,7 @@ struct AddInvoiceView: View {
                             .padding(.vertical, 4)
                         }
                         HStack {
-                            Text("Items Total")
+                            Text("Subtotal")
                             Spacer()
                             Text(itemsTotal.formattedAsCurrency)
                                 .fontWeight(.semibold)
@@ -120,6 +122,29 @@ struct AddInvoiceView: View {
                     } label: {
                         Label("Add Item", systemImage: "plus.circle")
                     }
+                }
+
+                Section("Taxes") {
+                    TextField("IVA %", text: $ivaPercentage)
+#if os(iOS)
+                        .keyboardType(.decimalPad)
+#endif
+
+                    TextField("IRPF %", text: $irpfPercentage)
+#if os(iOS)
+                        .keyboardType(.decimalPad)
+#endif
+
+                    LabeledContent("Subtotal", value: itemsTotal.formattedAsCurrency)
+                    LabeledContent(
+                        "IVA (\(ivaPercentageValue.formattedAsPercent))",
+                        value: ivaAmount.formattedAsCurrency
+                    )
+                    LabeledContent(
+                        "IRPF (\(irpfPercentageValue.formattedAsPercent))",
+                        value: (-irpfAmount).formattedAsCurrency
+                    )
+                    LabeledContent("Total", value: invoiceTotal.formattedAsCurrency)
                 }
             }
             .navigationTitle("New Invoice")
@@ -214,6 +239,8 @@ struct AddInvoiceView: View {
             client: selectedClient,
             issueDate: issueDate,
             dueDate: dueDate,
+            ivaPercentage: ivaPercentageValue,
+            irpfPercentage: irpfPercentageValue,
             items: preparedItems
         )
         dismiss()
@@ -225,6 +252,26 @@ struct AddInvoiceView: View {
 
     private var itemsTotal: Decimal {
         draftItems.reduce(0) { $0 + $1.total }
+    }
+
+    private var ivaPercentageValue: Decimal {
+        Decimal(string: ivaPercentage) ?? 0
+    }
+
+    private var irpfPercentageValue: Decimal {
+        Decimal(string: irpfPercentage) ?? 0
+    }
+
+    private var ivaAmount: Decimal {
+        (itemsTotal * ivaPercentageValue) / Decimal(100)
+    }
+
+    private var irpfAmount: Decimal {
+        (itemsTotal * irpfPercentageValue) / Decimal(100)
+    }
+
+    private var invoiceTotal: Decimal {
+        itemsTotal + ivaAmount - irpfAmount
     }
 }
 
