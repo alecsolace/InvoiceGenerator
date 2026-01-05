@@ -11,6 +11,8 @@ struct AddClientView: View {
     @State private var name = ""
     @State private var email = ""
     @State private var address = ""
+    @State private var identificationNumber = ""
+    @State private var accentColor = Color(hex: Client.defaultAccentHex) ?? .blue
 
     var body: some View {
         NavigationStack {
@@ -25,9 +27,15 @@ struct AddClientView: View {
                         .textInputAutocapitalization(.never)
                         .autocorrectionDisabled(true)
 #endif
+                    TextField(
+                        String(localized: "Identification Number", comment: "Label for client identification number field"),
+                        text: $identificationNumber
+                    )
 
                     TextField("Address", text: $address, axis: .vertical)
                         .lineLimit(3...6)
+
+                    ColorPicker("Accent Color", selection: $accentColor, supportsOpacity: false)
                 }
             }
             .navigationTitle("New Client")
@@ -48,7 +56,14 @@ struct AddClientView: View {
     }
 
     private func saveClient() {
-        guard let client = viewModel.createClient(name: name, email: email, address: address) else {
+        let accentHex = accentColor.hexString ?? Client.defaultAccentHex
+        guard let client = viewModel.createClient(
+            name: name,
+            email: email,
+            address: address,
+            identificationNumber: identificationNumber,
+            accentColorHex: accentHex
+        ) else {
             return
         }
 

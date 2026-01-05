@@ -1,5 +1,6 @@
 import Foundation
 import Observation
+import OSLog
 import SwiftData
 
 /// ViewModel for managing clients
@@ -27,7 +28,8 @@ final class ClientViewModel {
             let descriptor = FetchDescriptor<Client>(
                 predicate: currentQuery.isEmpty ? nil : #Predicate { client in
                     client.name.localizedStandardContains(currentQuery) ||
-                    client.email.localizedStandardContains(currentQuery)
+                    client.email.localizedStandardContains(currentQuery) ||
+                    client.identificationNumber.localizedStandardContains(currentQuery)
                 },
                 sortBy: [SortDescriptor(\.name)]
             )
@@ -40,8 +42,20 @@ final class ClientViewModel {
     }
 
     @discardableResult
-    func createClient(name: String, email: String = "", address: String = "") -> Client? {
-        let client = Client(name: name, email: email, address: address)
+    func createClient(
+        name: String,
+        email: String = "",
+        address: String = "",
+        identificationNumber: String = "",
+        accentColorHex: String = Client.defaultAccentHex
+    ) -> Client? {
+        let client = Client(
+            name: name,
+            email: email,
+            address: address,
+            identificationNumber: identificationNumber,
+            accentColorHex: accentColorHex
+        )
         modelContext.insert(client)
 
         do {
@@ -49,6 +63,7 @@ final class ClientViewModel {
             fetchClients()
             return client
         } catch {
+            PersistenceController.logger.error("Failed to save client: \(error.localizedDescription)")
             errorMessage = "Failed to save client: \(error.localizedDescription)"
             return nil
         }
@@ -71,6 +86,7 @@ final class ClientViewModel {
         do {
             try modelContext.save()
         } catch {
+            PersistenceController.logger.error("SwiftData save failed: \(error.localizedDescription)")
             errorMessage = "Failed to save: \(error.localizedDescription)"
         }
     }
