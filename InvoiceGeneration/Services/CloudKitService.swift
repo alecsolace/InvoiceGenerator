@@ -88,6 +88,8 @@ final class CloudKitService {
         record["dueDate"] = invoice.dueDate as CKRecordValue
         record["status"] = invoice.status.rawValue as CKRecordValue
         record["notes"] = invoice.notes as CKRecordValue
+        record["ivaPercentage"] = invoice.ivaPercentage as NSDecimalNumber as CKRecordValue
+        record["irpfPercentage"] = invoice.irpfPercentage as NSDecimalNumber as CKRecordValue
         record["totalAmount"] = invoice.totalAmount as NSDecimalNumber as CKRecordValue
         record["createdAt"] = invoice.createdAt as CKRecordValue
         record["updatedAt"] = invoice.updatedAt as CKRecordValue

@@ -249,14 +249,43 @@ struct InvoiceDetailView: View {
             
             Divider()
                 .tint(.white.opacity(0.4))
-            
-            HStack {
-                Text("Total")
-                    .font(.headline)
-                Spacer()
-                Text(invoice.totalAmount.formattedAsCurrency)
-                    .font(.title2)
-                    .fontWeight(.bold)
+
+            VStack(spacing: 8) {
+                HStack {
+                    Text("Subtotal")
+                        .foregroundStyle(.secondary)
+                    Spacer()
+                    Text(invoice.itemsSubtotal.formattedAsCurrency)
+                }
+                .font(.subheadline)
+
+                HStack {
+                    Text("IVA (\(invoice.ivaPercentage.formattedAsPercent))")
+                        .foregroundStyle(.secondary)
+                    Spacer()
+                    Text(invoice.ivaAmount.formattedAsCurrency)
+                }
+                .font(.subheadline)
+
+                HStack {
+                    Text("IRPF (\(invoice.irpfPercentage.formattedAsPercent))")
+                        .foregroundStyle(.secondary)
+                    Spacer()
+                    Text((-invoice.irpfAmount).formattedAsCurrency)
+                }
+                .font(.subheadline)
+
+                Divider()
+                    .tint(.white.opacity(0.25))
+
+                HStack {
+                    Text("Total")
+                        .font(.headline)
+                    Spacer()
+                    Text(invoice.totalAmount.formattedAsCurrency)
+                        .font(.title2)
+                        .fontWeight(.bold)
+                }
             }
         }
         .padding(24)

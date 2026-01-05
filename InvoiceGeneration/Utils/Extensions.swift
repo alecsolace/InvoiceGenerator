@@ -8,6 +8,16 @@ extension Decimal {
         formatter.locale = Locale.current
         return formatter.string(from: self as NSDecimalNumber) ?? "$0.00"
     }
+
+    var formattedAsPercent: String {
+        let formatter = NumberFormatter()
+        formatter.numberStyle = .percent
+        formatter.maximumFractionDigits = 2
+        formatter.minimumFractionDigits = 0
+        formatter.locale = Locale.current
+        let percentValue = self / Decimal(100)
+        return formatter.string(from: percentValue as NSDecimalNumber) ?? "\(self)%"
+    }
 }
 
 /// Extension for date formatting

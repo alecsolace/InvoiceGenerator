@@ -48,10 +48,10 @@ final class PDFGeneratorService {
         
         context.beginPDFPage(nil)
         context.saveGState()
-        // Place origin at top-left for easier layout, keeping text upright.
+        // Place origin at top-left for easier layout; flip CoreText back upright.
         context.translateBy(x: 0, y: pageHeight)
         context.scaleBy(x: 1, y: -1)
-        context.textMatrix = .identity
+        context.textMatrix = CGAffineTransform(scaleX: 1, y: -1)
         
         var yPosition: CGFloat = 24
         let pageRect = mediaBox
@@ -326,7 +326,11 @@ final class PDFGeneratorService {
     ) -> CGFloat {
         let summaryWidth: CGFloat = 250
         let xOrigin = pageRect.width - summaryWidth - 50
-        let container = CGRect(x: xOrigin, y: startY, width: summaryWidth, height: 84)
+        let rowSpacing: CGFloat = 22
+        let topPadding: CGFloat = 12
+        let dividerSpacing: CGFloat = 12
+        let containerHeight = topPadding + (rowSpacing * 3) + dividerSpacing + rowSpacing + topPadding
+        let container = CGRect(x: xOrigin, y: startY, width: summaryWidth, height: containerHeight)
         context.setFillColor(palette.panelBackground)
         context.fill(container)
 
@@ -334,10 +338,26 @@ final class PDFGeneratorService {
         let valueStyle = PDFTextStyle(font: PDFFont.regular(12), color: palette.textPrimary)
         let totalStyle = PDFTextStyle(font: PDFFont.bold(14), color: palette.accent)
 
-        var yPosition = container.origin.y + 12
+        var yPosition = container.origin.y + topPadding
         drawText(localized("Subtotal", comment: "PDF subtotal label"), style: labelStyle, at: CGPoint(x: xOrigin + 16, y: yPosition), in: context)
-        drawText(currencyString(for: invoice.items.reduce(0) { $0 + $1.total }), style: valueStyle, at: CGPoint(x: xOrigin + 150, y: yPosition), in: context)
-        yPosition += 22
+        drawText(currencyString(for: invoice.itemsSubtotal), style: valueStyle, at: CGPoint(x: xOrigin + 150, y: yPosition), in: context)
+        yPosition += rowSpacing
+
+        let ivaLabel = String(
+            format: localized("IVA (%@)", comment: "PDF IVA label with percentage"),
+            invoice.ivaPercentage.formattedAsPercent
+        )
+        drawText(ivaLabel, style: labelStyle, at: CGPoint(x: xOrigin + 16, y: yPosition), in: context)
+        drawText(currencyString(for: invoice.ivaAmount), style: valueStyle, at: CGPoint(x: xOrigin + 150, y: yPosition), in: context)
+        yPosition += rowSpacing
+
+        let irpfLabel = String(
+            format: localized("IRPF (%@)", comment: "PDF IRPF label with percentage"),
+            invoice.irpfPercentage.formattedAsPercent
+        )
+        drawText(irpfLabel, style: labelStyle, at: CGPoint(x: xOrigin + 16, y: yPosition), in: context)
+        drawText(currencyString(for: -invoice.irpfAmount), style: valueStyle, at: CGPoint(x: xOrigin + 150, y: yPosition), in: context)
+        yPosition += rowSpacing
 
         context.setStrokeColor(palette.divider)
         context.setLineWidth(0.5)
@@ -345,7 +365,7 @@ final class PDFGeneratorService {
         context.addLine(to: CGPoint(x: xOrigin + summaryWidth - 12, y: yPosition))
         context.strokePath()
 
-        yPosition += 12
+        yPosition += dividerSpacing
 
         drawText(localized("TOTAL", comment: "PDF total label"), style: totalStyle, at: CGPoint(x: xOrigin + 16, y: yPosition), in: context)
         drawText(currencyString(for: invoice.totalAmount), style: totalStyle, at: CGPoint(x: xOrigin + 150, y: yPosition), in: context)

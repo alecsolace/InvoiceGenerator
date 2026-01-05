@@ -17,6 +17,8 @@ final class Invoice {
     var status: InvoiceStatus
     var notes: String
     var totalAmount: Decimal
+    var ivaPercentage: Decimal
+    var irpfPercentage: Decimal
     
     @Relationship(deleteRule: .cascade, inverse: \InvoiceItem.invoice)
     var items: [InvoiceItem]
@@ -37,6 +39,8 @@ final class Invoice {
         dueDate: Date = Date().addingTimeInterval(30 * 24 * 60 * 60),
         status: InvoiceStatus = .draft,
         notes: String = "",
+        ivaPercentage: Decimal = 0,
+        irpfPercentage: Decimal = 0,
         items: [InvoiceItem] = []
     ) {
         self.id = id
@@ -50,6 +54,8 @@ final class Invoice {
         self.dueDate = dueDate
         self.status = status
         self.notes = notes
+        self.ivaPercentage = ivaPercentage
+        self.irpfPercentage = irpfPercentage
         self.items = items
         self.totalAmount = 0
         self.createdAt = Date()
@@ -60,11 +66,26 @@ final class Invoice {
     }
     
     func calculateTotal() {
-        totalAmount = items.reduce(0) { $0 + $1.total }
+        let subtotal = itemsSubtotal
+        let ivaAmount = (subtotal * ivaPercentage) / Decimal(100)
+        let irpfAmount = (subtotal * irpfPercentage) / Decimal(100)
+        totalAmount = subtotal + ivaAmount - irpfAmount
     }
     
     func updateTimestamp() {
         updatedAt = Date()
+    }
+
+    var itemsSubtotal: Decimal {
+        items.reduce(0) { $0 + $1.total }
+    }
+
+    var ivaAmount: Decimal {
+        (itemsSubtotal * ivaPercentage) / Decimal(100)
+    }
+
+    var irpfAmount: Decimal {
+        (itemsSubtotal * irpfPercentage) / Decimal(100)
     }
 }
 
