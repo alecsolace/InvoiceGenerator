@@ -27,7 +27,8 @@ final class ClientViewModel {
             let descriptor = FetchDescriptor<Client>(
                 predicate: currentQuery.isEmpty ? nil : #Predicate { client in
                     client.name.localizedStandardContains(currentQuery) ||
-                    client.email.localizedStandardContains(currentQuery)
+                    client.email.localizedStandardContains(currentQuery) ||
+                    client.identificationNumber.localizedStandardContains(currentQuery)
                 },
                 sortBy: [SortDescriptor(\.name)]
             )
@@ -44,9 +45,16 @@ final class ClientViewModel {
         name: String,
         email: String = "",
         address: String = "",
+        identificationNumber: String = "",
         accentColorHex: String = Client.defaultAccentHex
     ) -> Client? {
-        let client = Client(name: name, email: email, address: address, accentColorHex: accentColorHex)
+        let client = Client(
+            name: name,
+            email: email,
+            address: address,
+            identificationNumber: identificationNumber,
+            accentColorHex: accentColorHex
+        )
         modelContext.insert(client)
 
         do {

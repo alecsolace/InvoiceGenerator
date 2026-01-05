@@ -644,7 +644,7 @@
 				0D2DB2462EE1D277000C327E /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
-			defaultConfigurationName = Release;
+			defaultConfigurationName = Debug;
 		};
 		0D2DB2422EE1D277000C327E /* Build configuration list for PBXNativeTarget "InvoiceGeneration" */ = {
 			isa = XCConfigurationList;
@@ -653,7 +653,7 @@
 				0D2DB2442EE1D277000C327E /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
-			defaultConfigurationName = Release;
+			defaultConfigurationName = Debug;
 		};
 		0D2DB2472EE1D277000C327E /* Build configuration list for PBXNativeTarget "InvoiceGenerationTests" */ = {
 			isa = XCConfigurationList;
@@ -662,7 +662,7 @@
 				0D2DB2492EE1D277000C327E /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
-			defaultConfigurationName = Release;
+			defaultConfigurationName = Debug;
 		};
 		0D2DB24A2EE1D277000C327E /* Build configuration list for PBXNativeTarget "InvoiceGenerationUITests" */ = {
 			isa = XCConfigurationList;
@@ -671,7 +671,7 @@
 				0D2DB24C2EE1D277000C327E /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
-			defaultConfigurationName = Release;
+			defaultConfigurationName = Debug;
 		};
 /* End XCConfigurationList section */
 	};

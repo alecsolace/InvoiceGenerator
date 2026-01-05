@@ -50,7 +50,8 @@ final class PDFGeneratorService {
         context.saveGState()
         context.scaleBy(x: 1, y: -1)
         context.translateBy(x: 0, y: -pageHeight)
-        context.textMatrix = .identity
+        // Flip text back upright after inverting the coordinate system.
+        context.textMatrix = CGAffineTransform(scaleX: 1, y: -1)
         
         var yPosition: CGFloat = 24
         let pageRect = mediaBox
@@ -136,7 +137,7 @@ final class PDFGeneratorService {
             at: CGPoint(x: 50, y: yPosition),
             in: context
         )
-        yPosition += 14
+        yPosition += titleStyle.lineHeight + 10
 
         if let companyProfile = companyProfile {
             let nameStyle = PDFTextStyle(font: PDFFont.bold(14), color: palette.textPrimary)
@@ -199,7 +200,15 @@ final class PDFGeneratorService {
         pageRect: CGRect,
         startY: CGFloat
     ) -> CGFloat {
-        let container = CGRect(x: 50, y: startY, width: pageRect.width - 100, height: 110)
+        let idNumber = invoice.clientIdentificationNumber.isEmpty ? (invoice.client?.identificationNumber ?? "") : invoice.clientIdentificationNumber
+        let hasEmail = !invoice.clientEmail.isEmpty
+        let hasAddress = !invoice.clientAddress.isEmpty
+        let hasIdNumber = !idNumber.isEmpty
+
+        let baseHeight: CGFloat = 74
+        let variableHeight: CGFloat = (hasEmail ? 18 : 0) + (hasAddress ? 18 : 0) + (hasIdNumber ? 18 : 0)
+        let containerHeight = max(110, baseHeight + variableHeight)
+        let container = CGRect(x: 50, y: startY, width: pageRect.width - 100, height: containerHeight)
         context.setFillColor(palette.sectionBackground)
         context.fill(container)
 
@@ -221,6 +230,17 @@ final class PDFGeneratorService {
             yPosition += 18
         }
 
+        if hasIdNumber {
+            drawText(
+                localized("Identification Number", comment: "PDF client identification label"),
+                style: labelStyle,
+                at: CGPoint(x: container.origin.x + 12, y: yPosition),
+                in: context
+            )
+            drawText(idNumber, style: valueStyle, at: CGPoint(x: container.origin.x + 100, y: yPosition), in: context)
+            yPosition += 18
+        }
+
         if !invoice.clientAddress.isEmpty {
             drawText(localized("Address", comment: "PDF client address label"), style: labelStyle, at: CGPoint(x: container.origin.x + 12, y: yPosition), in: context)
             drawText(invoice.clientAddress, style: valueStyle, at: CGPoint(x: container.origin.x + 100, y: yPosition), in: context)
@@ -239,36 +259,56 @@ final class PDFGeneratorService {
         var yPosition = startY
         let headerStyle = PDFTextStyle(font: PDFFont.bold(12), color: PDFColor.white)
         let cellStyle = PDFTextStyle(font: PDFFont.regular(11), color: palette.textPrimary)
+        let tableX: CGFloat = 50
+        let tableWidth = pageRect.width - 100
+        let descriptionWidth: CGFloat = 235
+        let quantityWidth: CGFloat = 70
+        let unitPriceWidth: CGFloat = 90
+        let totalWidth: CGFloat = 90
 
-        let headerRect = CGRect(x: 50, y: yPosition, width: pageRect.width - 100, height: 32)
+        let headerRect = CGRect(x: tableX, y: yPosition, width: tableWidth, height: 32)
         context.setFillColor(palette.accent)
         context.fill(headerRect)
 
-        let columnX: [CGFloat] = [60, 320, 400, 500]
-        drawText(localized("Description", comment: "PDF table header for description"), style: headerStyle, at: CGPoint(x: columnX[0], y: yPosition + 9), in: context)
-        drawText(localized("Quantity", comment: "PDF table header for quantity"), style: headerStyle, at: CGPoint(x: columnX[1], y: yPosition + 9), in: context)
-        drawText(localized("Unit Price", comment: "PDF table header for unit price"), style: headerStyle, at: CGPoint(x: columnX[2], y: yPosition + 9), in: context)
-        drawText(localized("Total", comment: "PDF table header for total"), style: headerStyle, at: CGPoint(x: columnX[3], y: yPosition + 9), in: context)
+        let descriptionX = tableX + 10
+        let quantityX = descriptionX + descriptionWidth
+        let unitPriceX = quantityX + quantityWidth
+        let totalX = unitPriceX + unitPriceWidth
+        let headerTextY = yPosition + 9
 
-        yPosition += 38
+        drawText(localized("Description", comment: "PDF table header for description"), style: headerStyle, at: CGPoint(x: descriptionX, y: headerTextY), in: context)
+        drawText(localized("Quantity", comment: "PDF table header for quantity"), style: headerStyle, at: CGPoint(x: quantityX, y: headerTextY), in: context)
+        drawText(localized("Unit Price", comment: "PDF table header for unit price"), style: headerStyle, at: CGPoint(x: unitPriceX, y: headerTextY), in: context)
+        drawText(localized("Total", comment: "PDF table header for total"), style: headerStyle, at: CGPoint(x: totalX, y: headerTextY), in: context)
+
+        yPosition = headerRect.maxY + 6
 
         for (index, item) in invoice.items.enumerated() {
+            let descriptionHeight = height(for: item.itemDescription, style: cellStyle, width: descriptionWidth)
+            let rowHeight = max(26, descriptionHeight + 8)
             if index.isMultiple(of: 2) {
-                let rowRect = CGRect(x: 50, y: yPosition - 6, width: pageRect.width - 100, height: 26)
+                let rowRect = CGRect(x: tableX, y: yPosition, width: tableWidth, height: rowHeight)
                 context.setFillColor(palette.rowBackground)
                 context.fill(rowRect)
             }
 
-            drawText(item.itemDescription, style: cellStyle, at: CGPoint(x: columnX[0], y: yPosition), in: context)
-            drawText("\(item.quantity)", style: cellStyle, at: CGPoint(x: columnX[1], y: yPosition), in: context)
-            drawText(currencyString(for: item.unitPrice), style: cellStyle, at: CGPoint(x: columnX[2], y: yPosition), in: context)
-            drawText(currencyString(for: item.total), style: cellStyle, at: CGPoint(x: columnX[3], y: yPosition), in: context)
+            let textTop = yPosition + 4
+            let descriptionRect = CGRect(
+                x: descriptionX,
+                y: textTop,
+                width: descriptionWidth,
+                height: rowHeight - 8
+            )
+            drawMultilineText(item.itemDescription, style: cellStyle, in: descriptionRect, context: context)
+            drawText("\(item.quantity)", style: cellStyle, at: CGPoint(x: quantityX, y: textTop), in: context)
+            drawText(currencyString(for: item.unitPrice), style: cellStyle, at: CGPoint(x: unitPriceX, y: textTop), in: context)
+            drawText(currencyString(for: item.total), style: cellStyle, at: CGPoint(x: totalX, y: textTop), in: context)
 
-            yPosition += 26
+            yPosition += rowHeight
             context.setStrokeColor(palette.divider)
             context.setLineWidth(0.5)
-            context.move(to: CGPoint(x: 50, y: yPosition - 4))
-            context.addLine(to: CGPoint(x: pageRect.width - 50, y: yPosition - 4))
+            context.move(to: CGPoint(x: tableX, y: yPosition))
+            context.addLine(to: CGPoint(x: pageRect.width - 50, y: yPosition))
             context.strokePath()
         }
 
@@ -460,6 +500,20 @@ private func drawMultilineText(
     context.saveGState()
     CTFrameDraw(frame, context)
     context.restoreGState()
+}
+
+private func height(for text: String, style: PDFTextStyle, width: CGFloat) -> CGFloat {
+    let attributedString = NSAttributedString(string: text, attributes: style.attributes)
+    let framesetter = CTFramesetterCreateWithAttributedString(attributedString)
+    let constraintSize = CGSize(width: width, height: .greatestFiniteMagnitude)
+    let suggestedSize = CTFramesetterSuggestFrameSizeWithConstraints(
+        framesetter,
+        CFRange(location: 0, length: attributedString.length),
+        nil,
+        constraintSize,
+        nil
+    )
+    return ceil(suggestedSize.height)
 }
 
 private func currencyString(for value: Decimal) -> String {

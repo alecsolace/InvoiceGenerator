@@ -86,10 +86,12 @@ struct EditInvoiceView: View {
     @State private var showingPaywall = false
     @State private var clientName: String
     @State private var clientEmail: String
+    @State private var clientIdentificationNumber: String
     @State private var clientAddress: String
     @State private var notes: String
     private let initialClientName: String
     private let initialClientEmail: String
+    private let initialClientIdentificationNumber: String
     private let initialClientAddress: String
     
     init(invoice: Invoice, viewModel: InvoiceViewModel) {
@@ -97,9 +99,11 @@ struct EditInvoiceView: View {
         self.viewModel = viewModel
         self.initialClientName = invoice.clientName
         self.initialClientEmail = invoice.clientEmail
+        self.initialClientIdentificationNumber = invoice.clientIdentificationNumber
         self.initialClientAddress = invoice.clientAddress
         _clientName = State(initialValue: invoice.clientName)
         _clientEmail = State(initialValue: invoice.clientEmail)
+        _clientIdentificationNumber = State(initialValue: invoice.clientIdentificationNumber)
         _clientAddress = State(initialValue: invoice.clientAddress)
         _notes = State(initialValue: invoice.notes)
         _selectedClientID = State(initialValue: invoice.client?.id)
@@ -133,6 +137,10 @@ struct EditInvoiceView: View {
                 Section("Client Information") {
                     LabeledContent("Client Name", value: clientName.isEmpty ? "—" : clientName)
                     LabeledContent("Email", value: clientEmail.isEmpty ? "—" : clientEmail)
+                    LabeledContent(
+                        String(localized: "Identification Number", comment: "Client identification number label"),
+                        value: clientIdentificationNumber.isEmpty ? "—" : clientIdentificationNumber
+                    )
                     VStack(alignment: .leading, spacing: 4) {
                         Text("Address")
                             .font(.caption)
@@ -177,11 +185,13 @@ struct EditInvoiceView: View {
             else {
                 clientName = initialClientName
                 clientEmail = initialClientEmail
+                clientIdentificationNumber = initialClientIdentificationNumber
                 clientAddress = initialClientAddress
                 return
             }
             clientName = client.name
             clientEmail = client.email
+            clientIdentificationNumber = client.identificationNumber
             clientAddress = client.address
         }
         .sheet(isPresented: $showingAddClient) {
@@ -190,6 +200,7 @@ struct EditInvoiceView: View {
                     selectedClientID = client.id
                     clientName = client.name
                     clientEmail = client.email
+                    clientIdentificationNumber = client.identificationNumber
                     clientAddress = client.address
                 }
             }
@@ -210,6 +221,7 @@ struct EditInvoiceView: View {
         }
         invoice.clientName = clientName
         invoice.clientEmail = clientEmail
+        invoice.clientIdentificationNumber = clientIdentificationNumber
         invoice.clientAddress = clientAddress
         invoice.notes = notes
         

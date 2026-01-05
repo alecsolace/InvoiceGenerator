@@ -11,6 +11,7 @@ struct AddClientView: View {
     @State private var name = ""
     @State private var email = ""
     @State private var address = ""
+    @State private var identificationNumber = ""
     @State private var accentColor = Color(hex: Client.defaultAccentHex) ?? .blue
 
     var body: some View {
@@ -26,6 +27,10 @@ struct AddClientView: View {
                         .textInputAutocapitalization(.never)
                         .autocorrectionDisabled(true)
 #endif
+                    TextField(
+                        String(localized: "Identification Number", comment: "Label for client identification number field"),
+                        text: $identificationNumber
+                    )
 
                     TextField("Address", text: $address, axis: .vertical)
                         .lineLimit(3...6)
@@ -56,6 +61,7 @@ struct AddClientView: View {
             name: name,
             email: email,
             address: address,
+            identificationNumber: identificationNumber,
             accentColorHex: accentHex
         ) else {
             return

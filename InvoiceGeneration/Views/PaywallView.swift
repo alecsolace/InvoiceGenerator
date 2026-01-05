@@ -1,4 +1,10 @@
 import SwiftUI
+#if canImport(UIKit)
+import UIKit
+#endif
+#if canImport(AppKit)
+import AppKit
+#endif
 
 enum PaywallReason {
     case clientLimit
@@ -49,18 +55,12 @@ struct PaywallView: View {
                 .padding()
             }
             .background(
-                LinearGradient(
-                    colors: [
-                        Color.accentColor.opacity(0.15),
-                        Color(.systemBackground)
-                    ],
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                )
-                .ignoresSafeArea()
+                backgroundGradient
             )
             .navigationTitle(String(localized: "Unlock InvoiceGeneration Pro", comment: "Paywall navigation title"))
+            #if os(iOS)
             .navigationBarTitleDisplayMode(.inline)
+            #endif
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button {
@@ -144,55 +144,61 @@ struct PaywallView: View {
             }
 
             ForEach(subscriptionService.plans) { plan in
-                Button {
-                    selectedPlanID = plan.id
-                } label: {
-                    HStack {
-                        VStack(alignment: .leading, spacing: 4) {
-                            HStack {
-                                Text(plan.title)
-                                    .font(.headline)
-                                if let highlight = plan.highlight {
-                                    Text(highlight)
-                                        .font(.caption)
-                                        .padding(.horizontal, 8)
-                                        .padding(.vertical, 4)
-                                        .background(Color.accentColor.opacity(0.15))
-                                        .clipShape(Capsule())
-                                }
-                            }
-
-                            Text(plan.subtitle)
-                                .foregroundStyle(.secondary)
-                                .font(.subheadline)
-                        }
-
-                        Spacer()
-
-                        VStack(alignment: .trailing, spacing: 2) {
-                            Text(plan.price)
-                                .font(.headline)
-                            if plan.hasIntroOffer {
-                                Text(String(localized: "Free trial available", comment: "Intro offer badge"))
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                            }
-                        }
-
-                        Image(systemName: selectedPlanID == plan.id ? "checkmark.circle.fill" : "circle")
-                            .foregroundStyle(selectedPlanID == plan.id ? Color.accentColor : Color.secondary)
-                            .imageScale(.large)
-                    }
-                    .padding()
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(
-                        RoundedRectangle(cornerRadius: 14, style: .continuous)
-                            .fill(selectedPlanID == plan.id ? Color.accentColor.opacity(0.1) : Color(.secondarySystemBackground))
-                    )
-                }
-                .buttonStyle(.plain)
+                planButton(for: plan)
             }
         }
+    }
+
+    private func planButton(for plan: SubscriptionService.Plan) -> some View {
+        let isSelected = selectedPlanID == plan.id
+
+        return Button {
+            selectedPlanID = plan.id
+        } label: {
+            HStack {
+                VStack(alignment: .leading, spacing: 4) {
+                    HStack {
+                        Text(plan.title)
+                            .font(.headline)
+                        if let highlight = plan.highlight {
+                            Text(highlight)
+                                .font(.caption)
+                                .padding(.horizontal, 8)
+                                .padding(.vertical, 4)
+                                .background(Color.accentColor.opacity(0.15))
+                                .clipShape(Capsule())
+                        }
+                    }
+
+                    Text(plan.subtitle)
+                        .foregroundStyle(.secondary)
+                        .font(.subheadline)
+                }
+
+                Spacer()
+
+                VStack(alignment: .trailing, spacing: 2) {
+                    Text(plan.price)
+                        .font(.headline)
+                    if plan.hasIntroOffer {
+                        Text(String(localized: "Free trial available", comment: "Intro offer badge"))
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+
+                Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
+                    .foregroundStyle(isSelected ? Color.accentColor : Color.secondary)
+                    .imageScale(.large)
+            }
+            .padding()
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(
+                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    .fill(isSelected ? Color.accentColor.opacity(0.1) : cardBackgroundColor)
+            )
+        }
+        .buttonStyle(.plain)
     }
 
     private var primaryCTA: some View {
@@ -250,6 +256,38 @@ struct PaywallView: View {
         Task {
             await subscriptionService.purchase(planID: planID)
         }
+    }
+
+    private var backgroundGradient: some View {
+        LinearGradient(
+            colors: [
+                Color.accentColor.opacity(0.15),
+                platformBackgroundColor
+            ],
+            startPoint: .topLeading,
+            endPoint: .bottomTrailing
+        )
+        .ignoresSafeArea()
+    }
+
+    private var platformBackgroundColor: Color {
+        #if canImport(UIKit)
+        return Color(.systemBackground)
+        #elseif canImport(AppKit)
+        return Color(NSColor.windowBackgroundColor)
+        #else
+        return Color.white
+        #endif
+    }
+
+    private var cardBackgroundColor: Color {
+        #if canImport(UIKit)
+        return Color(.secondarySystemBackground)
+        #elseif canImport(AppKit)
+        return Color(NSColor.windowBackgroundColor)
+        #else
+        return Color.white
+        #endif
     }
 }
 

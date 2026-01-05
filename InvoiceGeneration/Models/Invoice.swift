@@ -8,6 +8,7 @@ final class Invoice {
     var invoiceNumber: String
     var clientName: String
     var clientEmail: String
+    var clientIdentificationNumber: String
     var clientAddress: String
     @Relationship(inverse: \Client.invoices)
     var client: Client?
@@ -29,6 +30,7 @@ final class Invoice {
         invoiceNumber: String,
         clientName: String,
         clientEmail: String = "",
+        clientIdentificationNumber: String = "",
         clientAddress: String = "",
         client: Client? = nil,
         issueDate: Date = Date(),
@@ -41,6 +43,7 @@ final class Invoice {
         self.invoiceNumber = invoiceNumber
         self.clientName = clientName
         self.clientEmail = clientEmail
+        self.clientIdentificationNumber = clientIdentificationNumber
         self.clientAddress = clientAddress
         self.client = client
         self.issueDate = issueDate

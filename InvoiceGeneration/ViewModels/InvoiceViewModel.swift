@@ -39,6 +39,7 @@ final class InvoiceViewModel {
                     // Query matches if empty or found in clientName or invoiceNumber
                     (currentQuery.isEmpty ||
                      invoice.clientName.localizedStandardContains(currentQuery) ||
+                     invoice.clientIdentificationNumber.localizedStandardContains(currentQuery) ||
                      invoice.invoiceNumber.localizedStandardContains(currentQuery))
                 },
                 sortBy: [SortDescriptor(\.issueDate, order: .reverse)]
@@ -56,6 +57,7 @@ final class InvoiceViewModel {
         invoiceNumber: String,
         clientName: String,
         clientEmail: String = "",
+        clientIdentificationNumber: String = "",
         clientAddress: String = "",
         client: Client? = nil,
         issueDate: Date = Date(),
@@ -67,6 +69,7 @@ final class InvoiceViewModel {
             invoiceNumber: invoiceNumber,
             clientName: clientName,
             clientEmail: clientEmail,
+            clientIdentificationNumber: clientIdentificationNumber,
             clientAddress: clientAddress,
             client: client,
             issueDate: issueDate,

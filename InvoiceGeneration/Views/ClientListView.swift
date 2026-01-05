@@ -102,6 +102,12 @@ struct ClientListView: View {
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
                     }
+                    
+                    if !client.identificationNumber.isEmpty {
+                        Label(client.identificationNumber, systemImage: "number")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                    }
 
                     if !client.address.isEmpty {
                         Label(client.address, systemImage: "house")

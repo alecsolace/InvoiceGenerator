@@ -10,6 +10,7 @@ final class Client {
     var name: String
     var email: String
     var address: String
+    var identificationNumber: String
     var accentColorHex: String
     
     @Relationship(deleteRule: .nullify)
@@ -25,12 +26,14 @@ final class Client {
         name: String,
         email: String = "",
         address: String = "",
+        identificationNumber: String = "",
         accentColorHex: String = Client.defaultAccentHex
     ) {
         self.id = id
         self.name = name
         self.email = email
         self.address = address
+        self.identificationNumber = identificationNumber
         self.accentColorHex = accentColorHex
         self.createdAt = Date()
         self.updatedAt = Date()

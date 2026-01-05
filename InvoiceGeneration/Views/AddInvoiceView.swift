@@ -15,6 +15,7 @@ struct AddInvoiceView: View {
     @State private var clientName = ""
     @State private var clientEmail = ""
     @State private var clientAddress = ""
+    @State private var clientIdentificationNumber = ""
     @State private var issueDate = Date()
     @State private var dueDate = Date().addingTimeInterval(30 * 24 * 60 * 60)
     @State private var selectedClientID: UUID?
@@ -65,6 +66,10 @@ struct AddInvoiceView: View {
                         .textContentType(.emailAddress)
                         .disableAutocorrection(true)
 
+                    TextField(
+                        String(localized: "Identification Number", comment: "Label for client identification number field"),
+                        text: $clientIdentificationNumber
+                    )
                     
                     TextField("Address", text: $clientAddress, axis: .vertical)
                         .lineLimit(3...6)
@@ -141,6 +146,7 @@ struct AddInvoiceView: View {
                         selectedClientID = client.id
                         clientName = client.name
                         clientEmail = client.email
+                        clientIdentificationNumber = client.identificationNumber
                         clientAddress = client.address
                     }
                 }
@@ -159,6 +165,7 @@ struct AddInvoiceView: View {
 
             clientName = client.name
             clientEmail = client.email
+            clientIdentificationNumber = client.identificationNumber
             clientAddress = client.address
         }
         .sheet(isPresented: $showingAddItem) {
@@ -202,6 +209,7 @@ struct AddInvoiceView: View {
             invoiceNumber: invoiceNumber,
             clientName: clientName,
             clientEmail: clientEmail,
+            clientIdentificationNumber: clientIdentificationNumber,
             clientAddress: clientAddress,
             client: selectedClient,
             issueDate: issueDate,
