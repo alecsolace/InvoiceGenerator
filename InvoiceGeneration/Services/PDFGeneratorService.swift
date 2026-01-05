@@ -48,10 +48,10 @@ final class PDFGeneratorService {
         
         context.beginPDFPage(nil)
         context.saveGState()
+        // Place origin at top-left for easier layout, keeping text upright.
+        context.translateBy(x: 0, y: pageHeight)
         context.scaleBy(x: 1, y: -1)
-        context.translateBy(x: 0, y: -pageHeight)
-        // Flip text back upright after inverting the coordinate system.
-        context.textMatrix = CGAffineTransform(scaleX: 1, y: -1)
+        context.textMatrix = .identity
         
         var yPosition: CGFloat = 24
         let pageRect = mediaBox
@@ -205,9 +205,9 @@ final class PDFGeneratorService {
         let hasAddress = !invoice.clientAddress.isEmpty
         let hasIdNumber = !idNumber.isEmpty
 
-        let baseHeight: CGFloat = 74
-        let variableHeight: CGFloat = (hasEmail ? 18 : 0) + (hasAddress ? 18 : 0) + (hasIdNumber ? 18 : 0)
-        let containerHeight = max(110, baseHeight + variableHeight)
+        let baseHeight: CGFloat = 98
+        let variableHeight: CGFloat = (hasEmail ? 26 : 0) + (hasAddress ? 26 : 0) + (hasIdNumber ? 26 : 0)
+        let containerHeight = max(150, baseHeight + variableHeight)
         let container = CGRect(x: 50, y: startY, width: pageRect.width - 100, height: containerHeight)
         context.setFillColor(palette.sectionBackground)
         context.fill(container)
@@ -216,34 +216,36 @@ final class PDFGeneratorService {
         let labelStyle = PDFTextStyle(font: PDFFont.bold(11), color: palette.textSecondary)
         let valueStyle = PDFTextStyle(font: PDFFont.regular(12), color: palette.textPrimary)
 
-        var yPosition = container.origin.y + 12
-        drawText(localized("BILL TO", comment: "PDF bill-to header"), style: headerStyle, at: CGPoint(x: container.origin.x + 12, y: yPosition), in: context)
-        yPosition += 18
+        let labelX = container.origin.x + 16
+        let valueX = container.origin.x + 200
+        var yPosition = container.origin.y + 16
+        drawText(localized("BILL TO", comment: "PDF bill-to header"), style: headerStyle, at: CGPoint(x: labelX, y: yPosition), in: context)
+        yPosition += 26
 
-        drawText(localized("Client", comment: "PDF client label"), style: labelStyle, at: CGPoint(x: container.origin.x + 12, y: yPosition), in: context)
-        drawText(invoice.clientName, style: valueStyle, at: CGPoint(x: container.origin.x + 100, y: yPosition), in: context)
-        yPosition += 18
+        drawText(localized("Client", comment: "PDF client label"), style: labelStyle, at: CGPoint(x: labelX, y: yPosition), in: context)
+        drawText(invoice.clientName, style: valueStyle, at: CGPoint(x: valueX, y: yPosition), in: context)
+        yPosition += 26
 
         if !invoice.clientEmail.isEmpty {
-            drawText(localized("Email", comment: "PDF client email label"), style: labelStyle, at: CGPoint(x: container.origin.x + 12, y: yPosition), in: context)
-            drawText(invoice.clientEmail, style: valueStyle, at: CGPoint(x: container.origin.x + 100, y: yPosition), in: context)
-            yPosition += 18
+            drawText(localized("Email", comment: "PDF client email label"), style: labelStyle, at: CGPoint(x: labelX, y: yPosition), in: context)
+            drawText(invoice.clientEmail, style: valueStyle, at: CGPoint(x: valueX, y: yPosition), in: context)
+            yPosition += 26
         }
 
         if hasIdNumber {
             drawText(
                 localized("Identification Number", comment: "PDF client identification label"),
                 style: labelStyle,
-                at: CGPoint(x: container.origin.x + 12, y: yPosition),
+                at: CGPoint(x: labelX, y: yPosition),
                 in: context
             )
-            drawText(idNumber, style: valueStyle, at: CGPoint(x: container.origin.x + 100, y: yPosition), in: context)
-            yPosition += 18
+            drawText(idNumber, style: valueStyle, at: CGPoint(x: valueX, y: yPosition), in: context)
+            yPosition += 26
         }
 
         if !invoice.clientAddress.isEmpty {
-            drawText(localized("Address", comment: "PDF client address label"), style: labelStyle, at: CGPoint(x: container.origin.x + 12, y: yPosition), in: context)
-            drawText(invoice.clientAddress, style: valueStyle, at: CGPoint(x: container.origin.x + 100, y: yPosition), in: context)
+            drawText(localized("Address", comment: "PDF client address label"), style: labelStyle, at: CGPoint(x: labelX, y: yPosition), in: context)
+            drawText(invoice.clientAddress, style: valueStyle, at: CGPoint(x: valueX, y: yPosition), in: context)
         }
 
         return container.maxY

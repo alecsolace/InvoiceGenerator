@@ -1,4 +1,5 @@
 import Foundation
+import OSLog
 import SwiftData
 import Observation
 
@@ -86,6 +87,7 @@ final class CompanyProfileViewModel {
         do {
             try modelContext.save()
         } catch {
+            PersistenceController.logger.error("Failed to save profile: \(error.localizedDescription)")
             errorMessage = "Failed to save profile: \(error.localizedDescription)"
         }
     }

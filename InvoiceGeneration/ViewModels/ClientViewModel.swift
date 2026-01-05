@@ -1,5 +1,6 @@
 import Foundation
 import Observation
+import OSLog
 import SwiftData
 
 /// ViewModel for managing clients
@@ -62,6 +63,7 @@ final class ClientViewModel {
             fetchClients()
             return client
         } catch {
+            PersistenceController.logger.error("Failed to save client: \(error.localizedDescription)")
             errorMessage = "Failed to save client: \(error.localizedDescription)"
             return nil
         }
@@ -84,6 +86,7 @@ final class ClientViewModel {
         do {
             try modelContext.save()
         } catch {
+            PersistenceController.logger.error("SwiftData save failed: \(error.localizedDescription)")
             errorMessage = "Failed to save: \(error.localizedDescription)"
         }
     }

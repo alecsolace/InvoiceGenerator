@@ -1,4 +1,5 @@
 import Foundation
+import OSLog
 import SwiftData
 import Observation
 
@@ -188,6 +189,7 @@ final class InvoiceViewModel {
         do {
             try modelContext.save()
         } catch {
+            PersistenceController.logger.error("SwiftData save failed: \(error.localizedDescription)")
             errorMessage = "Failed to save: \(error.localizedDescription)"
         }
     }

@@ -5,13 +5,14 @@ import SwiftData
 @main
 struct InvoiceGeneratorApp: App {
     @StateObject private var subscriptionService = SubscriptionService.shared
+    private let modelContainer = PersistenceController.shared
 
     var body: some Scene {
         WindowGroup {
             ContentView()
                 .environmentObject(subscriptionService)
         }
-        .modelContainer(for: [Invoice.self, InvoiceItem.self, CompanyProfile.self, Client.self])
+        .modelContainer(modelContainer)
     }
 }
 
@@ -71,5 +72,5 @@ struct ContentView: View {
 
 #Preview {
     ContentView()
-        .modelContainer(for: [Invoice.self, InvoiceItem.self, CompanyProfile.self, Client.self])
+        .modelContainer(PersistenceController.preview)
 }
