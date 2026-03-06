@@ -66,7 +66,7 @@ extension Color {
         var blue: CGFloat = 0
         var alpha: CGFloat = 0
 
-        guard let convertedColor = platformColor.usingColorSpace(NSColorSpace.sRGB) else {
+        guard let convertedColor = platformColor.usingColorSpace(.sRGB) else {
             return nil
         }
         convertedColor.getRed(&red, green: &green, blue: &blue, alpha: &alpha)

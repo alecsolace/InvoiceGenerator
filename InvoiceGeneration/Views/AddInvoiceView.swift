@@ -9,9 +9,12 @@ struct AddInvoiceView: View {
     @Environment(\.modelContext) private var modelContext
     @Bindable var viewModel: InvoiceViewModel
 
-    @State private var clientViewModel: ClientViewModel?
+    @AppStorage(IssuerSelectionStore.appStorageKey) private var selectedIssuerStorage = IssuerSelectionStore.allIssuersToken
 
-    @State private var invoiceNumber = String.generateInvoiceNumber()
+    @State private var clientViewModel: ClientViewModel?
+    @State private var issuerViewModel: IssuerViewModel?
+
+    @State private var invoiceNumber = ""
     @State private var clientName = ""
     @State private var clientEmail = ""
     @State private var clientAddress = ""
@@ -19,6 +22,7 @@ struct AddInvoiceView: View {
     @State private var issueDate = Date()
     @State private var dueDate = Date().addingTimeInterval(30 * 24 * 60 * 60)
     @State private var selectedClientID: UUID?
+    @State private var selectedIssuerID: UUID?
     @State private var showingAddClient = false
     @State private var showingPaywall = false
     @State private var draftItems: [DraftInvoiceItem] = []
@@ -26,6 +30,8 @@ struct AddInvoiceView: View {
     @State private var irpfPercentage = "0"
     @State private var showingAddItem = false
     @State private var editingDraftItem: DraftInvoiceItem?
+    @State private var hasManuallyEditedInvoiceNumber = false
+    @State private var lastSuggestedInvoiceNumber = ""
 
     var body: some View {
         NavigationStack {
@@ -33,9 +39,28 @@ struct AddInvoiceView: View {
                 Section("Invoice Details") {
                     TextField("Invoice Number", text: $invoiceNumber)
 
+                    Button("Use Next Number") {
+                        applySuggestedInvoiceNumber(force: true)
+                    }
+                    .disabled(currentIssuer == nil)
+
                     DatePicker("Issue Date", selection: $issueDate, displayedComponents: .date)
 
                     DatePicker("Due Date", selection: $dueDate, displayedComponents: .date)
+                }
+
+                Section("Emitter") {
+                    if let issuers = issuerViewModel?.issuers, !issuers.isEmpty {
+                        Picker("Emitter", selection: $selectedIssuerID) {
+                            ForEach(issuers) { issuer in
+                                Text("\(issuer.name) (\(issuer.code))")
+                                    .tag(Optional(issuer.id))
+                            }
+                        }
+                    } else {
+                        Text("No emitters available. Create one in the Emitters tab.")
+                            .foregroundStyle(.secondary)
+                    }
                 }
 
                 Section("Saved Clients") {
@@ -72,7 +97,7 @@ struct AddInvoiceView: View {
                         String(localized: "Identification Number", comment: "Label for client identification number field"),
                         text: $clientIdentificationNumber
                     )
-                    
+
                     TextField("Address", text: $clientAddress, axis: .vertical)
                         .lineLimit(3...6)
                 }
@@ -100,7 +125,7 @@ struct AddInvoiceView: View {
                                             .labelStyle(.iconOnly)
                                     }
                                     .buttonStyle(.plain)
-                                    
+
                                     Button(role: .destructive, action: { removeDraftItem(item) }) {
                                         Label("Delete", systemImage: "trash")
                                             .labelStyle(.iconOnly)
@@ -157,12 +182,12 @@ struct AddInvoiceView: View {
                         dismiss()
                     }
                 }
-                
+
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Create") {
                         createInvoice()
                     }
-                    .disabled(clientName.isEmpty || invoiceNumber.isEmpty)
+                    .disabled(clientName.isEmpty || invoiceNumber.isEmpty || currentIssuer == nil)
                 }
             }
             .sheet(isPresented: $showingAddClient) {
@@ -181,6 +206,14 @@ struct AddInvoiceView: View {
             if clientViewModel == nil {
                 clientViewModel = ClientViewModel(modelContext: modelContext)
             }
+
+            if issuerViewModel == nil {
+                issuerViewModel = IssuerViewModel(modelContext: modelContext)
+            }
+
+            selectedIssuerID = IssuerSelectionStore.issuerID(from: selectedIssuerStorage)
+            ensureValidIssuerSelection()
+            applySuggestedInvoiceNumber(force: true)
         }
         .onChange(of: selectedClientID) { _, newValue in
             guard
@@ -192,6 +225,24 @@ struct AddInvoiceView: View {
             clientEmail = client.email
             clientIdentificationNumber = client.identificationNumber
             clientAddress = client.address
+        }
+        .onChange(of: selectedIssuerID) { _, newValue in
+            selectedIssuerStorage = IssuerSelectionStore.storageValue(from: newValue)
+            ensureValidIssuerSelection()
+            applySuggestedInvoiceNumber(force: false)
+        }
+        .onChange(of: selectedIssuerStorage) { _, newValue in
+            let parsedID = IssuerSelectionStore.issuerID(from: newValue)
+            if selectedIssuerID != parsedID {
+                selectedIssuerID = parsedID
+            }
+            ensureValidIssuerSelection()
+            applySuggestedInvoiceNumber(force: false)
+        }
+        .onChange(of: invoiceNumber) { _, newValue in
+            if newValue != lastSuggestedInvoiceNumber {
+                hasManuallyEditedInvoiceNumber = true
+            }
         }
         .sheet(isPresented: $showingAddItem) {
             InvoiceDraftItemEditor(mode: .add) { draft in
@@ -211,6 +262,39 @@ struct AddInvoiceView: View {
         }
     }
 
+    private var currentIssuer: Issuer? {
+        guard let selectedIssuerID else { return issuerViewModel?.issuers.first }
+        return issuerViewModel?.issuers.first(where: { $0.id == selectedIssuerID })
+    }
+
+    private func ensureValidIssuerSelection() {
+        guard let issuerViewModel else { return }
+
+        if issuerViewModel.issuers.isEmpty {
+            selectedIssuerID = nil
+            return
+        }
+
+        if let id = selectedIssuerID,
+           issuerViewModel.issuers.contains(where: { $0.id == id }) {
+            return
+        }
+
+        selectedIssuerID = issuerViewModel.issuers.first?.id
+    }
+
+    private func applySuggestedInvoiceNumber(force: Bool) {
+        guard let issuer = currentIssuer else { return }
+
+        let suggestion = InvoiceNumberingService.nextInvoiceNumber(for: issuer)
+        lastSuggestedInvoiceNumber = suggestion
+
+        if force || invoiceNumber.isEmpty || !hasManuallyEditedInvoiceNumber {
+            invoiceNumber = suggestion
+            hasManuallyEditedInvoiceNumber = false
+        }
+    }
+
     private func handleAddClientTap() {
         let count = clientViewModel?.clients.count ?? 0
         if subscriptionService.canAddClient(currentCount: count) {
@@ -221,6 +305,8 @@ struct AddInvoiceView: View {
     }
 
     private func createInvoice() {
+        guard let issuer = currentIssuer else { return }
+
         let selectedClient = clientViewModel?.clients.first(where: { $0.id == selectedClientID })
         let preparedItems = draftItems.map {
             InvoiceLineItemInput(
@@ -232,6 +318,7 @@ struct AddInvoiceView: View {
 
         viewModel.createInvoice(
             invoiceNumber: invoiceNumber,
+            issuer: issuer,
             clientName: clientName,
             clientEmail: clientEmail,
             clientIdentificationNumber: clientIdentificationNumber,
@@ -243,6 +330,8 @@ struct AddInvoiceView: View {
             irpfPercentage: irpfPercentageValue,
             items: preparedItems
         )
+
+        selectedIssuerStorage = IssuerSelectionStore.storageValue(from: issuer.id)
         dismiss()
     }
 
@@ -278,14 +367,18 @@ struct AddInvoiceView: View {
 #Preview {
     let config = ModelConfiguration(isStoredInMemoryOnly: true)
     let container = try! ModelContainer(
-        for: Invoice.self, InvoiceItem.self, CompanyProfile.self, Client.self,
+        for: Invoice.self, InvoiceItem.self, CompanyProfile.self, Client.self, Issuer.self,
         configurations: config
     )
-    
+
+    let issuer = Issuer(name: "Sample Issuer", code: "SMP")
+    container.mainContext.insert(issuer)
+
     let viewModel = InvoiceViewModel(modelContext: container.mainContext)
-    
+
     return AddInvoiceView(viewModel: viewModel)
         .environmentObject(SubscriptionService())
+        .modelContainer(container)
 }
 
 // MARK: - Draft Item Support
@@ -295,14 +388,14 @@ private struct DraftInvoiceItem: Identifiable, Equatable {
     var description: String
     var quantity: Int
     var unitPrice: Decimal
-    
+
     init(id: UUID = UUID(), description: String, quantity: Int, unitPrice: Decimal) {
         self.id = id
         self.description = description
         self.quantity = quantity
         self.unitPrice = unitPrice
     }
-    
+
     var total: Decimal { Decimal(quantity) * unitPrice }
 }
 
@@ -310,7 +403,7 @@ private struct InvoiceDraftItemEditor: View {
     enum Mode {
         case add
         case edit(DraftInvoiceItem)
-        
+
         var title: String {
             switch self {
             case .add: return "Add Item"
@@ -318,15 +411,15 @@ private struct InvoiceDraftItemEditor: View {
             }
         }
     }
-    
+
     @Environment(\.dismiss) private var dismiss
     let mode: Mode
     let onSave: (DraftInvoiceItem) -> Void
-    
+
     @State private var descriptionText: String
     @State private var quantity: Int
     @State private var unitPrice: String
-    
+
     init(mode: Mode, onSave: @escaping (DraftInvoiceItem) -> Void) {
         self.mode = mode
         self.onSave = onSave
@@ -341,7 +434,7 @@ private struct InvoiceDraftItemEditor: View {
             _unitPrice = State(initialValue: NSDecimalNumber(decimal: item.unitPrice).stringValue)
         }
     }
-    
+
     var body: some View {
         NavigationStack {
             Form {
@@ -375,11 +468,11 @@ private struct InvoiceDraftItemEditor: View {
             }
         }
     }
-    
+
     private var isValid: Bool {
         !descriptionText.isEmpty && Decimal(string: unitPrice) != nil
     }
-    
+
     private func persist() {
         guard let price = Decimal(string: unitPrice) else { return }
         let identifier: UUID

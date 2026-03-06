@@ -94,5 +94,5 @@ struct CompanyProfileView: View {
 
 #Preview {
     CompanyProfileView()
-        .modelContainer(for: [Invoice.self, InvoiceItem.self, CompanyProfile.self, Client.self])
+        .modelContainer(for: [Invoice.self, InvoiceItem.self, CompanyProfile.self, Client.self, Issuer.self])
 }

@@ -14,6 +14,7 @@ final class InvoiceViewModel {
     var errorMessage: String?
     var statusFilter: InvoiceStatus?
     var clientFilterID: UUID?
+    var issuerFilterID: UUID?
     var searchQuery = ""
 
     init(modelContext: ModelContext) {
@@ -28,34 +29,49 @@ final class InvoiceViewModel {
 
         let currentStatus = statusFilter
         let currentClientID = clientFilterID
+        let currentIssuerID = issuerFilterID
         let currentQuery = searchQuery
 
         do {
             let descriptor = FetchDescriptor<Invoice>(
-                predicate: #Predicate<Invoice> { invoice in
-                    // Status matches if no filter or equals filtered status
-                    (currentStatus == nil || invoice.status == currentStatus!) &&
-                    // Client matches if no filter or equals filtered client id
-                    (currentClientID == nil || invoice.client?.id == currentClientID!) &&
-                    // Query matches if empty or found in clientName or invoiceNumber
-                    (currentQuery.isEmpty ||
-                     invoice.clientName.localizedStandardContains(currentQuery) ||
-                     invoice.clientIdentificationNumber.localizedStandardContains(currentQuery) ||
-                     invoice.invoiceNumber.localizedStandardContains(currentQuery))
-                },
                 sortBy: [SortDescriptor(\.issueDate, order: .reverse)]
             )
-            invoices = try modelContext.fetch(descriptor)
+            var fetchedInvoices = try modelContext.fetch(descriptor)
+
+            if let currentStatus {
+                fetchedInvoices = fetchedInvoices.filter { $0.status == currentStatus }
+            }
+
+            if let currentClientID {
+                fetchedInvoices = fetchedInvoices.filter { $0.client?.id == currentClientID }
+            }
+
+            if let currentIssuerID {
+                fetchedInvoices = fetchedInvoices.filter { $0.issuer?.id == currentIssuerID }
+            }
+
+            if !currentQuery.isEmpty {
+                fetchedInvoices = fetchedInvoices.filter { invoice in
+                    invoice.clientName.localizedStandardContains(currentQuery) ||
+                    invoice.clientIdentificationNumber.localizedStandardContains(currentQuery) ||
+                    invoice.invoiceNumber.localizedStandardContains(currentQuery) ||
+                    invoice.issuerName.localizedStandardContains(currentQuery) ||
+                    invoice.issuerCode.localizedStandardContains(currentQuery)
+                }
+            }
+
+            invoices = fetchedInvoices
         } catch {
             errorMessage = "Failed to fetch invoices: \(error.localizedDescription)"
         }
-        
+
         isLoading = false
     }
-    
+
     /// Create a new invoice
     func createInvoice(
         invoiceNumber: String,
+        issuer: Issuer,
         clientName: String,
         clientEmail: String = "",
         clientIdentificationNumber: String = "",
@@ -75,6 +91,7 @@ final class InvoiceViewModel {
             clientIdentificationNumber: clientIdentificationNumber,
             clientAddress: clientAddress,
             client: client,
+            issuer: issuer,
             issueDate: issueDate,
             dueDate: dueDate,
             notes: notes,
@@ -82,6 +99,7 @@ final class InvoiceViewModel {
             irpfPercentage: irpfPercentage
         )
 
+        invoice.captureIssuerSnapshot(from: issuer)
         modelContext.insert(invoice)
 
         for item in items {
@@ -94,11 +112,13 @@ final class InvoiceViewModel {
             invoice.items.append(invoiceItem)
             modelContext.insert(invoiceItem)
         }
+
+        InvoiceNumberingService.registerUsedInvoiceNumber(invoiceNumber, for: issuer)
         invoice.calculateTotal()
         saveContext()
         fetchInvoices()
     }
-    
+
     /// Update an existing invoice
     func updateInvoice(_ invoice: Invoice) {
         invoice.updateTimestamp()
@@ -106,14 +126,14 @@ final class InvoiceViewModel {
         saveContext()
         fetchInvoices()
     }
-    
+
     /// Delete an invoice
     func deleteInvoice(_ invoice: Invoice) {
         modelContext.delete(invoice)
         saveContext()
         fetchInvoices()
     }
-    
+
     /// Add item to invoice
     func addItem(to invoice: Invoice, description: String, quantity: Int, unitPrice: Decimal) {
         let item = InvoiceItem(
@@ -125,12 +145,12 @@ final class InvoiceViewModel {
         invoice.items.append(item)
         invoice.calculateTotal()
         invoice.updateTimestamp()
-        
+
         modelContext.insert(item)
         saveContext()
         fetchInvoices()
     }
-    
+
     /// Remove item from invoice
     func removeItem(_ item: InvoiceItem, from invoice: Invoice) {
         if let index = invoice.items.firstIndex(where: { $0.id == item.id }) {
@@ -160,7 +180,7 @@ final class InvoiceViewModel {
         saveContext()
         fetchInvoices()
     }
-    
+
     /// Update invoice status
     func updateStatus(_ invoice: Invoice, status: InvoiceStatus) {
         invoice.status = status
@@ -168,7 +188,7 @@ final class InvoiceViewModel {
         saveContext()
         fetchInvoices()
     }
-    
+
     /// Search invoices by client name or invoice number
     func searchInvoices(query: String) {
         searchQuery = query
@@ -186,9 +206,15 @@ final class InvoiceViewModel {
         clientFilterID = client?.id
         fetchInvoices()
     }
-    
+
+    /// Filter invoices by issuer
+    func filterByIssuer(_ issuer: Issuer?) {
+        issuerFilterID = issuer?.id
+        fetchInvoices()
+    }
+
     // MARK: - Private Methods
-    
+
     private func saveContext() {
         do {
             try modelContext.save()

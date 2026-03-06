@@ -6,6 +6,9 @@ import SwiftData
 /// Dashboard with invoice status and revenue charts
 struct DashboardView: View {
     @Environment(\.modelContext) private var modelContext
+    @Query(sort: [SortDescriptor(\Issuer.name)]) private var issuers: [Issuer]
+    @AppStorage(IssuerSelectionStore.appStorageKey) private var selectedIssuerStorage = IssuerSelectionStore.allIssuersToken
+
     @State private var viewModel: DashboardViewModel?
 
     var body: some View {
@@ -24,9 +27,21 @@ struct DashboardView: View {
                 }
             }
             .navigationTitle("Dashboard")
-            .toolbar { refreshButton }
+            .toolbar {
+                issuerFilterMenu
+                refreshButton
+            }
         }
-        .onAppear { loadViewModelIfNeeded() }
+        .onAppear {
+            loadViewModelIfNeeded()
+            applyIssuerFilter()
+        }
+        .onChange(of: selectedIssuerStorage) { _, _ in
+            applyIssuerFilter()
+        }
+        .onChange(of: issuers.count) { _, _ in
+            applyIssuerFilter()
+        }
     }
 
     private func statusSection(viewModel: DashboardViewModel) -> some View {
@@ -41,7 +56,7 @@ struct DashboardView: View {
             } else {
                 let statusDimLabel = statusDimensionLabel
                 let countLabel = statusCountLabel
-                
+
                 Chart(viewModel.statusSummaries) { summary in
                     SectorMark(
                         angle: .value(countLabel, summary.count),
@@ -79,7 +94,7 @@ struct DashboardView: View {
             } else {
                 let monthAxisLabelText = monthAxisLabel
                 let revenueAxisTitleText = revenueAxisTitle
-                
+
                 Chart(viewModel.monthlyRevenue) { revenue in
                     BarMark(
                         x: .value(monthAxisLabelText, revenue.month, unit: .month),
@@ -106,10 +121,42 @@ struct DashboardView: View {
     @ToolbarContentBuilder
     private var refreshButton: some ToolbarContent {
         ToolbarItem(placement: .primaryAction) {
-            Button(action: { viewModel?.fetchInvoices() }) {
+            Button(action: {
+                applyIssuerFilter()
+                viewModel?.fetchInvoices()
+            }) {
                 Label("Refrescar", systemImage: "arrow.clockwise")
             }
         }
+    }
+
+    @ToolbarContentBuilder
+    private var issuerFilterMenu: some ToolbarContent {
+        ToolbarItem(placement: .automatic) {
+            Menu {
+                Button("All Emitters") {
+                    selectedIssuerStorage = IssuerSelectionStore.allIssuersToken
+                }
+
+                ForEach(issuers) { issuer in
+                    Button(issuer.name) {
+                        selectedIssuerStorage = issuer.id.uuidString
+                    }
+                }
+            } label: {
+                Label(issuerFilterLabel, systemImage: "building.2")
+            }
+        }
+    }
+
+    private var issuerFilterLabel: String {
+        guard let selectedID = IssuerSelectionStore.issuerID(from: selectedIssuerStorage),
+              let issuer = issuers.first(where: { $0.id == selectedID })
+        else {
+            return "All Emitters"
+        }
+
+        return issuer.name
     }
 
     private func monthLabel(for date: Date) -> String {
@@ -122,27 +169,35 @@ struct DashboardView: View {
     private func loadViewModelIfNeeded() {
         if viewModel == nil {
             viewModel = DashboardViewModel(modelContext: modelContext)
+        }
+    }
+
+    private func applyIssuerFilter() {
+        guard let viewModel else { return }
+        let selectedID = IssuerSelectionStore.issuerID(from: selectedIssuerStorage)
+        if let selectedID, let issuer = issuers.first(where: { $0.id == selectedID }) {
+            viewModel.filterByIssuer(issuer)
         } else {
-            viewModel?.fetchInvoices()
+            viewModel.filterByIssuer(nil)
         }
     }
 
     private var statusCountLabel: String {
         NSLocalizedString("Cantidad", comment: "Chart label for invoice count")
     }
-    
+
     private var statusDimensionLabel: String {
         NSLocalizedString("Estado", comment: "Chart label for invoice status")
     }
-    
+
     private var monthAxisLabel: String {
         NSLocalizedString("Mes", comment: "Chart label for months")
     }
-    
+
     private var revenueAxisTitle: String {
         NSLocalizedString("Ingresos", comment: "Chart label for revenue")
     }
-    
+
     private var statusColorScale: KeyValuePairs<String, Color> {
         [
             InvoiceStatus.draft.localizedTitle: .gray,
@@ -156,5 +211,5 @@ struct DashboardView: View {
 
 #Preview {
     DashboardView()
-        .modelContainer(for: [Invoice.self, InvoiceItem.self, CompanyProfile.self, Client.self])
+        .modelContainer(for: [Invoice.self, InvoiceItem.self, CompanyProfile.self, Client.self, Issuer.self])
 }

@@ -8,6 +8,7 @@ final class DashboardViewModel {
     private let modelContext: ModelContext
 
     var invoices: [Invoice] = []
+    var issuerFilterID: UUID?
     var errorMessage: String?
 
     init(modelContext: ModelContext) {
@@ -21,10 +22,21 @@ final class DashboardViewModel {
             let descriptor = FetchDescriptor<Invoice>(
                 sortBy: [SortDescriptor(\.issueDate, order: .reverse)]
             )
-            invoices = try modelContext.fetch(descriptor)
+            let fetchedInvoices = try modelContext.fetch(descriptor)
+
+            if let issuerFilterID {
+                invoices = fetchedInvoices.filter { $0.issuer?.id == issuerFilterID }
+            } else {
+                invoices = fetchedInvoices
+            }
         } catch {
             errorMessage = "Failed to load invoices: \(error.localizedDescription)"
         }
+    }
+
+    func filterByIssuer(_ issuer: Issuer?) {
+        issuerFilterID = issuer?.id
+        fetchInvoices()
     }
 
     /// Count invoices by status for donut chart
@@ -73,4 +85,3 @@ struct MonthlyRevenue: Identifiable {
 
     var id: Date { month }
 }
-

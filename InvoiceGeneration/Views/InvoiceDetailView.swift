@@ -2,6 +2,9 @@ import Foundation
 import SwiftUI
 import SwiftData
 import PDFKit
+#if canImport(MessageUI)
+import MessageUI
+#endif
 #if canImport(AppKit)
 import AppKit
 #endif
@@ -9,7 +12,6 @@ import AppKit
 /// Detailed view for a single invoice with modern, glass-inspired layout
 struct InvoiceDetailView: View {
     @Environment(\.dismiss) private var dismiss
-    @Environment(\.modelContext) private var modelContext
     
     @Bindable var invoice: Invoice
     @Bindable var viewModel: InvoiceViewModel
@@ -18,6 +20,7 @@ struct InvoiceDetailView: View {
     @State private var showingEditInvoice = false
     @State private var showingShareSheet = false
     @State private var showingPDFSaveConfirmation = false
+    @State private var emailDraft: EmailDraft?
     @State private var pdfURL: URL?
     @State private var savedPDFURL: URL?
     @State private var previewDocument: PDFDocument?
@@ -64,6 +67,11 @@ struct InvoiceDetailView: View {
                     ShareSheet(items: [pdfURL])
                 }
             }
+            #if canImport(UIKit) && canImport(MessageUI)
+            .sheet(item: $emailDraft) { draft in
+                MailComposeView(draft: draft)
+            }
+            #endif
             #if canImport(UIKit)
             .fullScreenCover(isPresented: $showingFullScreenPreview) {
                 if let document = fullScreenDocument {
@@ -176,6 +184,12 @@ struct InvoiceDetailView: View {
                 .fontWeight(.semibold)
             
             infoRow(title: "Invoice Number", value: invoice.invoiceNumber)
+            if !invoice.issuerName.isEmpty {
+                infoRow(title: "Emitter", value: invoice.issuerName)
+            }
+            if !invoice.issuerCode.isEmpty {
+                infoRow(title: "Emitter Code", value: invoice.issuerCode)
+            }
             infoRow(title: "Issue Date", value: invoice.issueDate.mediumFormat)
             infoRow(title: "Due Date", value: invoice.dueDate.mediumFormat)
             if let updated = invoice.pdfLastGeneratedAt {
@@ -360,6 +374,11 @@ struct InvoiceDetailView: View {
                         Label("Share Saved PDF", systemImage: "square.and.arrow.up")
                     }
                 }
+
+                Button(action: { sendInvoiceByEmail() }) {
+                    Label("Send Email", systemImage: "envelope")
+                }
+                .buttonStyle(.bordered)
             }
         }
         .padding(24)
@@ -378,6 +397,9 @@ struct InvoiceDetailView: View {
                     Button(action: { shareSavedPDF() }) {
                         Label("Share Saved PDF", systemImage: "square.and.arrow.up")
                     }
+                }
+                Button(action: { sendInvoiceByEmail() }) {
+                    Label("Send Email", systemImage: "envelope")
                 }
                 Button(action: { showingEditInvoice = true }) {
                     Label("Edit Invoice", systemImage: "pencil")
@@ -560,12 +582,7 @@ struct InvoiceDetailView: View {
     
     private func refreshPreview() {
         isPreviewLoading = true
-        let descriptor = FetchDescriptor<CompanyProfile>()
-        let profile = (try? modelContext.fetch(descriptor))?.first
-        let document = PDFGeneratorService.generateInvoicePDF(
-            invoice: invoice,
-            companyProfile: profile
-        )
+        let document = PDFGeneratorService.generateInvoicePDF(invoice: invoice)
         previewDocument = document
         previewNeedsRefresh = document == nil
         isPreviewLoading = false
@@ -618,24 +635,57 @@ struct InvoiceDetailView: View {
         }
     }
 
-    private func generatePDF() {
-        let descriptor = FetchDescriptor<CompanyProfile>()
-        let profiles = try? modelContext.fetch(descriptor)
-        let profile = profiles?.first
-        
-        if let pdfDocument = PDFGeneratorService.generateInvoicePDF(
-            invoice: invoice,
-            companyProfile: profile
-        ) {
-            if let url = PDFGeneratorService.savePDF(pdfDocument, fileName: pdfFileName) {
-                pdfURL = url
-                savedPDFURL = url
-                invoice.pdfLastGeneratedAt = Date()
-                viewModel.updateInvoice(invoice)
-                showingPDFSaveConfirmation = true
-                refreshPreview()
-            }
+    @discardableResult
+    private func generatePDF(showConfirmation: Bool = true) -> URL? {
+        guard let pdfDocument = PDFGeneratorService.generateInvoicePDF(invoice: invoice),
+              let url = PDFGeneratorService.savePDF(pdfDocument, fileName: pdfFileName) else {
+            return nil
         }
+
+        pdfURL = url
+        savedPDFURL = url
+        invoice.pdfLastGeneratedAt = Date()
+        viewModel.updateInvoice(invoice)
+        if showConfirmation {
+            showingPDFSaveConfirmation = true
+        }
+        refreshPreview()
+        return url
+    }
+
+    private func ensurePDFExists() -> URL? {
+        if let savedPDFURL,
+           FileManager.default.fileExists(atPath: savedPDFURL.path) {
+            return savedPDFURL
+        }
+
+        return generatePDF(showConfirmation: false)
+    }
+
+    private func sendInvoiceByEmail() {
+        guard let url = ensurePDFExists() else { return }
+        let draft = EmailService.makeDraft(invoice: invoice, pdfURL: url)
+
+        if invoice.status == .draft {
+            viewModel.updateStatus(invoice, status: .sent)
+        }
+
+        #if canImport(UIKit) && canImport(MessageUI)
+        if EmailService.canComposeOnIOS {
+            emailDraft = draft
+        } else {
+            pdfURL = url
+            showingShareSheet = true
+        }
+        #elseif canImport(AppKit)
+        if !EmailService.composeOnMac(draft) {
+            pdfURL = url
+            showingShareSheet = true
+        }
+        #else
+        pdfURL = url
+        showingShareSheet = true
+        #endif
     }
     
     private func shareSavedPDF() {
@@ -732,6 +782,36 @@ struct ShareSheet: NSViewRepresentable {
 }
 #endif
 
+#if canImport(UIKit) && canImport(MessageUI)
+private struct MailComposeView: UIViewControllerRepresentable {
+    let draft: EmailDraft
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator()
+    }
+
+    func makeUIViewController(context: Context) -> MFMailComposeViewController {
+        let controller = MFMailComposeViewController()
+        controller.mailComposeDelegate = context.coordinator
+        controller.setToRecipients(draft.recipients)
+        controller.setSubject(draft.subject)
+        controller.setMessageBody(draft.body, isHTML: false)
+        if let data = try? Data(contentsOf: draft.attachmentURL) {
+            controller.addAttachmentData(data, mimeType: "application/pdf", fileName: draft.attachmentURL.lastPathComponent)
+        }
+        return controller
+    }
+
+    func updateUIViewController(_ uiViewController: MFMailComposeViewController, context: Context) {}
+
+    final class Coordinator: NSObject, MFMailComposeViewControllerDelegate {
+        func mailComposeController(_ controller: MFMailComposeViewController, didFinishWith result: MFMailComposeResult, error: Error?) {
+            controller.dismiss(animated: true)
+        }
+    }
+}
+#endif
+
 /// Inline editor for existing invoice items
 struct InvoiceItemEditorView: View {
     @Environment(\.dismiss) private var dismiss
@@ -823,7 +903,7 @@ private extension View {
 #Preview {
     let config = ModelConfiguration(isStoredInMemoryOnly: true)
     let container = try! ModelContainer(
-        for: Invoice.self, InvoiceItem.self, CompanyProfile.self, Client.self,
+        for: Invoice.self, InvoiceItem.self, CompanyProfile.self, Client.self, Issuer.self,
         configurations: config
     )
     

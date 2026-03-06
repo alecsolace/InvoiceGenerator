@@ -17,6 +17,7 @@ enum PersistenceController {
                 InvoiceItem.self,
                 CompanyProfile.self,
                 Client.self,
+                Issuer.self,
                 configurations: configuration
             )
         }
@@ -29,6 +30,7 @@ enum PersistenceController {
                 InvoiceItem.self,
                 CompanyProfile.self,
                 Client.self,
+                Issuer.self,
                 configurations: configuration
             )
         } catch {
@@ -50,6 +52,7 @@ enum PersistenceController {
                     InvoiceItem.self,
                     CompanyProfile.self,
                     Client.self,
+                    Issuer.self,
                     configurations: configuration
                 )
             } catch {

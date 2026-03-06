@@ -5,36 +5,35 @@ import CoreText
 
 /// Service for generating PDF invoices using PDFKit
 final class PDFGeneratorService {
-    
+
     // MARK: - Constants
-    
+
     /// A4 page dimensions in points (210mm x 297mm)
     private static let pageWidth: CGFloat = 595
     private static let pageHeight: CGFloat = 842
-    
+
     /// Generate a PDF document for an invoice
-    static func generateInvoicePDF(
-        invoice: Invoice,
-        companyProfile: CompanyProfile?
-    ) -> PDFDocument? {
+    static func generateInvoicePDF(invoice: Invoice) -> PDFDocument? {
         let accentColor = CGColor.fromHex(
             invoice.client?.accentColorHex ?? Client.defaultAccentHex,
             defaultColor: PDFColor.accent
         )
         let palette = PDFPalette(accent: accentColor)
 
+        let issuerDetails = issuerDetails(from: invoice)
+
         let pdfMetaData: [CFString: Any] = [
             kCGPDFContextCreator: "InvoiceGenerator",
-            kCGPDFContextAuthor: companyProfile?.companyName ?? localized("Invoice Generator", comment: "Default PDF author"),
+            kCGPDFContextAuthor: issuerDetails.name.isEmpty ? localized("Invoice Generator", comment: "Default PDF author") : issuerDetails.name,
             kCGPDFContextTitle: String(
                 format: localized("Invoice %@", comment: "PDF document title format"),
                 invoice.invoiceNumber
             )
         ]
-        
+
         let data = NSMutableData()
         var mediaBox = CGRect(x: 0, y: 0, width: pageWidth, height: pageHeight)
-        
+
         guard
             let consumer = CGDataConsumer(data: data as CFMutableData),
             let context = CGContext(
@@ -45,20 +44,20 @@ final class PDFGeneratorService {
         else {
             return nil
         }
-        
+
         context.beginPDFPage(nil)
         context.saveGState()
         // Place origin at top-left for easier layout; flip CoreText back upright.
         context.translateBy(x: 0, y: pageHeight)
         context.scaleBy(x: 1, y: -1)
         context.textMatrix = CGAffineTransform(scaleX: 1, y: -1)
-        
+
         var yPosition: CGFloat = 24
         let pageRect = mediaBox
 
         yPosition = drawCompanyHeader(
             invoice: invoice,
-            companyProfile: companyProfile,
+            issuerDetails: issuerDetails,
             palette: palette,
             in: context,
             pageRect: pageRect,
@@ -105,19 +104,19 @@ final class PDFGeneratorService {
                 startY: yPosition
             )
         }
-        
+
         context.restoreGState()
         context.endPDFPage()
         context.closePDF()
-        
+
         return PDFDocument(data: data as Data)
     }
-    
+
     // MARK: - Private Drawing Methods
 
     private static func drawCompanyHeader(
         invoice: Invoice,
-        companyProfile: CompanyProfile?,
+        issuerDetails: PDFIssuerDetails,
         palette: PDFPalette,
         in context: CGContext,
         pageRect: CGRect,
@@ -139,27 +138,36 @@ final class PDFGeneratorService {
         )
         yPosition += titleStyle.lineHeight + 10
 
-        if let companyProfile = companyProfile {
-            let nameStyle = PDFTextStyle(font: PDFFont.bold(14), color: palette.textPrimary)
-            let infoStyle = PDFTextStyle(font: PDFFont.regular(11), color: palette.textSecondary)
+        let nameStyle = PDFTextStyle(font: PDFFont.bold(14), color: palette.textPrimary)
+        let infoStyle = PDFTextStyle(font: PDFFont.regular(11), color: palette.textSecondary)
 
-            drawText(companyProfile.companyName, style: nameStyle, at: CGPoint(x: 50, y: yPosition), in: context)
+        if !issuerDetails.name.isEmpty {
+            drawText(issuerDetails.name, style: nameStyle, at: CGPoint(x: 50, y: yPosition), in: context)
             yPosition += 16
+        }
 
-            if !companyProfile.address.isEmpty {
-                drawText(companyProfile.address, style: infoStyle, at: CGPoint(x: 50, y: yPosition), in: context)
-                yPosition += 14
-            }
+        if !issuerDetails.address.isEmpty {
+            drawText(issuerDetails.address, style: infoStyle, at: CGPoint(x: 50, y: yPosition), in: context)
+            yPosition += 14
+        }
 
-            if !companyProfile.email.isEmpty {
-                drawText(companyProfile.email, style: infoStyle, at: CGPoint(x: 50, y: yPosition), in: context)
-                yPosition += 14
-            }
+        if !issuerDetails.email.isEmpty {
+            drawText(issuerDetails.email, style: infoStyle, at: CGPoint(x: 50, y: yPosition), in: context)
+            yPosition += 14
+        }
 
-            if !companyProfile.phone.isEmpty {
-                drawText(companyProfile.phone, style: infoStyle, at: CGPoint(x: 50, y: yPosition), in: context)
-                yPosition += 14
-            }
+        if !issuerDetails.phone.isEmpty {
+            drawText(issuerDetails.phone, style: infoStyle, at: CGPoint(x: 50, y: yPosition), in: context)
+            yPosition += 14
+        }
+
+        if !issuerDetails.taxId.isEmpty {
+            let taxLabel = String(
+                format: localized("Tax ID: %@", comment: "PDF issuer tax id label and value"),
+                issuerDetails.taxId
+            )
+            drawText(taxLabel, style: infoStyle, at: CGPoint(x: 50, y: yPosition), in: context)
+            yPosition += 14
         }
 
         let detailBoxWidth: CGFloat = 230
@@ -399,17 +407,17 @@ final class PDFGeneratorService {
 
         return container.maxY
     }
-    
+
     /// Save PDF to file
     static func savePDF(_ pdfDocument: PDFDocument, fileName: String) -> URL? {
         guard let fileURL = PDFStorageManager.targetURL(for: fileName) else {
             return nil
         }
-        
+
         if pdfDocument.write(to: fileURL) {
             return fileURL
         }
-        
+
         return nil
     }
 }
@@ -418,6 +426,49 @@ private extension PDFGeneratorService {
     static func localized(_ key: String, comment: String = "") -> String {
         NSLocalizedString(key, comment: comment)
     }
+
+    static func issuerDetails(from invoice: Invoice) -> PDFIssuerDetails {
+        let fallbackIssuer = invoice.issuer
+        let name = invoice.issuerName.isEmpty ? (fallbackIssuer?.name ?? "") : invoice.issuerName
+        let code = invoice.issuerCode.isEmpty ? (fallbackIssuer?.code ?? "") : invoice.issuerCode
+        let ownerName = invoice.issuerOwnerName.isEmpty ? (fallbackIssuer?.ownerName ?? "") : invoice.issuerOwnerName
+        let email = invoice.issuerEmail.isEmpty ? (fallbackIssuer?.email ?? "") : invoice.issuerEmail
+        let phone = invoice.issuerPhone.isEmpty ? (fallbackIssuer?.phone ?? "") : invoice.issuerPhone
+        let address = invoice.issuerAddress.isEmpty ? (fallbackIssuer?.address ?? "") : invoice.issuerAddress
+        let taxId = invoice.issuerTaxId.isEmpty ? (fallbackIssuer?.taxId ?? "") : invoice.issuerTaxId
+
+        if name.isEmpty {
+            return PDFIssuerDetails(
+                name: localized("Invoice Generator", comment: "Fallback issuer name"),
+                code: code,
+                ownerName: ownerName,
+                email: email,
+                phone: phone,
+                address: address,
+                taxId: taxId
+            )
+        }
+
+        return PDFIssuerDetails(
+            name: name,
+            code: code,
+            ownerName: ownerName,
+            email: email,
+            phone: phone,
+            address: address,
+            taxId: taxId
+        )
+    }
+}
+
+private struct PDFIssuerDetails {
+    let name: String
+    let code: String
+    let ownerName: String
+    let email: String
+    let phone: String
+    let address: String
+    let taxId: String
 }
 
 // MARK: - Drawing Helpers
@@ -426,7 +477,7 @@ private enum PDFFont {
     static func regular(_ size: CGFloat) -> CTFont {
         CTFontCreateWithName("Helvetica" as CFString, size, nil)
     }
-    
+
     static func bold(_ size: CGFloat) -> CTFont {
         CTFontCreateWithName("Helvetica-Bold" as CFString, size, nil)
     }
@@ -497,13 +548,13 @@ private func drawText(
 ) -> CGFloat {
     let attributedString = NSAttributedString(string: text, attributes: style.attributes)
     let line = CTLineCreateWithAttributedString(attributedString)
-    
+
     context.saveGState()
     let position = CGPoint(x: point.x, y: point.y + style.baselineOffset)
     context.textPosition = position
     CTLineDraw(line, context)
     context.restoreGState()
-    
+
     return style.lineHeight
 }
 

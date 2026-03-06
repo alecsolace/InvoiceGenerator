@@ -10,8 +10,22 @@ final class Invoice {
     var clientEmail: String
     var clientIdentificationNumber: String
     var clientAddress: String
+
+    // Snapshot of issuer information captured at creation time.
+    var issuerName: String
+    var issuerCode: String
+    var issuerOwnerName: String
+    var issuerEmail: String
+    var issuerPhone: String
+    var issuerAddress: String
+    var issuerTaxId: String
+
     @Relationship(inverse: \Client.invoices)
     var client: Client?
+
+    @Relationship(inverse: \Issuer.invoices)
+    var issuer: Issuer?
+
     var issueDate: Date
     var dueDate: Date
     var status: InvoiceStatus
@@ -19,14 +33,14 @@ final class Invoice {
     var totalAmount: Decimal
     var ivaPercentage: Decimal
     var irpfPercentage: Decimal
-    
+
     @Relationship(deleteRule: .cascade, inverse: \InvoiceItem.invoice)
     var items: [InvoiceItem]
-    
+
     var createdAt: Date
     var updatedAt: Date
     var pdfLastGeneratedAt: Date?
-    
+
     init(
         id: UUID = UUID(),
         invoiceNumber: String,
@@ -35,6 +49,14 @@ final class Invoice {
         clientIdentificationNumber: String = "",
         clientAddress: String = "",
         client: Client? = nil,
+        issuer: Issuer? = nil,
+        issuerName: String = "",
+        issuerCode: String = "",
+        issuerOwnerName: String = "",
+        issuerEmail: String = "",
+        issuerPhone: String = "",
+        issuerAddress: String = "",
+        issuerTaxId: String = "",
         issueDate: Date = Date(),
         dueDate: Date = Date().addingTimeInterval(30 * 24 * 60 * 60),
         status: InvoiceStatus = .draft,
@@ -50,6 +72,14 @@ final class Invoice {
         self.clientIdentificationNumber = clientIdentificationNumber
         self.clientAddress = clientAddress
         self.client = client
+        self.issuer = issuer
+        self.issuerName = issuerName
+        self.issuerCode = issuerCode
+        self.issuerOwnerName = issuerOwnerName
+        self.issuerEmail = issuerEmail
+        self.issuerPhone = issuerPhone
+        self.issuerAddress = issuerAddress
+        self.issuerTaxId = issuerTaxId
         self.issueDate = issueDate
         self.dueDate = dueDate
         self.status = status
@@ -62,18 +92,32 @@ final class Invoice {
         self.updatedAt = Date()
         self.pdfLastGeneratedAt = nil
 
+        if let issuer, issuerName.isEmpty {
+            captureIssuerSnapshot(from: issuer)
+        }
+
         calculateTotal()
     }
-    
+
     func calculateTotal() {
         let subtotal = itemsSubtotal
         let ivaAmount = (subtotal * ivaPercentage) / Decimal(100)
         let irpfAmount = (subtotal * irpfPercentage) / Decimal(100)
         totalAmount = subtotal + ivaAmount - irpfAmount
     }
-    
+
     func updateTimestamp() {
         updatedAt = Date()
+    }
+
+    func captureIssuerSnapshot(from issuer: Issuer) {
+        issuerName = issuer.name
+        issuerCode = issuer.code
+        issuerOwnerName = issuer.ownerName
+        issuerEmail = issuer.email
+        issuerPhone = issuer.phone
+        issuerAddress = issuer.address
+        issuerTaxId = issuer.taxId
     }
 
     var itemsSubtotal: Decimal {
@@ -118,9 +162,9 @@ final class InvoiceItem {
     var quantity: Int
     var unitPrice: Decimal
     var total: Decimal
-    
+
     var invoice: Invoice?
-    
+
     init(
         id: UUID = UUID(),
         description: String,
@@ -133,7 +177,7 @@ final class InvoiceItem {
         self.unitPrice = unitPrice
         self.total = Decimal(quantity) * unitPrice
     }
-    
+
     func updateTotal() {
         total = Decimal(quantity) * unitPrice
     }

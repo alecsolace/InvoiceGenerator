@@ -196,7 +196,7 @@ private extension View {
 #Preview {
     let config = ModelConfiguration(isStoredInMemoryOnly: true)
     let container = try! ModelContainer(
-        for: Invoice.self, InvoiceItem.self, CompanyProfile.self, Client.self,
+        for: Invoice.self, InvoiceItem.self, CompanyProfile.self, Client.self, Issuer.self,
         configurations: config
     )
 
