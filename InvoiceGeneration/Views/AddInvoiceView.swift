@@ -733,6 +733,6 @@ private enum QuickInvoiceStep: String, CaseIterable, Identifiable {
     let viewModel = InvoiceViewModel(modelContext: container.mainContext)
 
     return AddInvoiceView(viewModel: viewModel, seed: .client(client))
-        .environmentObject(SubscriptionService())
+        .environmentObject(try! SubscriptionService(storeConfiguration: .testing, startTasks: false))
         .modelContainer(container)
 }

@@ -337,5 +337,5 @@ private struct CompactInvoiceCard: View {
 #Preview {
     HomeView()
         .modelContainer(PersistenceController.preview)
-        .environmentObject(SubscriptionService())
+        .environmentObject(try! SubscriptionService(storeConfiguration: .testing, startTasks: false))
 }

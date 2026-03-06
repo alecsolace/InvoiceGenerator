@@ -7,8 +7,45 @@ import Testing
 struct InvoiceGenerationTests {
 
     @MainActor
+    private func makeSubscriptionService(
+        suiteName: String = UUID().uuidString,
+        iCloudAvailability: ICloudAvailability = .temporarilyUnavailable
+    ) -> SubscriptionService {
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defaults.removePersistentDomain(forName: suiteName)
+        return try! SubscriptionService(
+            defaults: defaults,
+            storeConfiguration: .testing,
+            iCloudAvailabilityProvider: { iCloudAvailability },
+            startTasks: false
+        )
+    }
+
+    private func makeBundle(info: [String: Any]) throws -> Bundle {
+        let rootURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString, isDirectory: true)
+        let bundleURL = rootURL.appendingPathComponent("StoreConfigurationTests.bundle", isDirectory: true)
+
+        try FileManager.default.createDirectory(at: bundleURL, withIntermediateDirectories: true)
+        let plistURL = bundleURL.appendingPathComponent("Info.plist")
+        let dictionary = info as NSDictionary
+        let wrote = dictionary.write(to: plistURL, atomically: true)
+        #expect(wrote)
+
+        guard let bundle = Bundle(url: bundleURL) else {
+            Issue.record("Failed to create bundle for StoreConfiguration tests")
+            throw NSError(domain: "InvoiceGenerationTests", code: 1)
+        }
+
+        return bundle
+    }
+
+    @MainActor
+    @Test func example() async throws {
+        // Write your test here and use APIs like `#expect(...)` to check expected conditions.
+    }
     @Test func freePlanCapsClientsAtTwo() async throws {
-        let service = SubscriptionService()
+        let service = makeSubscriptionService()
 
         #expect(service.canAddClient(currentCount: 0))
         #expect(service.canAddClient(currentCount: 1))
@@ -16,15 +53,109 @@ struct InvoiceGenerationTests {
     }
 
     @MainActor
-    @Test func syncRequiresActivePro() async throws {
-        let service = SubscriptionService()
+    @Test func syncStatusRequiresActiveEntitlement() async throws {
+        let service = makeSubscriptionService(iCloudAvailability: .available)
         service.syncPreferred = true
+        #expect(service.syncStatus == .lockedByPaywall)
         #expect(service.syncEnabled == false)
 
         #if DEBUG
-        service.debugSetStatus(.active(expirationDate: nil))
+        service.debugSetEntitlementStatus(.active)
         #expect(service.syncEnabled == true)
+        #expect(service.syncStatus == .ready)
         #endif
+    }
+
+    @MainActor
+    @Test func syncStatusPausesWhenICloudIsUnavailable() async throws {
+        let service = makeSubscriptionService(iCloudAvailability: .noAccount)
+        service.syncPreferred = true
+
+        #if DEBUG
+        service.debugSetEntitlementStatus(.active)
+        service.debugSetICloudAvailability(.noAccount)
+        #endif
+
+        #expect(service.syncStatus == .pausedNoICloud)
+        #expect(service.syncEnabled == false)
+    }
+
+    @MainActor
+    @Test func syncPreferencePersistsWhenEntitlementExpires() async throws {
+        let suiteName = UUID().uuidString
+        let service = makeSubscriptionService(suiteName: suiteName, iCloudAvailability: .available)
+        service.syncPreferred = true
+
+        #if DEBUG
+        service.debugSetEntitlementStatus(.active)
+        service.debugSetICloudAvailability(.available)
+        #expect(service.syncStatus == .ready)
+
+        service.debugSetEntitlementStatus(.expired)
+        #expect(service.syncStatus == .lockedByPaywall)
+        #expect(service.syncPreferred == true)
+        #endif
+
+        let reloadedService = try! SubscriptionService(
+            defaults: UserDefaults(suiteName: suiteName)!,
+            storeConfiguration: .testing,
+            iCloudAvailabilityProvider: { .available },
+            startTasks: false
+        )
+        #expect(reloadedService.syncPreferred == true)
+    }
+
+    @Test func storeConfigurationLoadRequiresMonthlyProductID() throws {
+        let bundle = try makeBundle(
+            info: [
+                StoreConfiguration.yearlyProductIDKey: "pro_yearly"
+            ]
+        )
+
+        #expect(throws: StoreConfigurationError.missingValue(StoreConfiguration.monthlyProductIDKey)) {
+            try StoreConfiguration.load(bundle: bundle)
+        }
+    }
+
+    @Test func storeConfigurationLoadRequiresYearlyProductID() throws {
+        let bundle = try makeBundle(
+            info: [
+                StoreConfiguration.monthlyProductIDKey: "pro_monthly"
+            ]
+        )
+
+        #expect(throws: StoreConfigurationError.missingValue(StoreConfiguration.yearlyProductIDKey)) {
+            try StoreConfiguration.load(bundle: bundle)
+        }
+    }
+
+    @Test func storeConfigurationLoadRejectsWhitespaceProductIDs() throws {
+        let bundle = try makeBundle(
+            info: [
+                StoreConfiguration.monthlyProductIDKey: "pro monthly",
+                StoreConfiguration.yearlyProductIDKey: "pro_yearly"
+            ]
+        )
+
+        #expect(throws: StoreConfigurationError.invalidProductIdentifier("pro monthly")) {
+            try StoreConfiguration.load(bundle: bundle)
+        }
+    }
+
+    @Test func storeConfigurationLoadReturnsValidatedConfiguration() throws {
+        let bundle = try makeBundle(
+            info: [
+                StoreConfiguration.monthlyProductIDKey: "pro_monthly",
+                StoreConfiguration.yearlyProductIDKey: "pro_yearly",
+                StoreConfiguration.subscriptionGroupIDKey: "group.invoicegeneration.pro"
+            ]
+        )
+
+        let configuration = try StoreConfiguration.load(bundle: bundle)
+
+        #expect(configuration.monthlyProductID == "pro_monthly")
+        #expect(configuration.yearlyProductID == "pro_yearly")
+        #expect(configuration.subscriptionGroupID == "group.invoicegeneration.pro")
     }
 
     @MainActor

@@ -4,6 +4,7 @@ import SwiftData
 /// Main app entry point with SwiftData configuration
 @main
 struct InvoiceGeneratorApp: App {
+    @Environment(\.scenePhase) private var scenePhase
     @StateObject private var subscriptionService = SubscriptionService.shared
     private let modelContainer = PersistenceController.shared
 
@@ -13,6 +14,13 @@ struct InvoiceGeneratorApp: App {
                 .environmentObject(subscriptionService)
         }
         .modelContainer(modelContainer)
+        .onChange(of: scenePhase) { _, newPhase in
+            guard newPhase == .active else { return }
+            Task {
+                await subscriptionService.refreshEntitlements()
+                await subscriptionService.refreshICloudAvailability()
+            }
+        }
     }
 }
 
