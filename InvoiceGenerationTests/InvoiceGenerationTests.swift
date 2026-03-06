@@ -19,12 +19,31 @@ struct InvoiceGenerationTests {
     ) -> SubscriptionService {
         let defaults = UserDefaults(suiteName: suiteName)!
         defaults.removePersistentDomain(forName: suiteName)
-        return SubscriptionService(
+        return try! SubscriptionService(
             defaults: defaults,
             storeConfiguration: .testing,
             iCloudAvailabilityProvider: { iCloudAvailability },
             startTasks: false
         )
+    }
+
+    private func makeBundle(info: [String: Any]) throws -> Bundle {
+        let rootURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString, isDirectory: true)
+        let bundleURL = rootURL.appendingPathComponent("StoreConfigurationTests.bundle", isDirectory: true)
+
+        try FileManager.default.createDirectory(at: bundleURL, withIntermediateDirectories: true)
+        let plistURL = bundleURL.appendingPathComponent("Info.plist")
+        let dictionary = info as NSDictionary
+        let wrote = dictionary.write(to: plistURL, atomically: true)
+        #expect(wrote)
+
+        guard let bundle = Bundle(url: bundleURL) else {
+            Issue.record("Failed to create bundle for StoreConfiguration tests")
+            throw NSError(domain: "InvoiceGenerationTests", code: 1)
+        }
+
+        return bundle
     }
 
     @MainActor
@@ -85,13 +104,66 @@ struct InvoiceGenerationTests {
         #expect(service.syncPreferred == true)
         #endif
 
-        let reloadedService = SubscriptionService(
+        let reloadedService = try! SubscriptionService(
             defaults: UserDefaults(suiteName: suiteName)!,
             storeConfiguration: .testing,
             iCloudAvailabilityProvider: { .available },
             startTasks: false
         )
         #expect(reloadedService.syncPreferred == true)
+    }
+
+    @Test func storeConfigurationLoadRequiresMonthlyProductID() throws {
+        let bundle = try makeBundle(
+            info: [
+                StoreConfiguration.yearlyProductIDKey: "pro_yearly"
+            ]
+        )
+
+        #expect(throws: StoreConfigurationError.missingValue(StoreConfiguration.monthlyProductIDKey)) {
+            try StoreConfiguration.load(bundle: bundle)
+        }
+    }
+
+    @Test func storeConfigurationLoadRequiresYearlyProductID() throws {
+        let bundle = try makeBundle(
+            info: [
+                StoreConfiguration.monthlyProductIDKey: "pro_monthly"
+            ]
+        )
+
+        #expect(throws: StoreConfigurationError.missingValue(StoreConfiguration.yearlyProductIDKey)) {
+            try StoreConfiguration.load(bundle: bundle)
+        }
+    }
+
+    @Test func storeConfigurationLoadRejectsWhitespaceProductIDs() throws {
+        let bundle = try makeBundle(
+            info: [
+                StoreConfiguration.monthlyProductIDKey: "pro monthly",
+                StoreConfiguration.yearlyProductIDKey: "pro_yearly"
+            ]
+        )
+
+        #expect(throws: StoreConfigurationError.invalidProductIdentifier("pro monthly")) {
+            try StoreConfiguration.load(bundle: bundle)
+        }
+    }
+
+    @Test func storeConfigurationLoadReturnsValidatedConfiguration() throws {
+        let bundle = try makeBundle(
+            info: [
+                StoreConfiguration.monthlyProductIDKey: "pro_monthly",
+                StoreConfiguration.yearlyProductIDKey: "pro_yearly",
+                StoreConfiguration.subscriptionGroupIDKey: "group.invoicegeneration.pro"
+            ]
+        )
+
+        let configuration = try StoreConfiguration.load(bundle: bundle)
+
+        #expect(configuration.monthlyProductID == "pro_monthly")
+        #expect(configuration.yearlyProductID == "pro_yearly")
+        #expect(configuration.subscriptionGroupID == "group.invoicegeneration.pro")
     }
 
     @MainActor

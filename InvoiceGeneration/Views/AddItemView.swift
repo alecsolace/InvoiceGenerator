@@ -323,5 +323,5 @@ struct EditInvoiceView: View {
     let viewModel = InvoiceViewModel(modelContext: container.mainContext)
     
     return EditInvoiceView(invoice: invoice, viewModel: viewModel)
-        .environmentObject(SubscriptionService())
+        .environmentObject(try! SubscriptionService(storeConfiguration: .testing, startTasks: false))
 }

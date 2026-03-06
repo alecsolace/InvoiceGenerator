@@ -33,21 +33,12 @@ struct StoreConfiguration: Equatable {
         subscriptionGroupID: nil
     )
 
-    static func live(bundle: Bundle = .main) -> StoreConfiguration {
-        do {
-            return try StoreConfiguration(
-                monthlyProductID: requiredValue(for: monthlyProductIDKey, in: bundle),
-                yearlyProductID: requiredValue(for: yearlyProductIDKey, in: bundle),
-                subscriptionGroupID: optionalValue(for: subscriptionGroupIDKey, in: bundle)
-            ).validated()
-        } catch {
-            #if DEBUG
-            preconditionFailure(error.localizedDescription)
-            #else
-            assertionFailure(error.localizedDescription)
-            return .testing
-            #endif
-        }
+    static func load(bundle: Bundle = .main) throws -> StoreConfiguration {
+        try StoreConfiguration(
+            monthlyProductID: requiredValue(for: monthlyProductIDKey, in: bundle),
+            yearlyProductID: requiredValue(for: yearlyProductIDKey, in: bundle),
+            subscriptionGroupID: optionalValue(for: subscriptionGroupIDKey, in: bundle)
+        ).validated()
     }
 
     func validated() throws -> StoreConfiguration {

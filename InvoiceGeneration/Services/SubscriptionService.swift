@@ -56,7 +56,13 @@ final class SubscriptionService: ObservableObject {
         }
     }
 
-    static let shared = SubscriptionService()
+    static let shared: SubscriptionService = {
+        do {
+            return try SubscriptionService(storeConfiguration: StoreConfiguration.load())
+        } catch {
+            fatalError("Invalid StoreKit configuration: \(error.localizedDescription)")
+        }
+    }()
 
     @Published private(set) var entitlementStatus: EntitlementStatus
     @Published private(set) var purchaseState: PurchaseState
@@ -106,14 +112,14 @@ final class SubscriptionService: ObservableObject {
 
     init(
         defaults: UserDefaults = .standard,
-        storeConfiguration: StoreConfiguration? = nil,
+        storeConfiguration: StoreConfiguration,
         iCloudAvailabilityProvider: @escaping @Sendable () async -> ICloudAvailability = {
             await CloudKitService.shared.fetchAccountAvailability()
         },
         startTasks: Bool = true
-    ) {
+    ) throws {
         self.defaults = defaults
-        self.configuration = storeConfiguration ?? StoreConfiguration.live()
+        self.configuration = try storeConfiguration.validated()
         self.iCloudAvailabilityProvider = iCloudAvailabilityProvider
         self.entitlementStatus = .free
         self.purchaseState = .idle

@@ -312,5 +312,5 @@ struct PaywallView: View {
 
 #Preview {
     PaywallView(reason: .clientLimit)
-        .environmentObject(SubscriptionService())
+        .environmentObject(try! SubscriptionService(storeConfiguration: .testing, startTasks: false))
 }
