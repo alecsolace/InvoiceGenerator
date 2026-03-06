@@ -46,6 +46,7 @@ struct AddInvoiceView: View {
     @State private var editingDraftItem: DraftInvoiceItem?
     @State private var hasManuallyEditedInvoiceNumber = false
     @State private var lastSuggestedInvoiceNumber = ""
+    @State private var pendingInvoiceSequenceByIssuerID: [UUID: Int] = [:]
     @State private var generatedPDFURL: URL?
     @State private var invoicePendingShareCompletion: Invoice?
 
@@ -234,7 +235,7 @@ struct AddInvoiceView: View {
                 LabeledContent("Numero previsto", value: invoiceNumber.isEmpty ? "Sin numeracion" : invoiceNumber)
 
                 Button("Usar siguiente numero") {
-                    applySuggestedInvoiceNumber(force: true)
+                    incrementSuggestedInvoiceNumber()
                 }
                 .disabled(currentIssuer == nil)
 
@@ -267,73 +268,28 @@ struct AddInvoiceView: View {
 
     @ViewBuilder
     private var advancedSections: some View {
-        Section("Factura") {
-            TextField("Numero de factura", text: $invoiceNumber)
-#if os(iOS)
-                .autocapitalization(.allCharacters)
-#endif
-
-            Button("Usar siguiente numero") {
-                applySuggestedInvoiceNumber(force: true)
-            }
-            .disabled(currentIssuer == nil)
-
-            DatePicker("Fecha de emision", selection: $issueDate, displayedComponents: .date)
-            DatePicker("Fecha de vencimiento", selection: $dueDate, displayedComponents: .date)
-        }
-
-        Section("Emisor") {
-            if let issuers = issuerViewModel?.issuers, !issuers.isEmpty {
-                Picker("Emisor", selection: $selectedIssuerID) {
-                    ForEach(issuers) { issuer in
-                        Text("\(issuer.name) (\(issuer.code))")
-                            .tag(Optional(issuer.id))
-                    }
-                }
-            } else {
-                Text("No hay emisores disponibles. Crealos desde Ajustes.")
-                    .foregroundStyle(.secondary)
-            }
-        }
-
-        Section("Clientes guardados") {
-            if let clients = clientViewModel?.clients, !clients.isEmpty {
-                Picker("Cliente", selection: $selectedClientID) {
-                    Text("Ninguno")
-                        .tag(UUID?.none)
-
-                    ForEach(clients) { client in
-                        Text(client.name)
-                            .tag(Optional(client.id))
-                    }
-                }
-            } else {
-                Text("Aun no tienes clientes guardados.")
-                    .foregroundStyle(.secondary)
-            }
-
-            Button {
-                handleAddClientTap()
-            } label: {
-                Label("Crear cliente", systemImage: "plus")
-            }
-        }
-
-        Section("Datos del cliente") {
-            TextField("Nombre", text: $clientName)
-            TextField("Email", text: $clientEmail)
-                .textContentType(.emailAddress)
-                .disableAutocorrection(true)
-
-            TextField("NIF/CIF", text: $clientIdentificationNumber)
-
-            TextField("Direccion", text: $clientAddress, axis: .vertical)
-                .lineLimit(3...6)
-        }
-
-        itemsSection
-        taxesSection
-        notesSection
+        InvoiceEditorSections(
+            issuers: issuerViewModel?.issuers ?? [],
+            clients: clientViewModel?.clients ?? [],
+            selectedIssuerID: $selectedIssuerID,
+            selectedClientID: $selectedClientID,
+            invoiceNumber: $invoiceNumber,
+            clientName: $clientName,
+            clientEmail: $clientEmail,
+            clientIdentificationNumber: $clientIdentificationNumber,
+            clientAddress: $clientAddress,
+            issueDate: $issueDate,
+            dueDate: $dueDate,
+            ivaPercentage: $ivaPercentage,
+            irpfPercentage: $irpfPercentage,
+            notes: $notes,
+            draftItems: $draftItems,
+            showingAddItem: $showingAddItem,
+            editingDraftItem: $editingDraftItem,
+            onAddClient: handleAddClientTap,
+            onUseNextInvoiceNumber: incrementSuggestedInvoiceNumber,
+            onRemoveDraftItem: removeDraftItem
+        )
     }
 
     private var itemsSection: some View {
@@ -513,19 +469,22 @@ struct AddInvoiceView: View {
         hasAppliedSeed = true
 
         quickStep = seed.startsOnAmountsStep ? .amounts : .base
-        creationMode = .quick
 
         switch seed {
         case .quick:
+            creationMode = .quick
             dueDays = appDefaultDueDays
             dueDate = issueDate.addingDays(dueDays)
         case .client(let client):
+            creationMode = .quick
             selectedClientID = client.id
             applyClientDefaults(from: client)
         case .template(let template):
+            creationMode = .advanced
             selectedTemplateID = template.id
             applyTemplateDefaults(from: template)
         case .duplicate(let invoice):
+            creationMode = .quick
             applyDuplicateDefaults(from: invoice)
         }
     }
@@ -623,11 +582,26 @@ struct AddInvoiceView: View {
 
     private func applySuggestedInvoiceNumber(force: Bool) {
         guard let issuer = currentIssuer else { return }
+        let sequence = pendingInvoiceSequenceByIssuerID[issuer.id] ?? issuer.nextInvoiceSequence
+        setSuggestedInvoiceNumber(
+            for: issuer,
+            sequence: max(sequence, 1),
+            replacingCurrentValue: force || invoiceNumber.isEmpty || !hasManuallyEditedInvoiceNumber
+        )
+    }
 
-        let suggestion = InvoiceNumberingService.nextInvoiceNumber(for: issuer)
+    private func incrementSuggestedInvoiceNumber() {
+        guard let issuer = currentIssuer else { return }
+        let currentSequence = pendingInvoiceSequenceByIssuerID[issuer.id] ?? issuer.nextInvoiceSequence
+        setSuggestedInvoiceNumber(for: issuer, sequence: max(currentSequence, 1) + 1, replacingCurrentValue: true)
+    }
+
+    private func setSuggestedInvoiceNumber(for issuer: Issuer, sequence: Int, replacingCurrentValue: Bool) {
+        let suggestion = InvoiceNumberingService.invoiceNumber(for: issuer, sequence: sequence)
+        pendingInvoiceSequenceByIssuerID[issuer.id] = sequence
         lastSuggestedInvoiceNumber = suggestion
 
-        if force || invoiceNumber.isEmpty || !hasManuallyEditedInvoiceNumber {
+        if replacingCurrentValue {
             invoiceNumber = suggestion
             hasManuallyEditedInvoiceNumber = false
         }
@@ -686,6 +660,8 @@ struct AddInvoiceView: View {
             }
 
             generatedPDFURL = url
+            invoice.pdfLastGeneratedAt = Date()
+            viewModel.updateInvoice(invoice)
             invoicePendingShareCompletion = invoice
             showingShareSheet = true
         }
@@ -760,129 +736,3 @@ private enum QuickInvoiceStep: String, CaseIterable, Identifiable {
         .environmentObject(SubscriptionService())
         .modelContainer(container)
 }
-
-private struct DraftInvoiceItem: Identifiable, Equatable {
-    let id: UUID
-    var description: String
-    var quantity: Int
-    var unitPrice: Decimal
-
-    init(id: UUID = UUID(), description: String, quantity: Int, unitPrice: Decimal) {
-        self.id = id
-        self.description = description
-        self.quantity = quantity
-        self.unitPrice = unitPrice
-    }
-
-    var total: Decimal { Decimal(quantity) * unitPrice }
-}
-
-private struct InvoiceDraftItemEditor: View {
-    enum Mode {
-        case add
-        case edit(DraftInvoiceItem)
-
-        var title: String {
-            switch self {
-            case .add:
-                return "Anadir concepto"
-            case .edit:
-                return "Editar concepto"
-            }
-        }
-    }
-
-    @Environment(\.dismiss) private var dismiss
-
-    let mode: Mode
-    let onSave: (DraftInvoiceItem) -> Void
-
-    @State private var descriptionText: String
-    @State private var quantity: Int
-    @State private var unitPrice: String
-
-    init(mode: Mode, onSave: @escaping (DraftInvoiceItem) -> Void) {
-        self.mode = mode
-        self.onSave = onSave
-
-        switch mode {
-        case .add:
-            _descriptionText = State(initialValue: "")
-            _quantity = State(initialValue: 1)
-            _unitPrice = State(initialValue: "")
-        case .edit(let item):
-            _descriptionText = State(initialValue: item.description)
-            _quantity = State(initialValue: item.quantity)
-            _unitPrice = State(initialValue: NSDecimalNumber(decimal: item.unitPrice).stringValue)
-        }
-    }
-
-    var body: some View {
-        NavigationStack {
-            Form {
-                Section("Concepto") {
-                    TextField("Descripcion", text: $descriptionText, axis: .vertical)
-                        .lineLimit(2...4)
-
-                    Stepper("Cantidad: \(quantity)", value: $quantity, in: 1...999)
-
-                    TextField("Precio unitario", text: $unitPrice)
-#if os(iOS)
-                        .keyboardType(.decimalPad)
-#endif
-                }
-
-                if let price = Decimal(string: unitPrice), price > 0 {
-                    Section {
-                        LabeledContent("Total", value: (price * Decimal(quantity)).formattedAsCurrency)
-                    }
-                }
-            }
-            .navigationTitle(mode.title)
-#if os(iOS)
-            .navigationBarTitleDisplayMode(.inline)
-#endif
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancelar") {
-                        dismiss()
-                    }
-                }
-
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("Guardar") {
-                        persist()
-                    }
-                    .disabled(!isValid)
-                }
-            }
-        }
-    }
-
-    private var isValid: Bool {
-        !descriptionText.isEmpty && Decimal(string: unitPrice) != nil
-    }
-
-    private func persist() {
-        guard let price = Decimal(string: unitPrice) else { return }
-
-        let identifier: UUID
-        switch mode {
-        case .add:
-            identifier = UUID()
-        case .edit(let item):
-            identifier = item.id
-        }
-
-        onSave(
-            DraftInvoiceItem(
-                id: identifier,
-                description: descriptionText,
-                quantity: quantity,
-                unitPrice: price
-            )
-        )
-        dismiss()
-    }
-}
-

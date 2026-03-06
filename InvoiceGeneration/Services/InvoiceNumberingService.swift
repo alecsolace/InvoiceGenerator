@@ -2,9 +2,12 @@ import Foundation
 
 enum InvoiceNumberingService {
     static func nextInvoiceNumber(for issuer: Issuer) -> String {
+        invoiceNumber(for: issuer, sequence: issuer.nextInvoiceSequence)
+    }
+
+    static func invoiceNumber(for issuer: Issuer, sequence: Int) -> String {
         let code = normalizedCode(from: issuer.code)
-        let sequence = max(issuer.nextInvoiceSequence, 1)
-        return "\(code)-\(formattedSequence(sequence))"
+        return "\(code)-\(formattedSequence(max(sequence, 1)))"
     }
 
     static func registerUsedInvoiceNumber(_ invoiceNumber: String, for issuer: Issuer) {
@@ -43,6 +46,10 @@ enum InvoiceNumberingService {
         }
 
         return letters.padding(toLength: 3, withPad: "X", startingAt: 0)
+    }
+
+    static func sequence(from invoiceNumber: String, for issuer: Issuer) -> Int? {
+        parse(invoiceNumber: invoiceNumber, expectedCode: normalizedCode(from: issuer.code))
     }
 
     private static func normalizedCode(from raw: String) -> String {
