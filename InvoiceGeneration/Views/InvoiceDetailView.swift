@@ -13,6 +13,9 @@ import AppKit
 struct InvoiceDetailView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
+    #if os(iOS)
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+    #endif
     
     @Bindable var invoice: Invoice
     @Bindable var viewModel: InvoiceViewModel
@@ -383,31 +386,84 @@ struct InvoiceDetailView: View {
             }
             .frame(height: 360)
             
-            HStack {
-                Button(action: { refreshPreview() }) {
-                    Label("Vista previa", systemImage: "sparkles.rectangle.stack")
-                }
-                .buttonStyle(.borderedProminent)
-                
-                Button(action: { generatePDF() }) {
-                    Label("Generar PDF", systemImage: "doc.fill")
-                }
-                .buttonStyle(.bordered)
-                
-                if savedPDFURL != nil {
-                    Button(action: { shareSavedPDF() }) {
-                        Label("Compartir PDF", systemImage: "square.and.arrow.up")
-                    }
-                }
-
-                Button(action: { sendInvoiceByEmail() }) {
-                    Label("Enviar email", systemImage: "envelope")
-                }
-                .buttonStyle(.bordered)
-            }
+            pdfActionButtons
         }
         .padding(24)
         .glassBackground()
+    }
+
+    @ViewBuilder
+    private var pdfActionButtons: some View {
+        if usesCompactPDFActionLayout {
+            let columns = [
+                GridItem(.flexible(), spacing: 12),
+                GridItem(.flexible(), spacing: 12)
+            ]
+            LazyVGrid(columns: columns, spacing: 12) {
+                pdfPreviewButton
+                pdfGenerateButton
+                if savedPDFURL != nil {
+                    pdfShareButton
+                }
+                pdfSendEmailButton
+            }
+        } else {
+            HStack(spacing: 12) {
+                pdfPreviewButton
+                pdfGenerateButton
+                if savedPDFURL != nil {
+                    pdfShareButton
+                }
+                pdfSendEmailButton
+            }
+        }
+    }
+
+    private var usesCompactPDFActionLayout: Bool {
+        #if os(iOS)
+        horizontalSizeClass == .compact
+        #else
+        false
+        #endif
+    }
+
+    private var pdfPreviewButton: some View {
+        Button(action: { refreshPreview() }) {
+            actionLabel(title: "Vista previa", systemImage: "sparkles.rectangle.stack")
+        }
+        .buttonStyle(.borderedProminent)
+        .frame(maxWidth: .infinity)
+    }
+
+    private var pdfGenerateButton: some View {
+        Button(action: { generatePDF() }) {
+            actionLabel(title: "Generar PDF", systemImage: "doc.fill")
+        }
+        .buttonStyle(.bordered)
+        .frame(maxWidth: .infinity)
+    }
+
+    private var pdfShareButton: some View {
+        Button(action: { shareSavedPDF() }) {
+            actionLabel(title: "Compartir PDF", systemImage: "square.and.arrow.up")
+        }
+        .buttonStyle(.bordered)
+        .frame(maxWidth: .infinity)
+    }
+
+    private var pdfSendEmailButton: some View {
+        Button(action: { sendInvoiceByEmail() }) {
+            actionLabel(title: "Enviar email", systemImage: "envelope")
+        }
+        .buttonStyle(.bordered)
+        .frame(maxWidth: .infinity)
+    }
+
+    private func actionLabel(title: String, systemImage: String) -> some View {
+        Label(title, systemImage: systemImage)
+            .lineLimit(1)
+            .minimumScaleFactor(0.8)
+            .frame(maxWidth: .infinity)
     }
     
     // MARK: - Components
