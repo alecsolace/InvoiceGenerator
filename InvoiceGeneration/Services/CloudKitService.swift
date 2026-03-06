@@ -1,62 +1,87 @@
 import Foundation
 import CloudKit
-import SwiftData
+
+enum ICloudAvailability: Equatable {
+    case available
+    case noAccount
+    case restricted
+    case temporarilyUnavailable
+}
 
 enum CloudKitServiceError: LocalizedError {
-    case subscriptionRequired
+    case syncNotReady(SubscriptionService.SyncStatus)
 
     var errorDescription: String? {
         switch self {
-        case .subscriptionRequired:
+        case .syncNotReady(.lockedByPaywall):
             return String(localized: "iCloud sync requires an active Pro subscription.", comment: "Error shown when sync is blocked without Pro")
+        case .syncNotReady(.disabledByUser):
+            return String(localized: "iCloud sync is currently turned off in Settings.", comment: "Error shown when sync is disabled by the user")
+        case .syncNotReady(.pausedNoICloud):
+            return String(localized: "iCloud is unavailable. Sync will resume automatically when your account is ready.", comment: "Error shown when sync is paused for iCloud availability")
+        case .syncNotReady(.ready):
+            return nil
         }
     }
 }
 
-/// Service for managing CloudKit synchronization
+/// Service for managing CloudKit synchronization readiness and account state.
 final class CloudKitService {
     static let shared = CloudKitService()
-    
+
     private let container: CKContainer
     private let privateDatabase: CKDatabase
-    
+
     private init() {
-        // Initialize with default container
-        // In a real app, you would configure this with your CloudKit container identifier
         container = CKContainer.default()
         privateDatabase = container.privateCloudDatabase
     }
-    
-    /// Check if iCloud is available
-    func checkiCloudStatus() async throws -> Bool {
-        let status = try await container.accountStatus()
-        return status == .available
+
+    func fetchAccountAvailability() async -> ICloudAvailability {
+        do {
+            switch try await container.accountStatus() {
+            case .available:
+                return .available
+            case .noAccount:
+                return .noAccount
+            case .restricted:
+                return .restricted
+            case .couldNotDetermine:
+                return .temporarilyUnavailable
+            case .temporarilyUnavailable:
+                return .temporarilyUnavailable
+            @unknown default:
+                return .temporarilyUnavailable
+            }
+        } catch {
+            return .temporarilyUnavailable
+        }
     }
-    
-    /// Sync invoices to CloudKit
+
+    /// Sync invoices to CloudKit when the app is commercially and technically eligible.
     func syncInvoices(_ invoices: [Invoice]) async throws {
-        try guardSubscriptionAccess()
+        try guardSyncReady()
         let records = invoices.map { invoiceToRecord($0) }
-        
+
         try await withThrowingTaskGroup(of: Void.self) { group in
             for record in records {
                 group.addTask {
                     try await self.saveRecord(record)
                 }
             }
-            
+
             try await group.waitForAll()
         }
     }
-    
+
     /// Fetch invoices from CloudKit
     func fetchInvoices() async throws -> [CKRecord] {
-        try guardSubscriptionAccess()
+        try guardSyncReady()
         let query = CKQuery(recordType: "Invoice", predicate: NSPredicate(value: true))
         query.sortDescriptors = [NSSortDescriptor(key: "issueDate", ascending: false)]
-        
+
         let (matchResults, _) = try await privateDatabase.records(matching: query)
-        
+
         var records: [CKRecord] = []
         for (_, result) in matchResults {
             switch result {
@@ -66,20 +91,20 @@ final class CloudKitService {
                 print("Error fetching record: \(error)")
             }
         }
-        
+
         return records
     }
-    
+
     /// Save a single record to CloudKit
     private func saveRecord(_ record: CKRecord) async throws {
         try await privateDatabase.save(record)
     }
-    
+
     /// Convert Invoice to CKRecord
     private func invoiceToRecord(_ invoice: Invoice) -> CKRecord {
         let recordID = CKRecord.ID(recordName: invoice.id.uuidString)
         let record = CKRecord(recordType: "Invoice", recordID: recordID)
-        
+
         record["invoiceNumber"] = invoice.invoiceNumber as CKRecordValue
         record["issuerName"] = invoice.issuerName as CKRecordValue
         record["issuerCode"] = invoice.issuerCode as CKRecordValue
@@ -102,36 +127,37 @@ final class CloudKitService {
         record["totalAmount"] = invoice.totalAmount as NSDecimalNumber as CKRecordValue
         record["createdAt"] = invoice.createdAt as CKRecordValue
         record["updatedAt"] = invoice.updatedAt as CKRecordValue
-        
+
         return record
     }
-    
+
     /// Delete record from CloudKit
     func deleteInvoice(with id: UUID) async throws {
-        try guardSubscriptionAccess()
+        try guardSyncReady()
         let recordID = CKRecord.ID(recordName: id.uuidString)
         try await privateDatabase.deleteRecord(withID: recordID)
     }
-    
+
     /// Subscribe to changes in CloudKit
     func setupSubscription() async throws {
-        try guardSubscriptionAccess()
+        try guardSyncReady()
         let subscription = CKQuerySubscription(
             recordType: "Invoice",
             predicate: NSPredicate(value: true),
             options: [.firesOnRecordCreation, .firesOnRecordUpdate, .firesOnRecordDeletion]
         )
-        
+
         let notificationInfo = CKSubscription.NotificationInfo()
         notificationInfo.shouldSendContentAvailable = true
         subscription.notificationInfo = notificationInfo
-        
+
         try await privateDatabase.save(subscription)
     }
 
-    private func guardSubscriptionAccess() throws {
-        if !SubscriptionService.shared.syncEnabled {
-            throw CloudKitServiceError.subscriptionRequired
+    private func guardSyncReady() throws {
+        let syncStatus = SubscriptionService.shared.syncStatus
+        if syncStatus != .ready {
+            throw CloudKitServiceError.syncNotReady(syncStatus)
         }
     }
 }

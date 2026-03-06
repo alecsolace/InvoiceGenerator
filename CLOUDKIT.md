@@ -136,6 +136,15 @@ For background sync:
 3. Check CloudKit Dashboard for new records
 4. Run on second device to test sync
 
+### Production Release Requirement
+
+Before submitting to TestFlight or the App Store:
+
+1. Open CloudKit Dashboard
+2. Review schema changes in the development environment
+3. Deploy the schema to production
+4. Verify the production container matches the entitlements signed into the release build
+
 ### Debugging
 
 Enable CloudKit logging:

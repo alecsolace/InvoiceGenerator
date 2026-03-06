@@ -76,15 +76,15 @@ struct PaywallView: View {
 #if os(iOS)
         .presentationDetents([.large])
         .presentationDragIndicator(.hidden)
-        .interactiveDismissDisabled(subscriptionService.isPurchasing)
+        .interactiveDismissDisabled(subscriptionService.isPurchaseInFlight)
 #endif
         .onAppear {
             if selectedPlanID == nil {
                 selectedPlanID = subscriptionService.preferredPlanID()
             }
         }
-        .onChange(of: subscriptionService.isPro) { _, isPro in
-            if isPro { dismiss() }
+        .onChange(of: subscriptionService.entitlementStatus) { _, status in
+            if status == .active { dismiss() }
         }
     }
 
@@ -139,11 +139,11 @@ struct PaywallView: View {
             Text(String(localized: "Choose your plan", comment: "Paywall plan selector title"))
                 .font(.headline)
 
-            if subscriptionService.isLoadingProducts {
+            if subscriptionService.availablePlans.isEmpty {
                 ProgressView(String(localized: "Loading prices…", comment: "Loading products label"))
             }
 
-            ForEach(subscriptionService.plans) { plan in
+            ForEach(subscriptionService.availablePlans) { plan in
                 planButton(for: plan)
             }
         }
@@ -207,17 +207,17 @@ struct PaywallView: View {
         } label: {
             HStack {
                 Spacer()
-                if subscriptionService.isPurchasing {
+                if subscriptionService.purchaseState == .purchasing {
                     ProgressView()
                 } else {
-                    Text(String(localized: "Start Pro", comment: "Primary paywall button"))
+                    Text(primaryButtonTitle)
                         .fontWeight(.semibold)
                 }
                 Spacer()
             }
         }
         .buttonStyle(.borderedProminent)
-        .disabled(selectedPlanID == nil || subscriptionService.isPurchasing)
+        .disabled(selectedPlanID == nil || subscriptionService.isPurchaseInFlight)
     }
 
     private var restoreControls: some View {
@@ -226,6 +226,7 @@ struct PaywallView: View {
                 Task { await subscriptionService.restorePurchases() }
             }
             .buttonStyle(.plain)
+            .disabled(subscriptionService.isPurchaseInFlight)
 
             Spacer()
 
@@ -233,6 +234,7 @@ struct PaywallView: View {
                 dismiss()
             }
             .buttonStyle(.plain)
+            .disabled(subscriptionService.isPurchaseInFlight)
         }
         .padding(.vertical, 4)
     }
@@ -243,11 +245,28 @@ struct PaywallView: View {
                 .font(.footnote)
                 .foregroundStyle(.secondary)
 
+            if subscriptionService.purchaseState == .pending {
+                Text(String(localized: "Your purchase is pending approval. Access will unlock automatically once Apple confirms it.", comment: "Pending purchase helper"))
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            }
+
             if let error = subscriptionService.lastError {
                 Text(error)
                     .font(.footnote)
                     .foregroundStyle(.red)
             }
+        }
+    }
+
+    private var primaryButtonTitle: String {
+        switch subscriptionService.purchaseState {
+        case .pending:
+            return String(localized: "Awaiting approval", comment: "Pending purchase button label")
+        case .restoring:
+            return String(localized: "Restoring…", comment: "Restore purchases button label")
+        default:
+            return String(localized: "Start Pro", comment: "Primary paywall button")
         }
     }
 

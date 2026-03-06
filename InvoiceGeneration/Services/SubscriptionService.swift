@@ -2,14 +2,28 @@ import Foundation
 import StoreKit
 import Combine
 
-/// Handles StoreKit purchases, entitlements, and gating for Pro features.
+/// Handles StoreKit purchases, entitlements, and sync eligibility.
 @MainActor
 final class SubscriptionService: ObservableObject {
-    enum Status: Equatable {
-        case unknown
+    enum EntitlementStatus: Equatable {
         case free
-        case active(expirationDate: Date?)
+        case active
         case expired
+    }
+
+    enum PurchaseState: Equatable {
+        case idle
+        case purchasing
+        case pending
+        case failed
+        case restoring
+    }
+
+    enum SyncStatus: Equatable {
+        case lockedByPaywall
+        case disabledByUser
+        case pausedNoICloud
+        case ready
     }
 
     struct Plan: Identifiable, Equatable {
@@ -20,10 +34,10 @@ final class SubscriptionService: ObservableObject {
         var highlight: String?
         var hasIntroOffer: Bool
 
-        static var defaultPlans: [Plan] {
+        static func placeholderPlans(using configuration: StoreConfiguration) -> [Plan] {
             [
                 Plan(
-                    id: "pro_yearly",
+                    id: configuration.yearlyProductID,
                     title: String(localized: "Annual", comment: "Annual plan label"),
                     subtitle: String(localized: "Best value", comment: "Annual plan helper text"),
                     price: "$19.99",
@@ -31,7 +45,7 @@ final class SubscriptionService: ObservableObject {
                     hasIntroOffer: true
                 ),
                 Plan(
-                    id: "pro_monthly",
+                    id: configuration.monthlyProductID,
                     title: String(localized: "Monthly", comment: "Monthly plan label"),
                     subtitle: String(localized: "Flexible billing", comment: "Monthly helper text"),
                     price: "$2.99",
@@ -44,31 +58,43 @@ final class SubscriptionService: ObservableObject {
 
     static let shared = SubscriptionService()
 
-    @Published private(set) var status: Status
-    @Published private(set) var plans: [Plan]
-    @Published private(set) var isLoadingProducts = false
-    @Published private(set) var isPurchasing = false
+    @Published private(set) var entitlementStatus: EntitlementStatus
+    @Published private(set) var purchaseState: PurchaseState
+    @Published private(set) var availablePlans: [Plan]
     @Published private(set) var lastError: String?
+    @Published private(set) var iCloudAvailability: ICloudAvailability
     @Published var syncPreferred: Bool {
         didSet { defaults.set(syncPreferred, forKey: syncPreferenceKey) }
     }
 
     var isPro: Bool {
-        if case .active = status { return true }
-        return false
+        entitlementStatus == .active
+    }
+
+    var syncStatus: SyncStatus {
+        guard entitlementStatus == .active else { return .lockedByPaywall }
+        guard syncPreferred else { return .disabledByUser }
+        guard iCloudAvailability == .available else { return .pausedNoICloud }
+        return .ready
     }
 
     var syncEnabled: Bool {
-        isPro && syncPreferred
+        syncStatus == .ready
+    }
+
+    var isPurchaseInFlight: Bool {
+        purchaseState == .purchasing || purchaseState == .restoring
     }
 
     let freeClientLimit = 2
 
-    private let productIDs = ["pro_monthly", "pro_yearly"]
+    private let configuration: StoreConfiguration
     private var productsByID: [String: Product] = [:]
     private var updatesTask: Task<Void, Never>?
     private let defaults: UserDefaults
     private let syncPreferenceKey = "subscription.syncPreferred"
+    private let hasSeenActiveEntitlementKey = "subscription.hasSeenActiveEntitlement"
+    private let iCloudAvailabilityProvider: @Sendable () async -> ICloudAvailability
 
     private enum SubscriptionError: LocalizedError {
         case verificationFailed
@@ -78,15 +104,32 @@ final class SubscriptionService: ObservableObject {
         }
     }
 
-    init(defaults: UserDefaults = .standard) {
+    init(
+        defaults: UserDefaults = .standard,
+        storeConfiguration: StoreConfiguration? = nil,
+        iCloudAvailabilityProvider: @escaping @Sendable () async -> ICloudAvailability = {
+            await CloudKitService.shared.fetchAccountAvailability()
+        },
+        startTasks: Bool = true
+    ) {
         self.defaults = defaults
-        self.status = .free
-        self.plans = Plan.defaultPlans
+        self.configuration = storeConfiguration ?? StoreConfiguration.live()
+        self.iCloudAvailabilityProvider = iCloudAvailabilityProvider
+        self.entitlementStatus = .free
+        self.purchaseState = .idle
+        self.availablePlans = Plan.placeholderPlans(using: self.configuration)
+        self.lastError = nil
+        self.iCloudAvailability = .temporarilyUnavailable
         self.syncPreferred = defaults.bool(forKey: syncPreferenceKey)
 
-        refreshEntitlements()
-        updatesTask = listenForTransactions()
-        Task { await loadProducts() }
+        if startTasks {
+            updatesTask = listenForTransactions()
+            Task {
+                await refreshEntitlements()
+                await refreshICloudAvailability()
+                await loadProducts()
+            }
+        }
     }
 
     deinit {
@@ -94,51 +137,52 @@ final class SubscriptionService: ObservableObject {
     }
 
     func canAddClient(currentCount: Int) -> Bool {
-        isPro || currentCount < freeClientLimit
+        entitlementStatus == .active || currentCount < freeClientLimit
     }
 
-    func refreshEntitlements() {
+    func refreshEntitlements() async {
         guard #available(iOS 15.0, macOS 12.0, tvOS 15.0, *) else {
-            setStatus(.free)
+            entitlementStatus = .free
             return
         }
 
-        Task { [weak self] in
-            guard let self else { return }
-            for await result in Transaction.currentEntitlements {
-                do {
-                    let transaction = try checkVerified(result)
-                    if productIDs.contains(transaction.productID) {
-                        await transaction.finish()
-                        await MainActor.run {
-                            self.setStatus(.active(expirationDate: transaction.expirationDate))
-                        }
-                        return
-                    }
-                } catch {
-                    await MainActor.run { self.lastError = error.localizedDescription }
-                }
-            }
+        var resolvedStatus: EntitlementStatus = defaults.bool(forKey: hasSeenActiveEntitlementKey) ? .expired : .free
 
-            await MainActor.run {
-                self.setStatus(.free)
+        for await result in Transaction.currentEntitlements {
+            do {
+                let transaction = try checkVerified(result)
+                if configuration.productIDs.contains(transaction.productID) {
+                    defaults.set(true, forKey: hasSeenActiveEntitlementKey)
+                    resolvedStatus = .active
+                    break
+                }
+            } catch {
+                lastError = error.localizedDescription
             }
         }
+
+        entitlementStatus = resolvedStatus
+    }
+
+    func refreshICloudAvailability() async {
+        iCloudAvailability = await iCloudAvailabilityProvider()
     }
 
     func purchase(planID: String) async {
         guard #available(iOS 15.0, macOS 12.0, tvOS 15.0, *) else {
+            purchaseState = .failed
             lastError = String(localized: "Purchases are not supported on this OS version.", comment: "StoreKit unavailable message")
             return
         }
 
         guard let product = productsByID[planID] else {
+            purchaseState = .failed
             lastError = String(localized: "Unable to load product information. Please try again.", comment: "Missing product error")
             return
         }
 
-        isPurchasing = true
-        defer { isPurchasing = false }
+        lastError = nil
+        purchaseState = .purchasing
 
         do {
             let result = try await product.purchase()
@@ -146,59 +190,84 @@ final class SubscriptionService: ObservableObject {
             case .success(let verification):
                 let transaction = try checkVerified(verification)
                 await transaction.finish()
-                setStatus(.active(expirationDate: transaction.expirationDate))
+                defaults.set(true, forKey: hasSeenActiveEntitlementKey)
+                await refreshEntitlements()
+                await refreshICloudAvailability()
+                purchaseState = .idle
             case .userCancelled:
-                break
+                purchaseState = .idle
             case .pending:
+                purchaseState = .pending
                 lastError = String(localized: "Purchase pending approval.", comment: "Pending purchase message")
             default:
+                purchaseState = .failed
                 lastError = String(localized: "Purchase could not be completed. Please try again.", comment: "Generic purchase failure message")
             }
         } catch {
+            purchaseState = .failed
             lastError = error.localizedDescription
         }
     }
 
     func restorePurchases() async {
         guard #available(iOS 15.0, macOS 12.0, tvOS 15.0, *) else {
+            purchaseState = .failed
             lastError = String(localized: "Purchases are not supported on this OS version.", comment: "StoreKit unavailable message")
             return
         }
 
+        lastError = nil
+        purchaseState = .restoring
+
         do {
-            for await result in Transaction.currentEntitlements {
-                let transaction = try checkVerified(result)
-                if productIDs.contains(transaction.productID) {
-                    await transaction.finish()
-                    setStatus(.active(expirationDate: transaction.expirationDate))
-                    return
-                }
+            try await AppStore.sync()
+            await refreshEntitlements()
+            await refreshICloudAvailability()
+
+            if entitlementStatus == .free {
+                lastError = String(localized: "No previous purchases found.", comment: "Restore purchases not found message")
             }
 
-            lastError = String(localized: "No previous purchases found.", comment: "Restore purchases not found message")
+            purchaseState = .idle
         } catch {
+            purchaseState = .failed
             lastError = error.localizedDescription
         }
     }
 
     func preferredPlanID() -> String? {
-        plans.first?.id
+        availablePlans.first?.id
     }
 
 #if DEBUG
-    /// Testing helper to bypass StoreKit during UI tests.
-    func debugSetStatus(_ status: Status) {
-        setStatus(status)
+    /// Testing helper to bypass StoreKit during tests.
+    func debugSetEntitlementStatus(_ status: EntitlementStatus) {
+        entitlementStatus = status
+        if status == .active {
+            defaults.set(true, forKey: hasSeenActiveEntitlementKey)
+        }
+    }
+
+    /// Testing helper for iCloud availability dependent UI.
+    func debugSetICloudAvailability(_ status: ICloudAvailability) {
+        iCloudAvailability = status
     }
 #endif
 
     private func loadProducts() async {
         guard #available(iOS 15.0, macOS 12.0, tvOS 15.0, *) else { return }
-        isLoadingProducts = true
 
         do {
-            let products = try await Product.products(for: productIDs)
-            var updatedPlans = plans
+            _ = try configuration.validated()
+        } catch {
+            purchaseState = .failed
+            lastError = error.localizedDescription
+            return
+        }
+
+        do {
+            let products = try await Product.products(for: configuration.productIDs)
+            var updatedPlans = availablePlans
 
             for product in products {
                 productsByID[product.id] = product
@@ -222,11 +291,9 @@ final class SubscriptionService: ObservableObject {
                 }
             }
 
-            plans = updatedPlans
-            isLoadingProducts = false
+            availablePlans = updatedPlans
         } catch {
             lastError = error.localizedDescription
-            isLoadingProducts = false
         }
     }
 
@@ -237,18 +304,24 @@ final class SubscriptionService: ObservableObject {
             guard let self else { return }
 
             for await result in Transaction.updates {
-                do {
-                    let transaction = try checkVerified(result)
-                    if self.productIDs.contains(transaction.productID) {
-                        await transaction.finish()
-                        await MainActor.run {
-                            self.setStatus(.active(expirationDate: transaction.expirationDate))
-                        }
-                    }
-                } catch {
-                    await MainActor.run { self.lastError = error.localizedDescription }
-                }
+                await self.handleTransactionUpdate(result)
             }
+        }
+    }
+
+    private func handleTransactionUpdate(_ result: VerificationResult<Transaction>) async {
+        do {
+            let transaction = try checkVerified(result)
+            guard configuration.productIDs.contains(transaction.productID) else { return }
+
+            defaults.set(true, forKey: hasSeenActiveEntitlementKey)
+            await transaction.finish()
+            await refreshEntitlements()
+            await refreshICloudAvailability()
+            purchaseState = .idle
+        } catch {
+            purchaseState = .failed
+            lastError = error.localizedDescription
         }
     }
 
@@ -259,14 +332,6 @@ final class SubscriptionService: ObservableObject {
             throw SubscriptionError.verificationFailed
         case .verified(let safe):
             return safe
-        }
-    }
-
-    private func setStatus(_ newStatus: Status) {
-        status = newStatus
-
-        if !isPro {
-            syncPreferred = false
         }
     }
 }

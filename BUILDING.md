@@ -80,7 +80,20 @@ To enable CloudKit synchronization:
 4. Add **iCloud**
 5. Enable **CloudKit**
 6. Create or select a container
-7. Update `CloudKitService.swift` with your container ID
+7. Ensure `InvoiceGeneration.entitlements` is linked in target build settings and contains the real iCloud container
+
+### 3. StoreKit Setup
+
+The app reads product identifiers from `InvoiceGeneration/Info.plist`:
+
+- `StoreKitProMonthlyProductID`
+- `StoreKitProYearlyProductID`
+
+For local development:
+
+1. Create or attach an `.storekit` configuration to the scheme
+2. Keep the plist IDs aligned with the products defined in that file
+3. In TestFlight and App Store, configure the same product IDs in App Store Connect
 
 ### 3. Code Signing
 
@@ -120,6 +133,7 @@ This is expected when using `swift build` from the command line. SwiftData is on
 1. Ensure you're signed in with an Apple ID in Xcode preferences
 2. Check that iCloud capability is properly configured
 3. Test on a real device (CloudKit has limitations in the simulator)
+4. Before shipping, deploy the CloudKit schema to production from CloudKit Dashboard
 
 ## Next Steps
 

@@ -6,10 +6,26 @@
 //
 
 import Testing
+import Foundation
 import SwiftData
 @testable import InvoiceGeneration
 
 struct InvoiceGenerationTests {
+
+    @MainActor
+    private func makeSubscriptionService(
+        suiteName: String = UUID().uuidString,
+        iCloudAvailability: ICloudAvailability = .temporarilyUnavailable
+    ) -> SubscriptionService {
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defaults.removePersistentDomain(forName: suiteName)
+        return SubscriptionService(
+            defaults: defaults,
+            storeConfiguration: .testing,
+            iCloudAvailabilityProvider: { iCloudAvailability },
+            startTasks: false
+        )
+    }
 
     @MainActor
     @Test func example() async throws {
@@ -18,7 +34,7 @@ struct InvoiceGenerationTests {
 
     @MainActor
     @Test func freePlanCapsClientsAtTwo() async throws {
-        let service = SubscriptionService()
+        let service = makeSubscriptionService()
 
         #expect(service.canAddClient(currentCount: 0))
         #expect(service.canAddClient(currentCount: 1))
@@ -26,15 +42,56 @@ struct InvoiceGenerationTests {
     }
 
     @MainActor
-    @Test func syncRequiresActivePro() async throws {
-        let service = SubscriptionService()
+    @Test func syncStatusRequiresActiveEntitlement() async throws {
+        let service = makeSubscriptionService(iCloudAvailability: .available)
         service.syncPreferred = true
+        #expect(service.syncStatus == .lockedByPaywall)
         #expect(service.syncEnabled == false)
 
         #if DEBUG
-        service.debugSetStatus(.active(expirationDate: nil))
+        service.debugSetEntitlementStatus(.active)
         #expect(service.syncEnabled == true)
+        #expect(service.syncStatus == .ready)
         #endif
+    }
+
+    @MainActor
+    @Test func syncStatusPausesWhenICloudIsUnavailable() async throws {
+        let service = makeSubscriptionService(iCloudAvailability: .noAccount)
+        service.syncPreferred = true
+
+        #if DEBUG
+        service.debugSetEntitlementStatus(.active)
+        service.debugSetICloudAvailability(.noAccount)
+        #endif
+
+        #expect(service.syncStatus == .pausedNoICloud)
+        #expect(service.syncEnabled == false)
+    }
+
+    @MainActor
+    @Test func syncPreferencePersistsWhenEntitlementExpires() async throws {
+        let suiteName = UUID().uuidString
+        let service = makeSubscriptionService(suiteName: suiteName, iCloudAvailability: .available)
+        service.syncPreferred = true
+
+        #if DEBUG
+        service.debugSetEntitlementStatus(.active)
+        service.debugSetICloudAvailability(.available)
+        #expect(service.syncStatus == .ready)
+
+        service.debugSetEntitlementStatus(.expired)
+        #expect(service.syncStatus == .lockedByPaywall)
+        #expect(service.syncPreferred == true)
+        #endif
+
+        let reloadedService = SubscriptionService(
+            defaults: UserDefaults(suiteName: suiteName)!,
+            storeConfiguration: .testing,
+            iCloudAvailabilityProvider: { .available },
+            startTasks: false
+        )
+        #expect(reloadedService.syncPreferred == true)
     }
 
     @MainActor
