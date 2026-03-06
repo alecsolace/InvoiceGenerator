@@ -1,4 +1,5 @@
 import Foundation
+import PDFKit
 import SwiftData
 import Testing
 @testable import InvoiceGeneration
@@ -45,6 +46,15 @@ struct InvoiceGenerationTests {
 
         #expect(issuer.nextInvoiceSequence == 151)
         #expect(InvoiceNumberingService.nextInvoiceNumber(for: issuer) == "FAM-0151")
+    }
+
+    @MainActor
+    @Test func explicitInvoiceNumberSequenceFormatsPerIssuer() async throws {
+        let issuer = Issuer(name: "Family", code: "FAM", nextInvoiceSequence: 8)
+
+        #expect(InvoiceNumberingService.invoiceNumber(for: issuer, sequence: 8) == "FAM-0008")
+        #expect(InvoiceNumberingService.invoiceNumber(for: issuer, sequence: 12) == "FAM-0012")
+        #expect(InvoiceNumberingService.sequence(from: "FAM-0012", for: issuer) == 12)
     }
 
     @MainActor
@@ -240,6 +250,67 @@ struct InvoiceGenerationTests {
 
         viewModel.markPaid(invoice)
         #expect(invoice.status == .paid)
+    }
+
+    @MainActor
+    @Test func syncLinkedDataCopiesCurrentClientAndIssuerSnapshots() async throws {
+        let container = try makeContainer()
+        let context = container.mainContext
+        let issuer = Issuer(name: "Acme", code: "ACM", address: "Linea 1\nLinea 2", taxId: "B123")
+        let client = Client(name: "Cliente", email: "hola@cliente.com", address: "Calle 1\n28001 Madrid", identificationNumber: "X123")
+        let invoice = Invoice(
+            invoiceNumber: "ACM-0001",
+            clientName: "Nombre viejo",
+            clientEmail: "",
+            clientIdentificationNumber: "",
+            clientAddress: "",
+            client: client,
+            issuer: issuer
+        )
+        context.insert(issuer)
+        context.insert(client)
+        context.insert(invoice)
+        try context.save()
+
+        client.name = "Cliente actualizado"
+        client.address = "Nueva calle\n08001 Barcelona"
+        issuer.address = "Avenida nueva\n46001 Valencia"
+        issuer.taxId = "B999"
+
+        let viewModel = InvoiceViewModel(modelContext: context)
+        let result = viewModel.syncLinkedData(into: invoice)
+
+        #expect(result.didSyncClient)
+        #expect(result.didSyncIssuer)
+        #expect(invoice.clientName == "Cliente actualizado")
+        #expect(invoice.clientAddress == "Nueva calle\n08001 Barcelona")
+        #expect(invoice.issuerAddress == "Avenida nueva\n46001 Valencia")
+        #expect(invoice.issuerTaxId == "B999")
+    }
+
+    @MainActor
+    @Test func pdfGenerationSupportsMultilineAddressContent() async throws {
+        let issuer = Issuer(name: "Acme", code: "ACM", address: "Linea 1\nLinea 2\nLinea 3")
+        let client = Client(name: "Cliente", address: "Direccion muy larga\nSegunda linea\nTercera linea")
+        let invoice = Invoice(
+            invoiceNumber: "ACM-0001",
+            clientName: client.name,
+            clientEmail: "cliente@example.com",
+            clientAddress: client.address,
+            client: client,
+            issuer: issuer,
+            notes: "Nota inicial\nNota final"
+        )
+        invoice.captureIssuerSnapshot(from: issuer)
+        let item = InvoiceItem(description: "Servicio mensual", quantity: 1, unitPrice: 1000)
+        item.invoice = invoice
+        invoice.items.append(item)
+        invoice.calculateTotal()
+
+        let document = PDFGeneratorService.generateInvoicePDF(invoice: invoice)
+
+        #expect(document != nil)
+        #expect(document?.pageCount == 1)
     }
 
     @MainActor

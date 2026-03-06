@@ -140,25 +140,28 @@ final class PDFGeneratorService {
 
         let nameStyle = PDFTextStyle(font: PDFFont.bold(14), color: palette.textPrimary)
         let infoStyle = PDFTextStyle(font: PDFFont.regular(11), color: palette.textSecondary)
+        let leftColumnWidth: CGFloat = 250
+        let leftColumnX: CGFloat = 50
+        var leftColumnY = yPosition
 
         if !issuerDetails.name.isEmpty {
-            drawText(issuerDetails.name, style: nameStyle, at: CGPoint(x: 50, y: yPosition), in: context)
-            yPosition += 16
+            let blockHeight = drawMultilineText(
+                issuerDetails.name,
+                style: nameStyle,
+                in: CGRect(x: leftColumnX, y: leftColumnY, width: leftColumnWidth, height: height(for: issuerDetails.name, style: nameStyle, width: leftColumnWidth)),
+                context: context
+            )
+            leftColumnY += blockHeight + 8
         }
 
-        if !issuerDetails.address.isEmpty {
-            drawText(issuerDetails.address, style: infoStyle, at: CGPoint(x: 50, y: yPosition), in: context)
-            yPosition += 14
-        }
-
-        if !issuerDetails.email.isEmpty {
-            drawText(issuerDetails.email, style: infoStyle, at: CGPoint(x: 50, y: yPosition), in: context)
-            yPosition += 14
-        }
-
-        if !issuerDetails.phone.isEmpty {
-            drawText(issuerDetails.phone, style: infoStyle, at: CGPoint(x: 50, y: yPosition), in: context)
-            yPosition += 14
+        for text in [issuerDetails.address, issuerDetails.email, issuerDetails.phone] where !text.isEmpty {
+            let blockHeight = drawMultilineText(
+                text,
+                style: infoStyle,
+                in: CGRect(x: leftColumnX, y: leftColumnY, width: leftColumnWidth, height: height(for: text, style: infoStyle, width: leftColumnWidth)),
+                context: context
+            )
+            leftColumnY += blockHeight + 8
         }
 
         if !issuerDetails.taxId.isEmpty {
@@ -166,39 +169,64 @@ final class PDFGeneratorService {
                 format: localized("Tax ID: %@", comment: "PDF issuer tax id label and value"),
                 issuerDetails.taxId
             )
-            drawText(taxLabel, style: infoStyle, at: CGPoint(x: 50, y: yPosition), in: context)
-            yPosition += 14
+            let blockHeight = drawMultilineText(
+                taxLabel,
+                style: infoStyle,
+                in: CGRect(x: leftColumnX, y: leftColumnY, width: leftColumnWidth, height: height(for: taxLabel, style: infoStyle, width: leftColumnWidth)),
+                context: context
+            )
+            leftColumnY += blockHeight + 8
         }
 
         let detailBoxWidth: CGFloat = 230
-        let detailBoxHeight: CGFloat = 104
         let detailBoxX = pageRect.width - detailBoxWidth - 50
-        let detailBoxRect = CGRect(x: detailBoxX, y: startY + 18, width: detailBoxWidth, height: detailBoxHeight)
-        context.setFillColor(palette.panelBackground)
-        context.fill(detailBoxRect)
-
         let labelStyle = PDFTextStyle(font: PDFFont.bold(11), color: palette.textSecondary)
         let valueStyle = PDFTextStyle(font: PDFFont.regular(12), color: palette.textPrimary)
         let formatter = DateFormatter()
         formatter.dateStyle = .short
+        let rowLabelWidth: CGFloat = 106
+        let rowValueWidth = detailBoxWidth - 36 - rowLabelWidth
+        let detailRows: [(String, String)] = [
+            (localized("Invoice Number", comment: "PDF invoice number label"), invoice.invoiceNumber),
+            (localized("Invoice Date", comment: "PDF invoice date label"), formatter.string(from: invoice.issueDate)),
+            (localized("Due Date", comment: "PDF due date label"), formatter.string(from: invoice.dueDate)),
+            (localized("Status", comment: "PDF status label"), localized(invoice.status.rawValue, comment: "Localized invoice status"))
+        ]
+
+        var detailContentHeight: CGFloat = 12
+        for row in detailRows {
+            let labelHeight = height(for: row.0, style: labelStyle, width: rowLabelWidth)
+            let valueHeight = height(for: row.1, style: valueStyle, width: rowValueWidth)
+            detailContentHeight += max(labelHeight, valueHeight) + 10
+        }
+        detailContentHeight += 2
+
+        let detailBoxRect = CGRect(x: detailBoxX, y: startY + 18, width: detailBoxWidth, height: detailContentHeight)
+        context.setFillColor(palette.panelBackground)
+        context.fill(detailBoxRect)
 
         var detailY = detailBoxRect.origin.y + 12
-        drawText(localized("Invoice Number", comment: "PDF invoice number label"), style: labelStyle, at: CGPoint(x: detailBoxX + 12, y: detailY), in: context)
-        drawText(invoice.invoiceNumber, style: valueStyle, at: CGPoint(x: detailBoxX + 130, y: detailY), in: context)
-        detailY += 22
+        for row in detailRows {
+            let labelHeight = height(for: row.0, style: labelStyle, width: rowLabelWidth)
+            let valueHeight = height(for: row.1, style: valueStyle, width: rowValueWidth)
+            let rowHeight = max(labelHeight, valueHeight)
 
-        drawText(localized("Invoice Date", comment: "PDF invoice date label"), style: labelStyle, at: CGPoint(x: detailBoxX + 12, y: detailY), in: context)
-        drawText(formatter.string(from: invoice.issueDate), style: valueStyle, at: CGPoint(x: detailBoxX + 130, y: detailY), in: context)
-        detailY += 22
+            _ = drawMultilineText(
+                row.0,
+                style: labelStyle,
+                in: CGRect(x: detailBoxX + 12, y: detailY, width: rowLabelWidth, height: rowHeight),
+                context: context
+            )
+            _ = drawMultilineText(
+                row.1,
+                style: valueStyle,
+                in: CGRect(x: detailBoxX + 24 + rowLabelWidth, y: detailY, width: rowValueWidth, height: rowHeight),
+                context: context
+            )
+            detailY += rowHeight + 10
+        }
 
-        drawText(localized("Due Date", comment: "PDF due date label"), style: labelStyle, at: CGPoint(x: detailBoxX + 12, y: detailY), in: context)
-        drawText(formatter.string(from: invoice.dueDate), style: valueStyle, at: CGPoint(x: detailBoxX + 130, y: detailY), in: context)
-        detailY += 22
-
-        drawText(localized("Status", comment: "PDF status label"), style: labelStyle, at: CGPoint(x: detailBoxX + 12, y: detailY), in: context)
-        drawText(localized(invoice.status.rawValue, comment: "Localized invoice status"), style: valueStyle, at: CGPoint(x: detailBoxX + 130, y: detailY), in: context)
-
-        return max(yPosition, detailBoxRect.maxY)
+        return max(leftColumnY, detailBoxRect.maxY)
     }
 
     private static func drawClientInfo(
@@ -209,13 +237,25 @@ final class PDFGeneratorService {
         startY: CGFloat
     ) -> CGFloat {
         let idNumber = invoice.clientIdentificationNumber.isEmpty ? (invoice.client?.identificationNumber ?? "") : invoice.clientIdentificationNumber
-        let hasEmail = !invoice.clientEmail.isEmpty
-        let hasAddress = !invoice.clientAddress.isEmpty
-        let hasIdNumber = !idNumber.isEmpty
+        let rows = [
+            (localized("Client", comment: "PDF client label"), invoice.clientName),
+            invoice.clientEmail.isEmpty ? nil : (localized("Email", comment: "PDF client email label"), invoice.clientEmail),
+            idNumber.isEmpty ? nil : (localized("Identification Number", comment: "PDF client identification label"), idNumber),
+            invoice.clientAddress.isEmpty ? nil : (localized("Address", comment: "PDF client address label"), invoice.clientAddress)
+        ].compactMap { $0 }
 
-        let baseHeight: CGFloat = 98
-        let variableHeight: CGFloat = (hasEmail ? 26 : 0) + (hasAddress ? 26 : 0) + (hasIdNumber ? 26 : 0)
-        let containerHeight = max(150, baseHeight + variableHeight)
+        let labelWidth: CGFloat = 150
+        let containerWidth = pageRect.width - 100
+        let valueWidth = containerWidth - 32 - labelWidth - 16
+        let headerHeight = height(for: localized("BILL TO", comment: "PDF bill-to header"), style: PDFTextStyle(font: PDFFont.bold(13), color: palette.accent), width: containerWidth - 32)
+
+        let rowsHeight = rows.reduce(CGFloat(0)) { partialResult, row in
+            let labelHeight = height(for: row.0, style: PDFTextStyle(font: PDFFont.bold(11), color: palette.textSecondary), width: labelWidth)
+            let valueHeight = height(for: row.1, style: PDFTextStyle(font: PDFFont.regular(12), color: palette.textPrimary), width: valueWidth)
+            return partialResult + max(labelHeight, valueHeight) + 10
+        }
+
+        let containerHeight = max(150, 18 + headerHeight + 12 + rowsHeight + 12)
         let container = CGRect(x: 50, y: startY, width: pageRect.width - 100, height: containerHeight)
         context.setFillColor(palette.sectionBackground)
         context.fill(container)
@@ -225,35 +265,34 @@ final class PDFGeneratorService {
         let valueStyle = PDFTextStyle(font: PDFFont.regular(12), color: palette.textPrimary)
 
         let labelX = container.origin.x + 16
-        let valueX = container.origin.x + 200
+        let valueX = labelX + labelWidth + 16
         var yPosition = container.origin.y + 16
-        drawText(localized("BILL TO", comment: "PDF bill-to header"), style: headerStyle, at: CGPoint(x: labelX, y: yPosition), in: context)
-        yPosition += 26
+        let titleHeight = drawMultilineText(
+            localized("BILL TO", comment: "PDF bill-to header"),
+            style: headerStyle,
+            in: CGRect(x: labelX, y: yPosition, width: container.width - 32, height: headerHeight),
+            context: context
+        )
+        yPosition += titleHeight + 12
 
-        drawText(localized("Client", comment: "PDF client label"), style: labelStyle, at: CGPoint(x: labelX, y: yPosition), in: context)
-        drawText(invoice.clientName, style: valueStyle, at: CGPoint(x: valueX, y: yPosition), in: context)
-        yPosition += 26
+        for row in rows {
+            let labelHeight = height(for: row.0, style: labelStyle, width: labelWidth)
+            let valueHeight = height(for: row.1, style: valueStyle, width: valueWidth)
+            let rowHeight = max(labelHeight, valueHeight)
 
-        if !invoice.clientEmail.isEmpty {
-            drawText(localized("Email", comment: "PDF client email label"), style: labelStyle, at: CGPoint(x: labelX, y: yPosition), in: context)
-            drawText(invoice.clientEmail, style: valueStyle, at: CGPoint(x: valueX, y: yPosition), in: context)
-            yPosition += 26
-        }
-
-        if hasIdNumber {
-            drawText(
-                localized("Identification Number", comment: "PDF client identification label"),
+            _ = drawMultilineText(
+                row.0,
                 style: labelStyle,
-                at: CGPoint(x: labelX, y: yPosition),
-                in: context
+                in: CGRect(x: labelX, y: yPosition, width: labelWidth, height: rowHeight),
+                context: context
             )
-            drawText(idNumber, style: valueStyle, at: CGPoint(x: valueX, y: yPosition), in: context)
-            yPosition += 26
-        }
-
-        if !invoice.clientAddress.isEmpty {
-            drawText(localized("Address", comment: "PDF client address label"), style: labelStyle, at: CGPoint(x: labelX, y: yPosition), in: context)
-            drawText(invoice.clientAddress, style: valueStyle, at: CGPoint(x: valueX, y: yPosition), in: context)
+            _ = drawMultilineText(
+                row.1,
+                style: valueStyle,
+                in: CGRect(x: valueX, y: yPosition, width: valueWidth, height: rowHeight),
+                context: context
+            )
+            yPosition += rowHeight + 10
         }
 
         return container.maxY
@@ -274,8 +313,6 @@ final class PDFGeneratorService {
         let descriptionWidth: CGFloat = 235
         let quantityWidth: CGFloat = 70
         let unitPriceWidth: CGFloat = 90
-        let totalWidth: CGFloat = 90
-
         let headerRect = CGRect(x: tableX, y: yPosition, width: tableWidth, height: 32)
         context.setFillColor(palette.accent)
         context.fill(headerRect)
@@ -309,7 +346,7 @@ final class PDFGeneratorService {
                 width: descriptionWidth,
                 height: rowHeight - 8
             )
-            drawMultilineText(item.itemDescription, style: cellStyle, in: descriptionRect, context: context)
+            _ = drawMultilineText(item.itemDescription, style: cellStyle, in: descriptionRect, context: context)
             drawText("\(item.quantity)", style: cellStyle, at: CGPoint(x: quantityX, y: textTop), in: context)
             drawText(currencyString(for: item.unitPrice), style: cellStyle, at: CGPoint(x: unitPriceX, y: textTop), in: context)
             drawText(currencyString(for: item.total), style: cellStyle, at: CGPoint(x: totalX, y: textTop), in: context)
@@ -388,12 +425,12 @@ final class PDFGeneratorService {
         pageRect: CGRect,
         startY: CGFloat
     ) -> CGFloat {
-        let container = CGRect(x: 50, y: startY, width: pageRect.width - 100, height: 110)
+        let bodyStyle = PDFTextStyle(font: PDFFont.regular(11), color: palette.textPrimary)
+        let headerStyle = PDFTextStyle(font: PDFFont.bold(12), color: palette.accent)
+        let bodyHeight = height(for: invoice.notes, style: bodyStyle, width: pageRect.width - 124)
+        let container = CGRect(x: 50, y: startY, width: pageRect.width - 100, height: max(110, bodyHeight + 52))
         context.setFillColor(palette.sectionBackground)
         context.fill(container)
-
-        let headerStyle = PDFTextStyle(font: PDFFont.bold(12), color: palette.accent)
-        let bodyStyle = PDFTextStyle(font: PDFFont.regular(11), color: palette.textPrimary)
 
         drawText(localized("Notes", comment: "PDF notes header"), style: headerStyle, at: CGPoint(x: container.origin.x + 12, y: container.origin.y + 12), in: context)
 
@@ -403,7 +440,7 @@ final class PDFGeneratorService {
             width: container.width - 24,
             height: container.height - 40
         )
-        drawMultilineText(invoice.notes, style: bodyStyle, in: notesRect, context: context)
+        _ = drawMultilineText(invoice.notes, style: bodyStyle, in: notesRect, context: context)
 
         return container.maxY
     }
@@ -563,20 +600,26 @@ private func drawMultilineText(
     style: PDFTextStyle,
     in rect: CGRect,
     context: CGContext
-) {
-    let attributedString = NSAttributedString(string: text, attributes: style.attributes)
+) -> CGFloat {
+    let normalizedText = normalizedPDFText(text)
+    let actualHeight = height(for: normalizedText, style: style, width: rect.width)
+    let drawingRect = CGRect(x: rect.origin.x, y: rect.origin.y, width: rect.width, height: max(rect.height, actualHeight))
+    let attributedString = NSAttributedString(string: normalizedText, attributes: style.attributes)
     let framesetter = CTFramesetterCreateWithAttributedString(attributedString)
     let path = CGMutablePath()
-    path.addRect(rect)
+    path.addRect(drawingRect)
     let frame = CTFramesetterCreateFrame(framesetter, CFRangeMake(0, attributedString.length), path, nil)
 
     context.saveGState()
+    context.clip(to: drawingRect)
     CTFrameDraw(frame, context)
     context.restoreGState()
+
+    return actualHeight
 }
 
 private func height(for text: String, style: PDFTextStyle, width: CGFloat) -> CGFloat {
-    let attributedString = NSAttributedString(string: text, attributes: style.attributes)
+    let attributedString = NSAttributedString(string: normalizedPDFText(text), attributes: style.attributes)
     let framesetter = CTFramesetterCreateWithAttributedString(attributedString)
     let constraintSize = CGSize(width: width, height: .greatestFiniteMagnitude)
     let suggestedSize = CTFramesetterSuggestFrameSizeWithConstraints(
@@ -587,6 +630,12 @@ private func height(for text: String, style: PDFTextStyle, width: CGFloat) -> CG
         nil
     )
     return ceil(suggestedSize.height)
+}
+
+private func normalizedPDFText(_ text: String) -> String {
+    text
+        .replacingOccurrences(of: "\r\n", with: "\n")
+        .replacingOccurrences(of: "\r", with: "\n")
 }
 
 private func currencyString(for value: Decimal) -> String {
