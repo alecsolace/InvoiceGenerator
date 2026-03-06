@@ -11,7 +11,11 @@ import AppKit
 
 /// Detailed view for a single invoice with modern, glass-inspired layout
 struct InvoiceDetailView: View {
+    @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
+    #if os(iOS)
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+    #endif
     
     @Bindable var invoice: Invoice
     @Bindable var viewModel: InvoiceViewModel
@@ -24,9 +28,14 @@ struct InvoiceDetailView: View {
     @State private var pdfURL: URL?
     @State private var savedPDFURL: URL?
     @State private var previewDocument: PDFDocument?
+    @State private var templateViewModel: InvoiceTemplateViewModel?
     @State private var isPreviewLoading = false
     @State private var editingItem: InvoiceItem?
     @State private var previewNeedsRefresh = true
+    @State private var composerSeed: InvoiceComposerSeed?
+    @State private var duplicatedInvoice: Invoice?
+    @State private var syncResultMessage: String?
+    @State private var showingSyncResult = false
     #if canImport(UIKit)
     @State private var showingFullScreenPreview = false
     @State private var fullScreenDocument: PDFDocument?
@@ -49,12 +58,15 @@ struct InvoiceDetailView: View {
                 .padding(.vertical, 32)
             }
             .background(backgroundGradient)
-            .navigationTitle("Invoice Details")
+            .navigationTitle("Detalle factura")
             #if os(iOS)
             .navigationBarTitleDisplayMode(.inline)
             #endif
             .toolbar {
                 toolbarMenu
+            }
+            .navigationDestination(item: $duplicatedInvoice) { invoice in
+                InvoiceDetailView(invoice: invoice, viewModel: viewModel)
             }
             .sheet(isPresented: $showingAddItem) {
                 AddItemView(invoice: invoice, viewModel: viewModel)
@@ -93,8 +105,16 @@ struct InvoiceDetailView: View {
             .sheet(item: $editingItem) { item in
                 InvoiceItemEditorView(invoice: invoice, viewModel: viewModel, item: item)
             }
+            .sheet(item: $composerSeed) { seed in
+                AddInvoiceView(viewModel: viewModel, seed: seed) { created in
+                    duplicatedInvoice = created
+                }
+            }
         }
         .onAppear {
+            if templateViewModel == nil {
+                templateViewModel = InvoiceTemplateViewModel(modelContext: modelContext)
+            }
             hydrateSavedPDFIfNeeded()
         }
         .onChange(of: invoice.updatedAt) { _, _ in
@@ -105,13 +125,13 @@ struct InvoiceDetailView: View {
             hydrateSavedPDFIfNeeded()
         }
         .alert(
-            "Invoice Saved",
+            "Factura guardada",
             isPresented: $showingPDFSaveConfirmation,
             actions: {
                 if savedPDFURL != nil {
-                    Button("Share") { shareSavedPDF() }
+                    Button("Compartir") { shareSavedPDF() }
                     #if canImport(AppKit)
-                    Button("Show in Finder") { revealPDFInFinder() }
+                    Button("Mostrar en Finder") { revealPDFInFinder() }
                     #endif
                 }
                 Button("OK", role: .cancel) {}
@@ -121,20 +141,14 @@ struct InvoiceDetailView: View {
                     #if os(macOS)
                     Text(
                         String(
-                            format: NSLocalizedString(
-                                "The PDF was saved to %@.",
-                                comment: "Alert message when PDF is saved locally with full path"
-                            ),
+                            format: "El PDF se guardo en %@.",
                             savedPDFURL.deletingLastPathComponent().path
                         )
                     )
                     #else
                     Text(
                         String(
-                            format: NSLocalizedString(
-                                "The PDF \"%@\" is stored securely inside the app. Share it from here whenever you need.",
-                                comment: "Alert message when PDF stored inside the app sandbox"
-                            ),
+                            format: "El PDF \"%@\" ya esta listo para compartir.",
                             savedPDFURL.lastPathComponent
                         )
                     )
@@ -142,6 +156,11 @@ struct InvoiceDetailView: View {
                 }
             }
         )
+        .alert("Sincronizacion completada", isPresented: $showingSyncResult) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(syncResultMessage ?? "")
+        }
     }
     
     // MARK: - Sections
@@ -167,10 +186,26 @@ struct InvoiceDetailView: View {
                 Spacer()
                 statusPicker
             }
+
+            HStack(spacing: 12) {
+                if invoice.status != .sent {
+                    Button("Marcar enviada") {
+                        viewModel.markSent(invoice)
+                    }
+                    .buttonStyle(.bordered)
+                }
+
+                if invoice.status != .paid {
+                    Button("Marcar cobrada") {
+                        viewModel.markPaid(invoice)
+                    }
+                    .buttonStyle(.borderedProminent)
+                }
+            }
             
             HStack(spacing: 16) {
-                infoCapsule(icon: "calendar.badge.clock", title: "Issued", value: invoice.issueDate.mediumFormat)
-                infoCapsule(icon: "calendar.badge.exclamationmark", title: "Due", value: invoice.dueDate.mediumFormat)
+                infoCapsule(icon: "calendar.badge.clock", title: "Emitida", value: invoice.issueDate.mediumFormat)
+                infoCapsule(icon: "calendar.badge.exclamationmark", title: "Vence", value: invoice.dueDate.mediumFormat)
             }
         }
         .padding(24)
@@ -179,21 +214,21 @@ struct InvoiceDetailView: View {
     
     private var invoiceInformationCard: some View {
         VStack(alignment: .leading, spacing: 16) {
-            Text("Invoice Information")
+            Text("Datos de la factura")
                 .font(.title2)
                 .fontWeight(.semibold)
             
-            infoRow(title: "Invoice Number", value: invoice.invoiceNumber)
+            infoRow(title: "Numero", value: invoice.invoiceNumber)
             if !invoice.issuerName.isEmpty {
-                infoRow(title: "Emitter", value: invoice.issuerName)
+                infoRow(title: "Emisor", value: invoice.issuerName)
             }
             if !invoice.issuerCode.isEmpty {
-                infoRow(title: "Emitter Code", value: invoice.issuerCode)
+                infoRow(title: "Codigo emisor", value: invoice.issuerCode)
             }
-            infoRow(title: "Issue Date", value: invoice.issueDate.mediumFormat)
-            infoRow(title: "Due Date", value: invoice.dueDate.mediumFormat)
+            infoRow(title: "Fecha de emision", value: invoice.issueDate.mediumFormat)
+            infoRow(title: "Fecha de vencimiento", value: invoice.dueDate.mediumFormat)
             if let updated = invoice.pdfLastGeneratedAt {
-                infoRow(title: "PDF Updated", value: formattedDate(updated))
+                infoRow(title: "PDF actualizado", value: formattedDate(updated))
             }
         }
         .padding(24)
@@ -203,20 +238,20 @@ struct InvoiceDetailView: View {
     private var clientInformationCard: some View {
         VStack(alignment: .leading, spacing: 16) {
             HStack {
-                Text("Client")
+                Text("Cliente")
                     .font(.title2)
                     .fontWeight(.semibold)
                 Spacer()
                 Button(action: { showingEditInvoice = true }) {
-                    Label("Edit", systemImage: "pencil")
+                    Label("Editar", systemImage: "pencil")
                 }
                 .buttonStyle(.bordered)
             }
             
-            infoRow(title: "Name", value: invoice.clientName)
+            infoRow(title: "Nombre", value: invoice.clientName)
             if !clientIdentificationNumber.isEmpty {
                 infoRow(
-                    title: String(localized: "Identification Number", comment: "Client identification number label"),
+                    title: "NIF/CIF",
                     value: clientIdentificationNumber
                 )
             }
@@ -225,7 +260,7 @@ struct InvoiceDetailView: View {
             }
             if !invoice.clientAddress.isEmpty {
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("Address")
+                    Text("Direccion")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                     Text(invoice.clientAddress)
@@ -240,18 +275,18 @@ struct InvoiceDetailView: View {
     private var itemsCard: some View {
         VStack(alignment: .leading, spacing: 16) {
             HStack {
-                Text("Items")
+                Text("Conceptos")
                     .font(.title2)
                     .fontWeight(.semibold)
                 Spacer()
                 Button(action: { showingAddItem = true }) {
-                    Label("Add Item", systemImage: "plus.circle.fill")
+                    Label("Anadir concepto", systemImage: "plus.circle.fill")
                 }
                 .buttonStyle(.borderedProminent)
             }
             
             if invoice.items.isEmpty {
-                Text("No items yet. Add services or products to calculate totals.")
+                Text("Aun no hay conceptos. Anadelos para calcular los totales.")
                     .foregroundStyle(.secondary)
             } else {
                 VStack(spacing: 12) {
@@ -308,7 +343,7 @@ struct InvoiceDetailView: View {
     
     private var notesCard: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("Notes")
+            Text("Notas")
                 .font(.title2)
                 .fontWeight(.semibold)
             Text(invoice.notes)
@@ -320,7 +355,7 @@ struct InvoiceDetailView: View {
     
     private var pdfPreviewCard: some View {
         VStack(alignment: .leading, spacing: 16) {
-            Text("Document Preview")
+            Text("Vista previa del PDF")
                 .font(.title2)
                 .fontWeight(.semibold)
             
@@ -333,7 +368,7 @@ struct InvoiceDetailView: View {
                     )
                 
                 if isPreviewLoading {
-                    ProgressView("Rendering preview…")
+                    ProgressView("Generando vista previa…")
                 } else if let previewDocument {
                     PDFPreview(document: previewDocument)
                         .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
@@ -345,11 +380,11 @@ struct InvoiceDetailView: View {
                         Image(systemName: "doc.badge.gearshape")
                             .font(.largeTitle)
                             .foregroundStyle(.secondary)
-                        Text(previewNeedsRefresh ? "Tap \"Create Preview\" to render the latest invoice." : "Preview unavailable. Try rendering again.")
+                        Text(previewNeedsRefresh ? "Pulsa en crear vista previa para renderizar la factura actual." : "La vista previa no esta disponible. Intentalo de nuevo.")
                             .multilineTextAlignment(.center)
                             .foregroundStyle(.secondary)
                         Button(action: { refreshPreview() }) {
-                            Text("Create Preview")
+                            Text("Crear vista previa")
                                 .fontWeight(.semibold)
                         }
                     }
@@ -358,31 +393,94 @@ struct InvoiceDetailView: View {
             }
             .frame(height: 360)
             
-            HStack {
-                Button(action: { refreshPreview() }) {
-                    Label("Create Preview", systemImage: "sparkles.rectangle.stack")
-                }
-                .buttonStyle(.borderedProminent)
-                
-                Button(action: { generatePDF() }) {
-                    Label("Generate PDF", systemImage: "doc.fill")
-                }
-                .buttonStyle(.bordered)
-                
-                if savedPDFURL != nil {
-                    Button(action: { shareSavedPDF() }) {
-                        Label("Share Saved PDF", systemImage: "square.and.arrow.up")
-                    }
-                }
-
-                Button(action: { sendInvoiceByEmail() }) {
-                    Label("Send Email", systemImage: "envelope")
-                }
-                .buttonStyle(.bordered)
-            }
+            pdfActionButtons
         }
         .padding(24)
         .glassBackground()
+    }
+
+    @ViewBuilder
+    private var pdfActionButtons: some View {
+        if usesCompactPDFActionLayout {
+            let columns = [
+                GridItem(.flexible(), spacing: 12),
+                GridItem(.flexible(), spacing: 12)
+            ]
+            LazyVGrid(columns: columns, spacing: 12) {
+                pdfPreviewButton
+                pdfGenerateButton
+                pdfSyncButton
+                if savedPDFURL != nil {
+                    pdfShareButton
+                }
+                pdfSendEmailButton
+            }
+        } else {
+            HStack(spacing: 12) {
+                pdfPreviewButton
+                pdfGenerateButton
+                pdfSyncButton
+                if savedPDFURL != nil {
+                    pdfShareButton
+                }
+                pdfSendEmailButton
+            }
+        }
+    }
+
+    private var usesCompactPDFActionLayout: Bool {
+        #if os(iOS)
+        horizontalSizeClass == .compact
+        #else
+        false
+        #endif
+    }
+
+    private var pdfPreviewButton: some View {
+        Button(action: { refreshPreview() }) {
+            actionLabel(title: "Vista previa", systemImage: "sparkles.rectangle.stack")
+        }
+        .buttonStyle(.borderedProminent)
+        .frame(maxWidth: .infinity)
+    }
+
+    private var pdfGenerateButton: some View {
+        Button(action: { generatePDF() }) {
+            actionLabel(title: "Generar PDF", systemImage: "doc.fill")
+        }
+        .buttonStyle(.bordered)
+        .frame(maxWidth: .infinity)
+    }
+
+    private var pdfSyncButton: some View {
+        Button(action: { syncAndRegeneratePDF() }) {
+            actionLabel(title: "Sincronizar y regenerar", systemImage: "arrow.triangle.2.circlepath.doc.on.clipboard")
+        }
+        .buttonStyle(.bordered)
+        .frame(maxWidth: .infinity)
+    }
+
+    private var pdfShareButton: some View {
+        Button(action: { shareSavedPDF() }) {
+            actionLabel(title: "Compartir PDF", systemImage: "square.and.arrow.up")
+        }
+        .buttonStyle(.bordered)
+        .frame(maxWidth: .infinity)
+    }
+
+    private var pdfSendEmailButton: some View {
+        Button(action: { sendInvoiceByEmail() }) {
+            actionLabel(title: "Enviar email", systemImage: "envelope")
+        }
+        .buttonStyle(.bordered)
+        .frame(maxWidth: .infinity)
+    }
+
+    private func actionLabel(title: String, systemImage: String) -> some View {
+        Label(title, systemImage: systemImage)
+            .lineLimit(1)
+            .minimumScaleFactor(0.8)
+            .frame(maxWidth: .infinity)
     }
     
     // MARK: - Components
@@ -391,25 +489,44 @@ struct InvoiceDetailView: View {
         ToolbarItem(placement: .primaryAction) {
             Menu {
                 Button(action: { generatePDF() }) {
-                    Label("Generate PDF", systemImage: "doc.fill")
+                    Label("Generar PDF", systemImage: "doc.fill")
+                }
+                Button(action: { syncAndRegeneratePDF() }) {
+                    Label("Sincronizar y regenerar", systemImage: "arrow.triangle.2.circlepath.doc.on.clipboard")
                 }
                 if savedPDFURL != nil {
                     Button(action: { shareSavedPDF() }) {
-                        Label("Share Saved PDF", systemImage: "square.and.arrow.up")
+                        Label("Compartir PDF", systemImage: "square.and.arrow.up")
                     }
                 }
                 Button(action: { sendInvoiceByEmail() }) {
-                    Label("Send Email", systemImage: "envelope")
+                    Label("Enviar email", systemImage: "envelope")
+                }
+                Button(action: { composerSeed = .duplicate(invoice) }) {
+                    Label("Duplicar este mes", systemImage: "plus.square.on.square")
+                }
+                Button(action: { saveTemplate() }) {
+                    Label("Guardar como plantilla", systemImage: "doc.on.doc")
+                }
+                if invoice.status != .sent {
+                    Button(action: { viewModel.markSent(invoice) }) {
+                        Label("Marcar enviada", systemImage: "paperplane")
+                    }
+                }
+                if invoice.status != .paid {
+                    Button(action: { viewModel.markPaid(invoice) }) {
+                        Label("Marcar cobrada", systemImage: "checkmark.circle")
+                    }
                 }
                 Button(action: { showingEditInvoice = true }) {
-                    Label("Edit Invoice", systemImage: "pencil")
+                    Label("Editar factura", systemImage: "pencil")
                 }
             } label: {
-                Label("More", systemImage: "ellipsis.circle")
+                Label("Mas", systemImage: "ellipsis.circle")
             }
         }
     }
-    
+
     private var backgroundGradient: some View {
         LinearGradient(
             colors: [
@@ -434,7 +551,7 @@ struct InvoiceDetailView: View {
     private var pdfStateChip: some View {
         VStack(alignment: .leading, spacing: 4) {
             Label(
-                invoice.hasGeneratedPDF ? "PDF Ready" : "PDF Missing",
+                invoice.hasGeneratedPDF ? "PDF listo" : "Sin PDF",
                 systemImage: invoice.hasGeneratedPDF ? "doc.richtext.fill" : "doc.badge.arrow.trianglebadge.exclamationmark"
             )
             .font(.subheadline.weight(.semibold))
@@ -454,12 +571,9 @@ struct InvoiceDetailView: View {
     private var pdfStateSubtitle: String {
         if let date = invoice.pdfLastGeneratedAt {
             let formatter = RelativeDateTimeFormatter()
-            return String(
-                format: NSLocalizedString("Updated %@", comment: "Relative text for PDF timestamp"),
-                formatter.localizedString(for: date, relativeTo: Date())
-            )
+            return "Actualizado \(formatter.localizedString(for: date, relativeTo: Date()))"
         }
-        return NSLocalizedString("Generate a PDF to keep clients in sync.", comment: "Default PDF state subtitle")
+        return "Genera el PDF para compartirlo con el cliente."
     }
 
     private var clientIdentificationNumber: String {
@@ -532,13 +646,13 @@ struct InvoiceDetailView: View {
                 .foregroundStyle(.secondary)
             HStack(spacing: 12) {
                 Button(action: { editingItem = item }) {
-                    Label("Edit", systemImage: "slider.horizontal.3")
+                    Label("Editar", systemImage: "slider.horizontal.3")
                         .labelStyle(.iconOnly)
                 }
                 .buttonStyle(.plain)
                 
                 Button(role: .destructive, action: { viewModel.removeItem(item, from: invoice) }) {
-                    Label("Delete", systemImage: "trash")
+                    Label("Eliminar", systemImage: "trash")
                         .labelStyle(.iconOnly)
                 }
                 .buttonStyle(.plain)
@@ -571,7 +685,7 @@ struct InvoiceDetailView: View {
     private var pdfFileName: String {
         String(
             format: NSLocalizedString(
-                "Invoice_%@",
+                "Factura_%@",
                 comment: "Saved invoice PDF file name format"
             ),
             invoice.invoiceNumber
@@ -667,7 +781,7 @@ struct InvoiceDetailView: View {
         let draft = EmailService.makeDraft(invoice: invoice, pdfURL: url)
 
         if invoice.status == .draft {
-            viewModel.updateStatus(invoice, status: .sent)
+            viewModel.markSent(invoice)
         }
 
         #if canImport(UIKit) && canImport(MessageUI)
@@ -692,6 +806,18 @@ struct InvoiceDetailView: View {
         guard let url = savedPDFURL else { return }
         pdfURL = url
         showingShareSheet = true
+    }
+
+    private func syncAndRegeneratePDF() {
+        let result = viewModel.syncLinkedData(into: invoice)
+        syncResultMessage = result.message
+        showingSyncResult = true
+        _ = generatePDF(showConfirmation: false)
+    }
+
+    private func saveTemplate() {
+        guard let templateViewModel else { return }
+        _ = templateViewModel.createTemplate(from: invoice)
     }
     
     #if canImport(AppKit)
@@ -836,11 +962,11 @@ struct InvoiceItemEditorView: View {
     var body: some View {
         NavigationStack {
             Form {
-                Section("Item") {
-                    TextField("Description", text: $descriptionText, axis: .vertical)
+                Section("Concepto") {
+                    TextField("Descripcion", text: $descriptionText, axis: .vertical)
                         .lineLimit(2...4)
-                    Stepper("Quantity: \(quantity)", value: $quantity, in: 1...999)
-                    TextField("Unit Price", text: $unitPrice)
+                    Stepper("Cantidad: \(quantity)", value: $quantity, in: 1...999)
+                    TextField("Precio unitario", text: $unitPrice)
     #if os(iOS)
                         .keyboardType(.decimalPad)
     #endif
@@ -851,16 +977,16 @@ struct InvoiceItemEditorView: View {
                     }
                 }
             }
-            .navigationTitle("Edit Item")
+            .navigationTitle("Editar concepto")
     #if os(iOS)
             .navigationBarTitleDisplayMode(.inline)
     #endif
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") { dismiss() }
+                    Button("Cancelar") { dismiss() }
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Save") { saveChanges() }
+                    Button("Guardar") { saveChanges() }
                         .disabled(!isValid)
                 }
             }
@@ -903,7 +1029,7 @@ private extension View {
 #Preview {
     let config = ModelConfiguration(isStoredInMemoryOnly: true)
     let container = try! ModelContainer(
-        for: Invoice.self, InvoiceItem.self, CompanyProfile.self, Client.self, Issuer.self,
+        for: Invoice.self, InvoiceItem.self, CompanyProfile.self, Client.self, Issuer.self, InvoiceTemplate.self, InvoiceTemplateItem.self,
         configurations: config
     )
     

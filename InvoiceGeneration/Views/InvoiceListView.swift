@@ -1,45 +1,96 @@
-import SwiftUI
 import SwiftData
+import SwiftUI
 
-/// View displaying list of invoices
+#if os(iOS)
+import UIKit
+#endif
+#if os(macOS)
+import AppKit
+#endif
+
+private enum PlatformColors {
+    static var systemBackground: Color {
+        #if os(iOS)
+        return Color(UIColor.systemBackground)
+        #elseif os(macOS)
+        return Color(NSColor.windowBackgroundColor)
+        #else
+        return Color(.white)
+        #endif
+    }
+
+    static var secondarySystemBackground: Color {
+        #if os(iOS)
+        return Color(UIColor.secondarySystemBackground)
+        #elseif os(macOS)
+        return Color(NSColor.underPageBackgroundColor)
+        #else
+        return Color(.white)
+        #endif
+    }
+}
+
 struct InvoiceListView: View {
     @Environment(\.modelContext) private var modelContext
-    @State private var viewModel: InvoiceViewModel?
 
     @AppStorage(IssuerSelectionStore.appStorageKey) private var selectedIssuerStorage = IssuerSelectionStore.allIssuersToken
 
+    @State private var viewModel: InvoiceViewModel?
     @State private var searchText = ""
     @State private var selectedStatus: InvoiceStatus?
     @State private var selectedClientID: UUID?
     @State private var selectedIssuerID: UUID?
-    @State private var showingAddInvoice = false
+    @State private var showingFilters = false
+    @State private var composerSeed: InvoiceComposerSeed?
+    @State private var selectedInvoice: Invoice?
+    @State private var shareURL: URL?
+    @State private var showingShareSheet = false
 
     @Query(sort: [SortDescriptor(\Client.name)]) private var clients: [Client]
     @Query(sort: [SortDescriptor(\Issuer.name)]) private var issuers: [Issuer]
 
     var body: some View {
         NavigationStack {
-            Group {
-                if let viewModel = viewModel {
-                    if viewModel.isLoading {
-                        ProgressView("Loading invoices...")
-                    } else if viewModel.invoices.isEmpty {
-                        emptyStateView
-                    } else {
-                        invoiceList(viewModel: viewModel)
+            VStack(spacing: 0) {
+                filterBar
+                content
+            }
+            .navigationTitle("Facturas")
+            .searchable(text: $searchText, prompt: "Buscar por cliente, numero o emisor")
+            .toolbar {
+                ToolbarItem(placement: .primaryAction) {
+                    Button {
+                        composerSeed = .quick
+                    } label: {
+                        Label("Nueva factura", systemImage: "plus")
                     }
-                } else {
-                    ProgressView()
                 }
             }
-            .navigationTitle("Invoices")
-            .searchable(text: $searchText, prompt: "Search invoices")
-            .toolbar {
-                toolbarContent
+            .navigationDestination(item: $selectedInvoice) { invoice in
+                if let viewModel {
+                    InvoiceDetailView(invoice: invoice, viewModel: viewModel)
+                }
             }
-            .sheet(isPresented: $showingAddInvoice) {
-                if let viewModel = viewModel {
-                    AddInvoiceView(viewModel: viewModel)
+            .sheet(item: $composerSeed, onDismiss: refreshInvoices) { seed in
+                if let viewModel {
+                    AddInvoiceView(viewModel: viewModel, seed: seed) { created in
+                        selectedInvoice = created
+                        refreshInvoices()
+                    }
+                }
+            }
+            .sheet(isPresented: $showingFilters) {
+                InvoiceFiltersSheet(
+                    selectedStatus: $selectedStatus,
+                    selectedClientID: $selectedClientID,
+                    selectedIssuerID: $selectedIssuerID,
+                    clients: clients,
+                    issuers: issuers
+                )
+            }
+            .sheet(isPresented: $showingShareSheet) {
+                if let shareURL {
+                    ShareSheet(items: [shareURL])
                 }
             }
         }
@@ -49,210 +100,209 @@ struct InvoiceListView: View {
             }
 
             selectedIssuerID = IssuerSelectionStore.issuerID(from: selectedIssuerStorage)
-            applyIssuerFilter()
+            applyFilters()
         }
-        .onChange(of: searchText) { _, newValue in
-            viewModel?.searchInvoices(query: newValue)
+        .onChange(of: searchText) { _, _ in
+            applyFilters()
         }
-        .onChange(of: selectedClientID) { _, newValue in
-            if let id = newValue, let client = clients.first(where: { $0.id == id }) {
-                viewModel?.filterByClient(client)
-            } else {
-                viewModel?.filterByClient(nil)
-            }
+        .onChange(of: selectedStatus) { _, _ in
+            applyFilters()
+        }
+        .onChange(of: selectedClientID) { _, _ in
+            applyFilters()
         }
         .onChange(of: selectedIssuerID) { _, _ in
             selectedIssuerStorage = IssuerSelectionStore.storageValue(from: selectedIssuerID)
-            applyIssuerFilter()
+            applyFilters()
         }
         .onChange(of: selectedIssuerStorage) { _, _ in
             let storageID = IssuerSelectionStore.issuerID(from: selectedIssuerStorage)
             if selectedIssuerID != storageID {
                 selectedIssuerID = storageID
             }
-            applyIssuerFilter()
+            applyFilters()
         }
         .onChange(of: issuers.count) { _, _ in
-            applyIssuerFilter()
+            applyFilters()
+        }
+        .onChange(of: clients.count) { _, _ in
+            applyFilters()
         }
     }
 
-    private var emptyStateView: some View {
-        VStack(spacing: 20) {
+    @ViewBuilder
+    private var content: some View {
+        if let viewModel {
+            if viewModel.isLoading {
+                Spacer()
+                ProgressView("Cargando facturas…")
+                Spacer()
+            } else if viewModel.invoices.isEmpty {
+                emptyState
+            } else {
+                List {
+                    ForEach(viewModel.invoices) { invoice in
+                        Button {
+                            selectedInvoice = invoice
+                        } label: {
+                            InvoiceRowView(invoice: invoice)
+                        }
+                        .buttonStyle(.plain)
+                        .invoiceRowActions(
+                            onDuplicate: { composerSeed = .duplicate(invoice) },
+                            onMarkSent: { viewModel.markSent(invoice) },
+                            onMarkPaid: { viewModel.markPaid(invoice) },
+                            onShare: { share(invoice) },
+                            onDelete: { viewModel.deleteInvoice(invoice) }
+                        )
+                    }
+                }
+                .listStyle(.plain)
+            }
+        } else {
+            Spacer()
+            ProgressView()
+            Spacer()
+        }
+    }
+
+    private var filterBar: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 10) {
+                FilterChip(title: "Filtros", systemImage: "line.3.horizontal.decrease.circle") {
+                    showingFilters = true
+                }
+
+                if let selectedStatus {
+                    FilterChip(title: selectedStatus.localizedTitle) {
+                        self.selectedStatus = nil
+                    }
+                }
+
+                if let selectedClientID,
+                   let client = clients.first(where: { $0.id == selectedClientID }) {
+                    FilterChip(title: client.name) {
+                        self.selectedClientID = nil
+                    }
+                }
+
+                if let selectedIssuerID,
+                   let issuer = issuers.first(where: { $0.id == selectedIssuerID }) {
+                    FilterChip(title: issuer.name) {
+                        self.selectedIssuerID = nil
+                    }
+                }
+
+                if hasActiveFilters {
+                    FilterChip(title: "Limpiar") {
+                        clearFilters()
+                    }
+                }
+            }
+            .padding(.horizontal)
+            .padding(.vertical, 12)
+        }
+        .background(PlatformColors.systemBackground)
+    }
+
+    private var emptyState: some View {
+        VStack(spacing: 16) {
+            Spacer()
+
             Image(systemName: "doc.text.magnifyingglass")
-                .font(.system(size: 60))
+                .font(.system(size: 56))
                 .foregroundStyle(.secondary)
 
-            Text("No Invoices")
+            Text(hasActiveFilters || !searchText.isEmpty ? "No hay resultados" : "No hay facturas")
                 .font(.title2)
                 .fontWeight(.semibold)
 
-            Text("Create your first invoice to get started")
-                .foregroundStyle(.secondary)
+            Text(
+                hasActiveFilters || !searchText.isEmpty
+                ? "Prueba a limpiar filtros o cambiar la busqueda."
+                : "Crea tu primera factura rapida para empezar."
+            )
+            .foregroundStyle(.secondary)
+            .multilineTextAlignment(.center)
 
-            Button(action: { showingAddInvoice = true }) {
-                Label("Create Invoice", systemImage: "plus.circle.fill")
-                    .font(.headline)
+            Button {
+                composerSeed = .quick
+            } label: {
+                Label("Nueva factura", systemImage: "plus.circle.fill")
             }
             .buttonStyle(.borderedProminent)
+
+            Spacer()
         }
         .padding()
     }
 
-    private func invoiceList(viewModel: InvoiceViewModel) -> some View {
-        List {
-            ForEach(viewModel.invoices) { invoice in
-                NavigationLink {
-                    InvoiceDetailView(invoice: invoice, viewModel: viewModel)
-                } label: {
-                    InvoiceRowView(invoice: invoice)
-                }
-                .platformContextActions {
-                    viewModel.deleteInvoice(invoice)
-                }
-            }
-        }
+    private var hasActiveFilters: Bool {
+        selectedStatus != nil || selectedClientID != nil || selectedIssuerID != nil
     }
 
-    @ToolbarContentBuilder
-    private var toolbarContent: some ToolbarContent {
-        #if os(iOS)
-        ToolbarItem(placement: .navigationBarTrailing) {
-            addInvoiceButton
-        }
-        ToolbarItem(placement: .navigationBarLeading) {
-            filterMenu
-        }
-        ToolbarItem(placement: .navigationBarLeading) {
-            clientFilterMenu
-        }
-        ToolbarItem(placement: .navigationBarLeading) {
-            issuerFilterMenu
-        }
-        #else
-        ToolbarItem(placement: .automatic) {
-            addInvoiceButton
-        }
-        ToolbarItem(placement: .automatic) {
-            filterMenu
-        }
-        ToolbarItem(placement: .automatic) {
-            clientFilterMenu
-        }
-        ToolbarItem(placement: .automatic) {
-            issuerFilterMenu
-        }
-        #endif
+    private func applyFilters() {
+        viewModel?.searchInvoices(query: searchText)
+        viewModel?.filterByStatus(selectedStatus)
+        viewModel?.filterByClient(clients.first(where: { $0.id == selectedClientID }))
+        viewModel?.filterByIssuer(issuers.first(where: { $0.id == selectedIssuerID }))
     }
 
-    private var addInvoiceButton: some View {
-        Button(action: { showingAddInvoice = true }) {
-            Label("Add Invoice", systemImage: "plus")
-        }
+    private func clearFilters() {
+        selectedStatus = nil
+        selectedClientID = nil
+        selectedIssuerID = nil
+        applyFilters()
     }
 
-    private var filterMenu: some View {
-        Menu {
-            Button("All Invoices") {
-                selectedStatus = nil
-                viewModel?.filterByStatus(nil)
-            }
-
-            ForEach(InvoiceStatus.allCases, id: \.self) { status in
-                Button(status.localizedTitle) {
-                    selectedStatus = status
-                    viewModel?.filterByStatus(status)
-                }
-            }
-        } label: {
-            Label("Filter", systemImage: "line.3.horizontal.decrease.circle")
-        }
+    private func refreshInvoices() {
+        viewModel?.fetchInvoices()
     }
 
-    private var clientFilterMenu: some View {
-        Menu {
-            Button("All Clients") {
-                selectedClientID = nil
-            }
-
-            ForEach(clients) { client in
-                Button(client.name) {
-                    selectedClientID = client.id
-                }
-            }
-        } label: {
-            Label(clientFilterLabel, systemImage: "person.2.crop.square.stack")
-        }
+    private func share(_ invoice: Invoice) {
+        guard let url = ensurePDFURL(for: invoice) else { return }
+        shareURL = url
+        showingShareSheet = true
     }
 
-    private var issuerFilterMenu: some View {
-        Menu {
-            Button("All Emitters") {
-                selectedIssuerID = nil
-            }
+    private func ensurePDFURL(for invoice: Invoice) -> URL? {
+        let fileName = "Factura_\(invoice.invoiceNumber)"
 
-            ForEach(issuers) { issuer in
-                Button(issuer.name) {
-                    selectedIssuerID = issuer.id
-                }
-            }
-        } label: {
-            Label(issuerFilterLabel, systemImage: "building.2")
-        }
-    }
-
-    private var clientFilterLabel: String {
-        if let id = selectedClientID, let client = clients.first(where: { $0.id == id }) {
-            return client.name
+        if let url = PDFStorageManager.targetURL(for: fileName),
+           FileManager.default.fileExists(atPath: url.path) {
+            return url
         }
 
-        return "Client"
-    }
-
-    private var issuerFilterLabel: String {
-        if let id = selectedIssuerID, let issuer = issuers.first(where: { $0.id == id }) {
-            return issuer.name
-        }
-
-        return "All Emitters"
-    }
-
-    private func applyIssuerFilter() {
-        guard let viewModel else { return }
-
-        if let issuerID = selectedIssuerID, let issuer = issuers.first(where: { $0.id == issuerID }) {
-            viewModel.filterByIssuer(issuer)
-        } else {
-            viewModel.filterByIssuer(nil)
-        }
+        guard let pdfDocument = PDFGeneratorService.generateInvoicePDF(invoice: invoice) else { return nil }
+        return PDFGeneratorService.savePDF(pdfDocument, fileName: fileName)
     }
 }
 
-/// Row view for invoice in list
 struct InvoiceRowView: View {
     let invoice: Invoice
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack {
-                Text(invoice.invoiceNumber)
-                    .font(.headline)
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(alignment: .top) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(invoice.invoiceNumber)
+                        .font(.headline)
+                        .foregroundStyle(.primary)
+                    Text(invoice.clientName)
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                    if !invoice.issuerName.isEmpty {
+                        Text(invoice.issuerName)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
 
                 Spacer()
 
                 Text(invoice.totalAmount.formattedAsCurrency)
                     .font(.headline)
                     .foregroundStyle(.primary)
-            }
-
-            Text(invoice.clientName)
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-
-            if !invoice.issuerName.isEmpty {
-                Text(invoice.issuerName)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
             }
 
             HStack {
@@ -268,7 +318,7 @@ struct InvoiceRowView: View {
                 }
             }
         }
-        .padding(.vertical, 4)
+        .padding(.vertical, 6)
     }
 
     private var statusBadge: some View {
@@ -277,14 +327,14 @@ struct InvoiceRowView: View {
             .fontWeight(.medium)
             .padding(.horizontal, 8)
             .padding(.vertical, 4)
-            .background(statusColor.opacity(0.2))
+            .background(statusColor.opacity(0.18))
             .foregroundStyle(statusColor)
-            .cornerRadius(8)
+            .clipShape(Capsule())
     }
 
     private var pdfBadge: some View {
         Label(
-            invoice.hasGeneratedPDF ? "PDF Ready" : "PDF Pending",
+            invoice.hasGeneratedPDF ? "PDF listo" : "Sin PDF",
             systemImage: invoice.hasGeneratedPDF ? "doc.richtext.fill" : "doc.badge.gearshape"
         )
         .font(.caption2)
@@ -293,7 +343,6 @@ struct InvoiceRowView: View {
         .background(.thinMaterial)
         .clipShape(Capsule())
         .foregroundStyle(invoice.hasGeneratedPDF ? .teal : .secondary)
-        .animation(.easeInOut(duration: 0.2), value: invoice.hasGeneratedPDF)
     }
 
     private var statusColor: Color {
@@ -307,26 +356,156 @@ struct InvoiceRowView: View {
     }
 }
 
-#Preview {
-    InvoiceListView()
-        .modelContainer(for: [Invoice.self, InvoiceItem.self, CompanyProfile.self, Client.self, Issuer.self])
+private struct FilterChip: View {
+    let title: String
+    var systemImage: String?
+    let action: () -> Void
+
+    init(title: String, systemImage: String? = nil, action: @escaping () -> Void) {
+        self.title = title
+        self.systemImage = systemImage
+        self.action = action
+    }
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 6) {
+                if let systemImage {
+                    Image(systemName: systemImage)
+                }
+                Text(title)
+            }
+            .font(.subheadline)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
+            .background(PlatformColors.secondarySystemBackground, in: Capsule())
+        }
+        .buttonStyle(.plain)
+    }
 }
 
-// MARK: - Platform helpers
+private struct InvoiceFiltersSheet: View {
+    @Environment(\.dismiss) private var dismiss
+
+    @Binding var selectedStatus: InvoiceStatus?
+    @Binding var selectedClientID: UUID?
+    @Binding var selectedIssuerID: UUID?
+
+    let clients: [Client]
+    let issuers: [Issuer]
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section("Estado") {
+                    Picker("Estado", selection: $selectedStatus) {
+                        Text("Todos")
+                            .tag(InvoiceStatus?.none)
+
+                        ForEach(InvoiceStatus.allCases, id: \.self) { status in
+                            Text(status.localizedTitle)
+                                .tag(Optional(status))
+                        }
+                    }
+                }
+
+                Section("Cliente") {
+                    Picker("Cliente", selection: $selectedClientID) {
+                        Text("Todos")
+                            .tag(UUID?.none)
+
+                        ForEach(clients) { client in
+                            Text(client.name)
+                                .tag(Optional(client.id))
+                        }
+                    }
+                }
+
+                Section("Emisor") {
+                    Picker("Emisor", selection: $selectedIssuerID) {
+                        Text("Todos")
+                            .tag(UUID?.none)
+
+                        ForEach(issuers) { issuer in
+                            Text(issuer.name)
+                                .tag(Optional(issuer.id))
+                        }
+                    }
+                }
+            }
+            .navigationTitle("Filtros")
+#if os(iOS)
+            .navigationBarTitleDisplayMode(.inline)
+#endif
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cerrar") {
+                        dismiss()
+                    }
+                }
+            }
+        }
+    }
+}
+
+#Preview {
+    InvoiceListView()
+        .modelContainer(for: [Invoice.self, InvoiceItem.self, CompanyProfile.self, Client.self, Issuer.self, InvoiceTemplate.self, InvoiceTemplateItem.self])
+}
 
 private extension View {
     @ViewBuilder
-    func platformContextActions(onDelete: @escaping () -> Void) -> some View {
+    func invoiceRowActions(
+        onDuplicate: @escaping () -> Void,
+        onMarkSent: @escaping () -> Void,
+        onMarkPaid: @escaping () -> Void,
+        onShare: @escaping () -> Void,
+        onDelete: @escaping () -> Void
+    ) -> some View {
         #if os(iOS)
-        self.swipeActions(edge: .trailing, allowsFullSwipe: false) {
-            Button(role: .destructive, action: onDelete) {
-                Label("Delete", systemImage: "trash")
+        self
+            .swipeActions(edge: .leading, allowsFullSwipe: false) {
+                Button(action: onDuplicate) {
+                    Label("Duplicar", systemImage: "plus.square.on.square")
+                }
+                .tint(.indigo)
+
+                Button(action: onShare) {
+                    Label("Compartir", systemImage: "square.and.arrow.up")
+                }
+                .tint(.teal)
             }
-        }
+            .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                Button(action: onMarkPaid) {
+                    Label("Cobrada", systemImage: "checkmark.circle")
+                }
+                .tint(.green)
+
+                Button(action: onMarkSent) {
+                    Label("Enviada", systemImage: "paperplane")
+                }
+                .tint(.blue)
+
+                Button(role: .destructive, action: onDelete) {
+                    Label("Eliminar", systemImage: "trash")
+                }
+            }
         #else
         self.contextMenu {
+            Button(action: onDuplicate) {
+                Label("Duplicar", systemImage: "plus.square.on.square")
+            }
+            Button(action: onShare) {
+                Label("Compartir PDF", systemImage: "square.and.arrow.up")
+            }
+            Button(action: onMarkSent) {
+                Label("Marcar enviada", systemImage: "paperplane")
+            }
+            Button(action: onMarkPaid) {
+                Label("Marcar cobrada", systemImage: "checkmark.circle")
+            }
             Button(role: .destructive, action: onDelete) {
-                Label("Delete Invoice", systemImage: "trash")
+                Label("Eliminar", systemImage: "trash")
             }
         }
         #endif

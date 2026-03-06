@@ -1,57 +1,75 @@
-import SwiftUI
 import SwiftData
+import SwiftUI
 
-/// View displaying list of clients
 struct ClientListView: View {
     @EnvironmentObject private var subscriptionService: SubscriptionService
     @Environment(\.modelContext) private var modelContext
+
     @State private var viewModel: ClientViewModel?
-    @State private var showingAddClient = false
+    @State private var invoiceViewModel: InvoiceViewModel?
+    @State private var editorState: ClientEditorState?
+    @State private var composerSeed: InvoiceComposerSeed?
+    @State private var selectedInvoice: Invoice?
     @State private var showingPaywall = false
     @State private var paywallReason: PaywallReason = .clientLimit
     @State private var searchText = ""
 
+    @Query(sort: [SortDescriptor(\InvoiceTemplate.updatedAt, order: .reverse)]) private var templates: [InvoiceTemplate]
+
     var body: some View {
         NavigationStack {
             Group {
-                if let viewModel = viewModel {
+                if let viewModel, let invoiceViewModel {
                     if viewModel.isLoading {
-                        ProgressView("Loading clients...")
+                        ProgressView("Cargando clientes…")
                     } else if viewModel.clients.isEmpty {
                         emptyState
                     } else {
-                        clientList(viewModel: viewModel)
+                        clientList(viewModel: viewModel, invoiceViewModel: invoiceViewModel)
                     }
                 } else {
                     ProgressView()
                 }
             }
-            .navigationTitle("Clients")
-            .searchable(text: $searchText, prompt: "Search clients")
+            .navigationTitle("Clientes")
+            .searchable(text: $searchText, prompt: "Buscar cliente")
             .toolbar {
-                #if os(iOS)
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button(action: { handleAddClientTap() }) {
-                        Label("Add Client", systemImage: "plus")
+                ToolbarItem(placement: .primaryAction) {
+                    Button {
+                        handleAddClientTap()
+                    } label: {
+                        Label("Nuevo cliente", systemImage: "plus")
                     }
                 }
-                #else
-                ToolbarItem(placement: .automatic) {
-                    Button(action: { handleAddClientTap() }) {
-                        Label("Add Client", systemImage: "plus")
-                    }
-                }
-                #endif
             }
-            .sheet(isPresented: $showingAddClient) {
-                if let viewModel = viewModel {
-                    AddClientView(viewModel: viewModel)
+            .navigationDestination(item: $selectedInvoice) { invoice in
+                if let invoiceViewModel {
+                    InvoiceDetailView(invoice: invoice, viewModel: invoiceViewModel)
+                }
+            }
+            .sheet(item: $editorState) { state in
+                if let viewModel {
+                    AddClientView(viewModel: viewModel, mode: state.mode) { _ in
+                        refreshAll()
+                    }
+                }
+            }
+            .sheet(item: $composerSeed, onDismiss: refreshAll) { seed in
+                if let invoiceViewModel {
+                    AddInvoiceView(viewModel: invoiceViewModel, seed: seed) { created in
+                        selectedInvoice = created
+                        refreshAll()
+                    }
                 }
             }
         }
         .onAppear {
             if viewModel == nil {
                 viewModel = ClientViewModel(modelContext: modelContext)
+            }
+
+            if invoiceViewModel == nil {
+                invoiceViewModel = InvoiceViewModel(modelContext: modelContext)
             }
         }
         .onChange(of: searchText) { _, newValue in
@@ -69,15 +87,16 @@ struct ClientListView: View {
                 .font(.system(size: 60))
                 .foregroundStyle(.secondary)
 
-            Text("No Clients")
+            Text("No hay clientes")
                 .font(.title2)
                 .fontWeight(.semibold)
 
-            Text("Add clients to reuse their details on invoices")
+            Text("Guarda clientes para reutilizar datos, defaults y plantillas en cada mes.")
                 .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
 
-            Button(action: { showingAddClient = true }) {
-                Label("Add Client", systemImage: "plus.circle.fill")
+            Button(action: { handleAddClientTap() }) {
+                Label("Nuevo cliente", systemImage: "plus.circle.fill")
                     .font(.headline)
             }
             .buttonStyle(.borderedProminent)
@@ -85,63 +104,109 @@ struct ClientListView: View {
         .padding()
     }
 
-    private func clientList(viewModel: ClientViewModel) -> some View {
+    private func clientList(viewModel: ClientViewModel, invoiceViewModel: InvoiceViewModel) -> some View {
         List {
             let currentCount = viewModel.clients.count
             if !subscriptionService.isPro && currentCount >= subscriptionService.freeClientLimit {
-                paywallBanner(currentCount: viewModel.clients.count)
+                paywallBanner(currentCount: currentCount)
             }
 
             ForEach(viewModel.clients) { client in
-                VStack(alignment: .leading, spacing: 6) {
-                    Text(client.name)
-                        .font(.headline)
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(client.name)
+                                .font(.headline)
 
-                    if !client.email.isEmpty {
-                        Label(client.email, systemImage: "envelope")
-                            .font(.subheadline)
+                            if !client.email.isEmpty {
+                                Label(client.email, systemImage: "envelope")
+                                    .font(.subheadline)
+                                    .foregroundStyle(.secondary)
+                            }
+
+                            if !client.identificationNumber.isEmpty {
+                                Label(client.identificationNumber, systemImage: "number")
+                                    .font(.subheadline)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+
+                        Spacer()
+
+                        Button("Facturar") {
+                            startInvoice(for: client)
+                        }
+                        .buttonStyle(.borderedProminent)
+                    }
+
+                    if let templateName = preferredTemplateName(for: client) {
+                        Label("Plantilla: \(templateName)", systemImage: "doc.on.doc")
+                            .font(.caption)
                             .foregroundStyle(.secondary)
                     }
-                    
-                    if !client.identificationNumber.isEmpty {
-                        Label(client.identificationNumber, systemImage: "number")
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
-                    }
 
-                    if !client.address.isEmpty {
-                        Label(client.address, systemImage: "house")
-                            .font(.subheadline)
+                    HStack(spacing: 12) {
+                        Label("Vence en \(effectiveDueDays(for: client)) dias", systemImage: "calendar")
+                            .font(.caption)
                             .foregroundStyle(.secondary)
+
+                        if let iva = client.defaultIVAPercentage {
+                            Label("IVA \(iva.formattedAsPercent)", systemImage: "percent")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
                     }
                 }
                 .padding(.vertical, 4)
-                .platformContextActions {
-                    viewModel.deleteClient(client)
-                }
+                .clientRowActions(
+                    onInvoice: { startInvoice(for: client) },
+                    onEdit: { editorState = .edit(client) },
+                    onDelete: { viewModel.deleteClient(client) }
+                )
             }
         }
+        .listStyle(.plain)
     }
 
     private func handleAddClientTap() {
         guard let viewModel else { return }
 
         if subscriptionService.canAddClient(currentCount: viewModel.clients.count) {
-            showingAddClient = true
+            editorState = .create
         } else {
             paywallReason = .clientLimit
             showingPaywall = true
         }
     }
 
+    private func startInvoice(for client: Client) {
+        if let preferredTemplateID = client.preferredTemplateID,
+           let template = templates.first(where: { $0.id == preferredTemplateID }) {
+            composerSeed = .template(template)
+        } else {
+            composerSeed = .client(client)
+        }
+    }
+
+    private func refreshAll() {
+        viewModel?.fetchClients()
+        invoiceViewModel?.fetchInvoices()
+    }
+
+    private func effectiveDueDays(for client: Client) -> Int {
+        client.defaultDueDays > 0 ? client.defaultDueDays : InvoiceFlowPreferences.defaultDueDays
+    }
+
+    private func preferredTemplateName(for client: Client) -> String? {
+        guard let preferredTemplateID = client.preferredTemplateID else { return nil }
+        return templates.first(where: { $0.id == preferredTemplateID })?.name
+    }
+
     private func paywallBanner(currentCount: Int) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
-                Label(
-                    String(localized: "Free plan: 2 clients included", comment: "Banner title for free plan limit"),
-                    systemImage: "star"
-                )
-                .font(.headline)
+                Label("Plan gratis: 2 clientes incluidos", systemImage: "star")
+                    .font(.headline)
                 Spacer()
                 Text("\(currentCount)/\(subscriptionService.freeClientLimit)")
                     .font(.subheadline)
@@ -151,7 +216,7 @@ struct ClientListView: View {
                     .clipShape(Capsule())
             }
 
-            Text(String(localized: "Unlock Pro to add unlimited clients and enable iCloud sync.", comment: "Banner description for Pro upgrade"))
+            Text("Activa Pro para clientes ilimitados y sincronizacion iCloud.")
                 .foregroundStyle(.secondary)
                 .font(.subheadline)
 
@@ -159,7 +224,7 @@ struct ClientListView: View {
                 paywallReason = .clientLimit
                 showingPaywall = true
             } label: {
-                Text(String(localized: "View Pro options", comment: "Button to open paywall from client list"))
+                Text("Ver Pro")
                     .font(.subheadline)
                     .fontWeight(.semibold)
                     .frame(maxWidth: .infinity)
@@ -172,21 +237,64 @@ struct ClientListView: View {
     }
 }
 
-// MARK: - Platform helpers
+private enum ClientEditorState: Identifiable {
+    case create
+    case edit(Client)
+
+    var id: String {
+        switch self {
+        case .create:
+            return "create"
+        case .edit(let client):
+            return client.id.uuidString
+        }
+    }
+
+    var mode: AddClientView.Mode {
+        switch self {
+        case .create:
+            return .create
+        case .edit(let client):
+            return .edit(client)
+        }
+    }
+}
 
 private extension View {
     @ViewBuilder
-    func platformContextActions(onDelete: @escaping () -> Void) -> some View {
+    func clientRowActions(
+        onInvoice: @escaping () -> Void,
+        onEdit: @escaping () -> Void,
+        onDelete: @escaping () -> Void
+    ) -> some View {
         #if os(iOS)
-        self.swipeActions(edge: .trailing, allowsFullSwipe: false) {
-            Button(role: .destructive, action: onDelete) {
-                Label("Delete", systemImage: "trash")
+        self
+            .swipeActions(edge: .leading, allowsFullSwipe: false) {
+                Button(action: onInvoice) {
+                    Label("Facturar", systemImage: "bolt.fill")
+                }
+                .tint(.blue)
+
+                Button(action: onEdit) {
+                    Label("Editar", systemImage: "pencil")
+                }
+                .tint(.orange)
             }
-        }
+            .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                Button(role: .destructive, action: onDelete) {
+                    Label("Eliminar", systemImage: "trash")
+                }
+            }
         #else
         self.contextMenu {
+            Button(action: onInvoice) {
+                Label("Facturar", systemImage: "bolt.fill")
+            }
+            Button(action: onEdit) {
+                Label("Editar", systemImage: "pencil")
+            }
             Button(role: .destructive, action: onDelete) {
-                Label("Delete", systemImage: "trash")
+                Label("Eliminar", systemImage: "trash")
             }
         }
         #endif
@@ -196,7 +304,13 @@ private extension View {
 #Preview {
     let config = ModelConfiguration(isStoredInMemoryOnly: true)
     let container = try! ModelContainer(
-        for: Invoice.self, InvoiceItem.self, CompanyProfile.self, Client.self, Issuer.self,
+        for: Invoice.self,
+        InvoiceItem.self,
+        CompanyProfile.self,
+        Client.self,
+        Issuer.self,
+        InvoiceTemplate.self,
+        InvoiceTemplateItem.self,
         configurations: config
     )
 
