@@ -12,6 +12,12 @@ final class Client {
     var address: String
     var identificationNumber: String
     var accentColorHex: String
+    /// When 0, the app-wide quick invoice default is used.
+    var defaultDueDays: Int
+    var defaultIVAPercentage: Decimal?
+    var defaultIRPFPercentage: Decimal?
+    var defaultNotes: String
+    var preferredTemplateID: UUID?
 
     @Relationship(deleteRule: .nullify)
     var invoices: [Invoice]?
@@ -27,7 +33,12 @@ final class Client {
         email: String = "",
         address: String = "",
         identificationNumber: String = "",
-        accentColorHex: String = Client.defaultAccentHex
+        accentColorHex: String = Client.defaultAccentHex,
+        defaultDueDays: Int = 0,
+        defaultIVAPercentage: Decimal? = nil,
+        defaultIRPFPercentage: Decimal? = nil,
+        defaultNotes: String = "",
+        preferredTemplateID: UUID? = nil
     ) {
         self.id = id
         self.name = name
@@ -35,6 +46,11 @@ final class Client {
         self.address = address
         self.identificationNumber = identificationNumber
         self.accentColorHex = accentColorHex
+        self.defaultDueDays = max(defaultDueDays, 0)
+        self.defaultIVAPercentage = defaultIVAPercentage
+        self.defaultIRPFPercentage = defaultIRPFPercentage
+        self.defaultNotes = defaultNotes
+        self.preferredTemplateID = preferredTemplateID
         self.createdAt = Date()
         self.updatedAt = Date()
     }

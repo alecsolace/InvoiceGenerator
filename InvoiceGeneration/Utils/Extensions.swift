@@ -33,6 +33,27 @@ extension Date {
         formatter.dateStyle = .medium
         return formatter.string(from: self)
     }
+
+    var monthYearFormat: String {
+        let formatter = DateFormatter()
+        formatter.locale = Locale.current
+        formatter.dateFormat = "LLLL yyyy"
+        return formatter.string(from: self)
+    }
+
+    var startOfMonth: Date {
+        let calendar = Calendar.current
+        let components = calendar.dateComponents([.year, .month], from: self)
+        return calendar.date(from: components) ?? self
+    }
+
+    func addingMonths(_ value: Int) -> Date {
+        Calendar.current.date(byAdding: .month, value: value, to: self) ?? self
+    }
+
+    func addingDays(_ value: Int) -> Date {
+        Calendar.current.date(byAdding: .day, value: value, to: self) ?? self
+    }
 }
 
 /// Extension for invoice number generation

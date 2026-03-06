@@ -47,14 +47,24 @@ final class ClientViewModel {
         email: String = "",
         address: String = "",
         identificationNumber: String = "",
-        accentColorHex: String = Client.defaultAccentHex
+        accentColorHex: String = Client.defaultAccentHex,
+        defaultDueDays: Int = 0,
+        defaultIVAPercentage: Decimal? = nil,
+        defaultIRPFPercentage: Decimal? = nil,
+        defaultNotes: String = "",
+        preferredTemplateID: UUID? = nil
     ) -> Client? {
         let client = Client(
             name: name,
             email: email,
             address: address,
             identificationNumber: identificationNumber,
-            accentColorHex: accentColorHex
+            accentColorHex: accentColorHex,
+            defaultDueDays: defaultDueDays,
+            defaultIVAPercentage: defaultIVAPercentage,
+            defaultIRPFPercentage: defaultIRPFPercentage,
+            defaultNotes: defaultNotes,
+            preferredTemplateID: preferredTemplateID
         )
         modelContext.insert(client)
 
@@ -69,9 +79,47 @@ final class ClientViewModel {
         }
     }
 
+    @discardableResult
+    func updateClient(
+        _ client: Client,
+        name: String,
+        email: String,
+        address: String,
+        identificationNumber: String,
+        accentColorHex: String,
+        defaultDueDays: Int,
+        defaultIVAPercentage: Decimal?,
+        defaultIRPFPercentage: Decimal?,
+        defaultNotes: String,
+        preferredTemplateID: UUID?
+    ) -> Bool {
+        client.name = name
+        client.email = email
+        client.address = address
+        client.identificationNumber = identificationNumber
+        client.accentColorHex = accentColorHex
+        client.defaultDueDays = max(defaultDueDays, 0)
+        client.defaultIVAPercentage = defaultIVAPercentage
+        client.defaultIRPFPercentage = defaultIRPFPercentage
+        client.defaultNotes = defaultNotes
+        client.preferredTemplateID = preferredTemplateID
+        client.updateTimestamp()
+
+        let saved = saveContext()
+        if saved {
+            fetchClients()
+        }
+        return saved
+    }
+
+    func client(with id: UUID?) -> Client? {
+        guard let id else { return nil }
+        return clients.first(where: { $0.id == id })
+    }
+
     func deleteClient(_ client: Client) {
         modelContext.delete(client)
-        saveContext()
+        _ = saveContext()
         fetchClients()
     }
 
@@ -82,12 +130,14 @@ final class ClientViewModel {
 
     // MARK: - Private Methods
 
-    private func saveContext() {
+    private func saveContext() -> Bool {
         do {
             try modelContext.save()
+            return true
         } catch {
             PersistenceController.logger.error("SwiftData save failed: \(error.localizedDescription)")
             errorMessage = "Failed to save: \(error.localizedDescription)"
+            return false
         }
     }
 }

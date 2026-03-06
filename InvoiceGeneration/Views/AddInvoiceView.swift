@@ -1,18 +1,34 @@
-import SwiftUI
-import SwiftData
 import Foundation
+import SwiftData
+import SwiftUI
 
-/// View for adding a new invoice
 struct AddInvoiceView: View {
     @EnvironmentObject private var subscriptionService: SubscriptionService
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
-    @Bindable var viewModel: InvoiceViewModel
 
     @AppStorage(IssuerSelectionStore.appStorageKey) private var selectedIssuerStorage = IssuerSelectionStore.allIssuersToken
+    @AppStorage(InvoiceFlowPreferences.defaultDueDaysKey) private var appDefaultDueDays = InvoiceFlowPreferences.defaultDueDays
+    @AppStorage(InvoiceFlowPreferences.afterSaveActionKey) private var afterSaveActionRaw = InvoiceFlowPreferences.defaultAfterSaveAction
+
+    let viewModel: InvoiceViewModel
+    let seed: InvoiceComposerSeed
+    let onComplete: ((Invoice) -> Void)?
 
     @State private var clientViewModel: ClientViewModel?
     @State private var issuerViewModel: IssuerViewModel?
+    @State private var templateViewModel: InvoiceTemplateViewModel?
+
+    @State private var creationMode: InvoiceCreationMode = .quick
+    @State private var quickStep: QuickInvoiceStep = .base
+    @State private var hasAppliedSeed = false
+    @State private var showingAddClient = false
+    @State private var showingPaywall = false
+    @State private var showingShareSheet = false
+
+    @State private var selectedTemplateID: UUID?
+    @State private var selectedClientID: UUID?
+    @State private var selectedIssuerID: UUID?
 
     @State private var invoiceNumber = ""
     @State private var clientName = ""
@@ -20,323 +36,410 @@ struct AddInvoiceView: View {
     @State private var clientAddress = ""
     @State private var clientIdentificationNumber = ""
     @State private var issueDate = Date()
-    @State private var dueDate = Date().addingTimeInterval(30 * 24 * 60 * 60)
-    @State private var selectedClientID: UUID?
-    @State private var selectedIssuerID: UUID?
-    @State private var showingAddClient = false
-    @State private var showingPaywall = false
-    @State private var draftItems: [DraftInvoiceItem] = []
+    @State private var dueDate = Date().addingDays(InvoiceFlowPreferences.defaultDueDays)
+    @State private var dueDays = InvoiceFlowPreferences.defaultDueDays
     @State private var ivaPercentage = "0"
     @State private var irpfPercentage = "0"
+    @State private var notes = ""
+    @State private var draftItems: [DraftInvoiceItem] = []
     @State private var showingAddItem = false
     @State private var editingDraftItem: DraftInvoiceItem?
     @State private var hasManuallyEditedInvoiceNumber = false
     @State private var lastSuggestedInvoiceNumber = ""
+    @State private var generatedPDFURL: URL?
+    @State private var invoicePendingShareCompletion: Invoice?
+
+    init(
+        viewModel: InvoiceViewModel,
+        seed: InvoiceComposerSeed = .quick,
+        onComplete: ((Invoice) -> Void)? = nil
+    ) {
+        self.viewModel = viewModel
+        self.seed = seed
+        self.onComplete = onComplete
+    }
 
     var body: some View {
         NavigationStack {
             Form {
-                Section("Invoice Details") {
-                    TextField("Invoice Number", text: $invoiceNumber)
+                modePickerSection
 
-                    Button("Use Next Number") {
-                        applySuggestedInvoiceNumber(force: true)
-                    }
-                    .disabled(currentIssuer == nil)
-
-                    DatePicker("Issue Date", selection: $issueDate, displayedComponents: .date)
-
-                    DatePicker("Due Date", selection: $dueDate, displayedComponents: .date)
-                }
-
-                Section("Emitter") {
-                    if let issuers = issuerViewModel?.issuers, !issuers.isEmpty {
-                        Picker("Emitter", selection: $selectedIssuerID) {
-                            ForEach(issuers) { issuer in
-                                Text("\(issuer.name) (\(issuer.code))")
-                                    .tag(Optional(issuer.id))
-                            }
-                        }
+                if creationMode == .quick {
+                    quickStepSection
+                    if quickStep == .base {
+                        quickBaseSection
                     } else {
-                        Text("No emitters available. Create one in the Emitters tab.")
-                            .foregroundStyle(.secondary)
+                        quickAmountsSection
                     }
-                }
-
-                Section("Saved Clients") {
-                    if let clients = clientViewModel?.clients, !clients.isEmpty {
-                        Picker("Client", selection: $selectedClientID) {
-                            Text("None")
-                                .tag(UUID?.none)
-
-                            ForEach(clients) { client in
-                                Text(client.name)
-                                    .tag(Optional(client.id))
-                            }
-                        }
-                    } else {
-                        Text("No saved clients yet")
-                            .foregroundStyle(.secondary)
-                    }
-
-                    Button {
-                        handleAddClientTap()
-                    } label: {
-                        Label("Add Client", systemImage: "plus")
-                    }
-                }
-
-                Section("Client Information") {
-                    TextField("Client Name", text: $clientName)
-
-                    TextField("Email", text: $clientEmail)
-                        .textContentType(.emailAddress)
-                        .disableAutocorrection(true)
-
-                    TextField(
-                        String(localized: "Identification Number", comment: "Label for client identification number field"),
-                        text: $clientIdentificationNumber
-                    )
-
-                    TextField("Address", text: $clientAddress, axis: .vertical)
-                        .lineLimit(3...6)
-                }
-
-                Section("Items") {
-                    if draftItems.isEmpty {
-                        Text("Add invoice items now so totals are accurate from the start.")
-                            .foregroundStyle(.secondary)
-                    } else {
-                        ForEach(draftItems) { item in
-                            VStack(alignment: .leading, spacing: 6) {
-                                HStack {
-                                    Text(item.description)
-                                        .font(.headline)
-                                    Spacer()
-                                    Text(item.total.formattedAsCurrency)
-                                        .font(.headline)
-                                }
-                                Text("\(item.quantity) × \(item.unitPrice.formattedAsCurrency)")
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                                HStack(spacing: 12) {
-                                    Button(action: { editingDraftItem = item }) {
-                                        Label("Edit", systemImage: "slider.horizontal.3")
-                                            .labelStyle(.iconOnly)
-                                    }
-                                    .buttonStyle(.plain)
-
-                                    Button(role: .destructive, action: { removeDraftItem(item) }) {
-                                        Label("Delete", systemImage: "trash")
-                                            .labelStyle(.iconOnly)
-                                    }
-                                    .buttonStyle(.plain)
-                                }
-                            }
-                            .padding(.vertical, 4)
-                        }
-                        HStack {
-                            Text("Subtotal")
-                            Spacer()
-                            Text(itemsTotal.formattedAsCurrency)
-                                .fontWeight(.semibold)
-                        }
-                    }
-                    Button {
-                        showingAddItem = true
-                    } label: {
-                        Label("Add Item", systemImage: "plus.circle")
-                    }
-                }
-
-                Section("Taxes") {
-                    TextField("IVA %", text: $ivaPercentage)
-#if os(iOS)
-                        .keyboardType(.decimalPad)
-#endif
-
-                    TextField("IRPF %", text: $irpfPercentage)
-#if os(iOS)
-                        .keyboardType(.decimalPad)
-#endif
-
-                    LabeledContent("Subtotal", value: itemsTotal.formattedAsCurrency)
-                    LabeledContent(
-                        "IVA (\(ivaPercentageValue.formattedAsPercent))",
-                        value: ivaAmount.formattedAsCurrency
-                    )
-                    LabeledContent(
-                        "IRPF (\(irpfPercentageValue.formattedAsPercent))",
-                        value: (-irpfAmount).formattedAsCurrency
-                    )
-                    LabeledContent("Total", value: invoiceTotal.formattedAsCurrency)
+                } else {
+                    advancedSections
                 }
             }
-            .navigationTitle("New Invoice")
+            .navigationTitle(seedTitle)
 #if os(iOS)
             .navigationBarTitleDisplayMode(.inline)
 #endif
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") {
+                    Button("Cancelar") {
                         dismiss()
                     }
                 }
 
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Create") {
-                        createInvoice()
+                    Button(primaryActionTitle) {
+                        handlePrimaryAction()
                     }
-                    .disabled(clientName.isEmpty || invoiceNumber.isEmpty || currentIssuer == nil)
+                    .disabled(primaryActionDisabled)
+                    .accessibilityIdentifier("invoice-composer-primary")
                 }
             }
             .sheet(isPresented: $showingAddClient) {
-                if let clientViewModel = clientViewModel {
+                if let clientViewModel {
                     AddClientView(viewModel: clientViewModel) { client in
                         selectedClientID = client.id
-                        clientName = client.name
-                        clientEmail = client.email
-                        clientIdentificationNumber = client.identificationNumber
-                        clientAddress = client.address
+                        applyClientDefaults(from: client)
                     }
+                }
+            }
+            .sheet(isPresented: $showingAddItem) {
+                InvoiceDraftItemEditor(mode: .add) { draft in
+                    draftItems.append(draft)
+                }
+            }
+            .sheet(item: $editingDraftItem) { item in
+                InvoiceDraftItemEditor(mode: .edit(item)) { updated in
+                    if let index = draftItems.firstIndex(where: { $0.id == updated.id }) {
+                        draftItems[index] = updated
+                    }
+                }
+            }
+            .sheet(isPresented: $showingPaywall) {
+                PaywallView(reason: .clientLimit)
+                    .environmentObject(subscriptionService)
+            }
+            .sheet(
+                isPresented: $showingShareSheet,
+                onDismiss: finalizePendingShareCompletion
+            ) {
+                if let generatedPDFURL {
+                    ShareSheet(items: [generatedPDFURL])
                 }
             }
         }
         .onAppear {
-            if clientViewModel == nil {
-                clientViewModel = ClientViewModel(modelContext: modelContext)
-            }
-
-            if issuerViewModel == nil {
-                issuerViewModel = IssuerViewModel(modelContext: modelContext)
-            }
-
-            selectedIssuerID = IssuerSelectionStore.issuerID(from: selectedIssuerStorage)
-            ensureValidIssuerSelection()
-            applySuggestedInvoiceNumber(force: true)
+            prepareViewModelsIfNeeded()
+            seedDefaultIssuerIfNeeded()
+            applySeedIfNeeded()
         }
         .onChange(of: selectedClientID) { _, newValue in
-            guard
-                let newValue,
-                let client = clientViewModel?.clients.first(where: { $0.id == newValue })
-            else { return }
+            guard let client = clientViewModel?.client(with: newValue) else { return }
+            applyClientDefaults(from: client)
 
-            clientName = client.name
-            clientEmail = client.email
-            clientIdentificationNumber = client.identificationNumber
-            clientAddress = client.address
+            if let preferredTemplateID = client.preferredTemplateID,
+               selectedTemplateID != preferredTemplateID {
+                selectedTemplateID = preferredTemplateID
+            }
+        }
+        .onChange(of: selectedTemplateID) { _, newValue in
+            guard let newValue,
+                  let template = templateViewModel?.templates.first(where: { $0.id == newValue }) else { return }
+            applyTemplateDefaults(from: template)
         }
         .onChange(of: selectedIssuerID) { _, newValue in
             selectedIssuerStorage = IssuerSelectionStore.storageValue(from: newValue)
-            ensureValidIssuerSelection()
             applySuggestedInvoiceNumber(force: false)
         }
-        .onChange(of: selectedIssuerStorage) { _, newValue in
-            let parsedID = IssuerSelectionStore.issuerID(from: newValue)
-            if selectedIssuerID != parsedID {
-                selectedIssuerID = parsedID
-            }
-            ensureValidIssuerSelection()
-            applySuggestedInvoiceNumber(force: false)
+        .onChange(of: issueDate) { _, newValue in
+            dueDate = newValue.addingDays(max(dueDays, 0))
+        }
+        .onChange(of: dueDays) { _, newValue in
+            dueDate = issueDate.addingDays(max(newValue, 0))
         }
         .onChange(of: invoiceNumber) { _, newValue in
             if newValue != lastSuggestedInvoiceNumber {
                 hasManuallyEditedInvoiceNumber = true
             }
         }
-        .sheet(isPresented: $showingAddItem) {
-            InvoiceDraftItemEditor(mode: .add) { draft in
-                draftItems.append(draft)
+    }
+
+    private var modePickerSection: some View {
+        Section {
+            Picker("Modo", selection: $creationMode) {
+                ForEach(InvoiceCreationMode.allCases) { mode in
+                    Text(mode.title).tag(mode)
+                }
             }
+            .pickerStyle(.segmented)
+            .accessibilityIdentifier("invoice-composer-mode")
         }
-        .sheet(item: $editingDraftItem) { item in
-            InvoiceDraftItemEditor(mode: .edit(item)) { updated in
-                if let index = draftItems.firstIndex(where: { $0.id == updated.id }) {
-                    draftItems[index] = updated
+    }
+
+    private var quickStepSection: some View {
+        Section {
+            Picker("Paso", selection: $quickStep) {
+                ForEach(QuickInvoiceStep.allCases) { step in
+                    Text(step.title).tag(step)
+                }
+            }
+            .pickerStyle(.segmented)
+        }
+    }
+
+    private var quickBaseSection: some View {
+        Group {
+            Section("Base mensual") {
+                if let templates = templateViewModel?.templates, !templates.isEmpty {
+                    Picker("Plantilla", selection: $selectedTemplateID) {
+                        Text("Sin plantilla")
+                            .tag(UUID?.none)
+
+                        ForEach(templates) { template in
+                            Text(template.name)
+                                .tag(Optional(template.id))
+                        }
+                    }
+                    .accessibilityIdentifier("invoice-template-picker")
+                }
+
+                if let clients = clientViewModel?.clients, !clients.isEmpty {
+                    Picker("Cliente", selection: $selectedClientID) {
+                        Text("Selecciona cliente")
+                            .tag(UUID?.none)
+
+                        ForEach(clients) { client in
+                            Text(client.name)
+                                .tag(Optional(client.id))
+                        }
+                    }
+                    .accessibilityIdentifier("invoice-client-picker")
+                } else {
+                    Text("Aun no tienes clientes guardados.")
+                        .foregroundStyle(.secondary)
+                }
+
+                Button {
+                    handleAddClientTap()
+                } label: {
+                    Label("Crear cliente", systemImage: "plus")
+                }
+
+                if let currentIssuer {
+                    LabeledContent("Emisor", value: "\(currentIssuer.name) (\(currentIssuer.code))")
+                } else {
+                    Text("Necesitas crear un emisor antes de facturar.")
+                        .foregroundStyle(.secondary)
+                }
+
+                LabeledContent("Numero previsto", value: invoiceNumber.isEmpty ? "Sin numeracion" : invoiceNumber)
+
+                Button("Usar siguiente numero") {
+                    applySuggestedInvoiceNumber(force: true)
+                }
+                .disabled(currentIssuer == nil)
+
+                DatePicker("Fecha de emision", selection: $issueDate, displayedComponents: .date)
+
+                Stepper("Vencimiento: \(dueDays) dias", value: $dueDays, in: 0...120)
+
+                LabeledContent("Fecha de vencimiento", value: dueDate.mediumFormat)
+            }
+
+            Section("Cliente") {
+                LabeledContent("Nombre", value: clientName.isEmpty ? "Pendiente" : clientName)
+                if !clientIdentificationNumber.isEmpty {
+                    LabeledContent("NIF/CIF", value: clientIdentificationNumber)
+                }
+                if !clientEmail.isEmpty {
+                    LabeledContent("Email", value: clientEmail)
                 }
             }
         }
-        .sheet(isPresented: $showingPaywall) {
-            PaywallView(reason: .clientLimit)
-                .environmentObject(subscriptionService)
+    }
+
+    private var quickAmountsSection: some View {
+        Group {
+            itemsSection
+            taxesSection
+            notesSection
         }
+    }
+
+    @ViewBuilder
+    private var advancedSections: some View {
+        Section("Factura") {
+            TextField("Numero de factura", text: $invoiceNumber)
+#if os(iOS)
+                .autocapitalization(.allCharacters)
+#endif
+
+            Button("Usar siguiente numero") {
+                applySuggestedInvoiceNumber(force: true)
+            }
+            .disabled(currentIssuer == nil)
+
+            DatePicker("Fecha de emision", selection: $issueDate, displayedComponents: .date)
+            DatePicker("Fecha de vencimiento", selection: $dueDate, displayedComponents: .date)
+        }
+
+        Section("Emisor") {
+            if let issuers = issuerViewModel?.issuers, !issuers.isEmpty {
+                Picker("Emisor", selection: $selectedIssuerID) {
+                    ForEach(issuers) { issuer in
+                        Text("\(issuer.name) (\(issuer.code))")
+                            .tag(Optional(issuer.id))
+                    }
+                }
+            } else {
+                Text("No hay emisores disponibles. Crealos desde Ajustes.")
+                    .foregroundStyle(.secondary)
+            }
+        }
+
+        Section("Clientes guardados") {
+            if let clients = clientViewModel?.clients, !clients.isEmpty {
+                Picker("Cliente", selection: $selectedClientID) {
+                    Text("Ninguno")
+                        .tag(UUID?.none)
+
+                    ForEach(clients) { client in
+                        Text(client.name)
+                            .tag(Optional(client.id))
+                    }
+                }
+            } else {
+                Text("Aun no tienes clientes guardados.")
+                    .foregroundStyle(.secondary)
+            }
+
+            Button {
+                handleAddClientTap()
+            } label: {
+                Label("Crear cliente", systemImage: "plus")
+            }
+        }
+
+        Section("Datos del cliente") {
+            TextField("Nombre", text: $clientName)
+            TextField("Email", text: $clientEmail)
+                .textContentType(.emailAddress)
+                .disableAutocorrection(true)
+
+            TextField("NIF/CIF", text: $clientIdentificationNumber)
+
+            TextField("Direccion", text: $clientAddress, axis: .vertical)
+                .lineLimit(3...6)
+        }
+
+        itemsSection
+        taxesSection
+        notesSection
+    }
+
+    private var itemsSection: some View {
+        Section("Importes") {
+            if draftItems.isEmpty {
+                Text("Anade los conceptos para calcular total, IVA e IRPF desde el principio.")
+                    .foregroundStyle(.secondary)
+            } else {
+                ForEach(draftItems) { item in
+                    VStack(alignment: .leading, spacing: 6) {
+                        HStack {
+                            Text(item.description)
+                                .font(.headline)
+                            Spacer()
+                            Text(item.total.formattedAsCurrency)
+                                .font(.headline)
+                        }
+
+                        Text("\(item.quantity) x \(item.unitPrice.formattedAsCurrency)")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+
+                        HStack(spacing: 12) {
+                            Button(action: { editingDraftItem = item }) {
+                                Label("Editar", systemImage: "slider.horizontal.3")
+                                    .labelStyle(.iconOnly)
+                            }
+                            .buttonStyle(.plain)
+
+                            Button(role: .destructive, action: { removeDraftItem(item) }) {
+                                Label("Eliminar", systemImage: "trash")
+                                    .labelStyle(.iconOnly)
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+                    .padding(.vertical, 4)
+                }
+            }
+
+            Button {
+                showingAddItem = true
+            } label: {
+                Label("Anadir concepto", systemImage: "plus.circle")
+            }
+            .accessibilityIdentifier("invoice-add-item")
+        }
+    }
+
+    private var taxesSection: some View {
+        Section("Totales") {
+            TextField("IVA %", text: $ivaPercentage)
+#if os(iOS)
+                .keyboardType(.decimalPad)
+#endif
+
+            TextField("IRPF %", text: $irpfPercentage)
+#if os(iOS)
+                .keyboardType(.decimalPad)
+#endif
+
+            LabeledContent("Subtotal", value: itemsTotal.formattedAsCurrency)
+            LabeledContent("IVA (\(ivaPercentageValue.formattedAsPercent))", value: ivaAmount.formattedAsCurrency)
+            LabeledContent("IRPF (\(irpfPercentageValue.formattedAsPercent))", value: (-irpfAmount).formattedAsCurrency)
+            LabeledContent("Total", value: invoiceTotal.formattedAsCurrency)
+        }
+    }
+
+    private var notesSection: some View {
+        Section("Notas") {
+            TextField("Notas para esta factura", text: $notes, axis: .vertical)
+                .lineLimit(3...6)
+        }
+    }
+
+    private var seedTitle: String {
+        switch seed {
+        case .quick:
+            return creationMode == .quick ? "Factura rapida" : "Nueva factura"
+        case .client(let client):
+            return "Facturar a \(client.name)"
+        case .template(let template):
+            return template.name
+        case .duplicate:
+            return "Duplicar factura"
+        }
+    }
+
+    private var primaryActionTitle: String {
+        if creationMode == .quick && quickStep == .base {
+            return "Continuar"
+        }
+        return "Crear"
+    }
+
+    private var primaryActionDisabled: Bool {
+        if creationMode == .quick && quickStep == .base {
+            return clientName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || currentIssuer == nil
+        }
+
+        return clientName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || invoiceNumber.isEmpty || currentIssuer == nil
     }
 
     private var currentIssuer: Issuer? {
         guard let selectedIssuerID else { return issuerViewModel?.issuers.first }
         return issuerViewModel?.issuers.first(where: { $0.id == selectedIssuerID })
-    }
-
-    private func ensureValidIssuerSelection() {
-        guard let issuerViewModel else { return }
-
-        if issuerViewModel.issuers.isEmpty {
-            selectedIssuerID = nil
-            return
-        }
-
-        if let id = selectedIssuerID,
-           issuerViewModel.issuers.contains(where: { $0.id == id }) {
-            return
-        }
-
-        selectedIssuerID = issuerViewModel.issuers.first?.id
-    }
-
-    private func applySuggestedInvoiceNumber(force: Bool) {
-        guard let issuer = currentIssuer else { return }
-
-        let suggestion = InvoiceNumberingService.nextInvoiceNumber(for: issuer)
-        lastSuggestedInvoiceNumber = suggestion
-
-        if force || invoiceNumber.isEmpty || !hasManuallyEditedInvoiceNumber {
-            invoiceNumber = suggestion
-            hasManuallyEditedInvoiceNumber = false
-        }
-    }
-
-    private func handleAddClientTap() {
-        let count = clientViewModel?.clients.count ?? 0
-        if subscriptionService.canAddClient(currentCount: count) {
-            showingAddClient = true
-        } else {
-            showingPaywall = true
-        }
-    }
-
-    private func createInvoice() {
-        guard let issuer = currentIssuer else { return }
-
-        let selectedClient = clientViewModel?.clients.first(where: { $0.id == selectedClientID })
-        let preparedItems = draftItems.map {
-            InvoiceLineItemInput(
-                description: $0.description,
-                quantity: $0.quantity,
-                unitPrice: $0.unitPrice
-            )
-        }
-
-        viewModel.createInvoice(
-            invoiceNumber: invoiceNumber,
-            issuer: issuer,
-            clientName: clientName,
-            clientEmail: clientEmail,
-            clientIdentificationNumber: clientIdentificationNumber,
-            clientAddress: clientAddress,
-            client: selectedClient,
-            issueDate: issueDate,
-            dueDate: dueDate,
-            ivaPercentage: ivaPercentageValue,
-            irpfPercentage: irpfPercentageValue,
-            items: preparedItems
-        )
-
-        selectedIssuerStorage = IssuerSelectionStore.storageValue(from: issuer.id)
-        dismiss()
-    }
-
-    private func removeDraftItem(_ item: DraftInvoiceItem) {
-        draftItems.removeAll { $0.id == item.id }
     }
 
     private var itemsTotal: Decimal {
@@ -362,26 +465,301 @@ struct AddInvoiceView: View {
     private var invoiceTotal: Decimal {
         itemsTotal + ivaAmount - irpfAmount
     }
+
+    private var selectedAfterSaveAction: QuickInvoiceAfterSaveAction {
+        QuickInvoiceAfterSaveAction(rawValue: afterSaveActionRaw) ?? .close
+    }
+
+    private func handlePrimaryAction() {
+        if creationMode == .quick && quickStep == .base {
+            quickStep = .amounts
+            if invoiceNumber.isEmpty {
+                applySuggestedInvoiceNumber(force: true)
+            }
+            return
+        }
+
+        createInvoice()
+    }
+
+    private func prepareViewModelsIfNeeded() {
+        if clientViewModel == nil {
+            clientViewModel = ClientViewModel(modelContext: modelContext)
+        }
+
+        if issuerViewModel == nil {
+            issuerViewModel = IssuerViewModel(modelContext: modelContext)
+        }
+
+        if templateViewModel == nil {
+            templateViewModel = InvoiceTemplateViewModel(modelContext: modelContext)
+        }
+    }
+
+    private func seedDefaultIssuerIfNeeded() {
+        let storedIssuerID = IssuerSelectionStore.issuerID(from: selectedIssuerStorage)
+        if let storedIssuerID,
+           issuerViewModel?.issuers.contains(where: { $0.id == storedIssuerID }) == true {
+            selectedIssuerID = storedIssuerID
+        } else {
+            selectedIssuerID = issuerViewModel?.issuers.first?.id
+        }
+
+        applySuggestedInvoiceNumber(force: true)
+    }
+
+    private func applySeedIfNeeded() {
+        guard !hasAppliedSeed else { return }
+        hasAppliedSeed = true
+
+        quickStep = seed.startsOnAmountsStep ? .amounts : .base
+        creationMode = .quick
+
+        switch seed {
+        case .quick:
+            dueDays = appDefaultDueDays
+            dueDate = issueDate.addingDays(dueDays)
+        case .client(let client):
+            selectedClientID = client.id
+            applyClientDefaults(from: client)
+        case .template(let template):
+            selectedTemplateID = template.id
+            applyTemplateDefaults(from: template)
+        case .duplicate(let invoice):
+            applyDuplicateDefaults(from: invoice)
+        }
+    }
+
+    private func applyClientDefaults(from client: Client) {
+        clientName = client.name
+        clientEmail = client.email
+        clientIdentificationNumber = client.identificationNumber
+        clientAddress = client.address
+
+        if let preferredTemplateID = client.preferredTemplateID,
+           let template = templateViewModel?.templates.first(where: { $0.id == preferredTemplateID }) {
+            if selectedTemplateID != preferredTemplateID {
+                selectedTemplateID = preferredTemplateID
+            }
+            applyTemplateDefaults(from: template)
+            return
+        }
+
+        dueDays = client.defaultDueDays > 0 ? client.defaultDueDays : appDefaultDueDays
+        dueDate = issueDate.addingDays(dueDays)
+
+        if let iva = client.defaultIVAPercentage {
+            ivaPercentage = NSDecimalNumber(decimal: iva).stringValue
+        }
+
+        if let irpf = client.defaultIRPFPercentage {
+            irpfPercentage = NSDecimalNumber(decimal: irpf).stringValue
+        }
+
+        if !client.defaultNotes.isEmpty {
+            notes = client.defaultNotes
+        }
+    }
+
+    private func applyTemplateDefaults(from template: InvoiceTemplate) {
+        selectedTemplateID = template.id
+        selectedClientID = template.client?.id
+        selectedIssuerID = template.issuer?.id ?? selectedIssuerID
+
+        clientName = template.client?.name ?? template.clientName
+        clientEmail = template.client?.email ?? template.clientEmail
+        clientIdentificationNumber = template.client?.identificationNumber ?? template.clientIdentificationNumber
+        clientAddress = template.client?.address ?? template.clientAddress
+
+        dueDays = template.dueDays > 0 ? template.dueDays : appDefaultDueDays
+        dueDate = issueDate.addingDays(dueDays)
+        ivaPercentage = NSDecimalNumber(decimal: template.ivaPercentage).stringValue
+        irpfPercentage = NSDecimalNumber(decimal: template.irpfPercentage).stringValue
+        notes = template.notes
+        draftItems = template.items
+            .sorted { $0.sortOrder < $1.sortOrder }
+            .map {
+                DraftInvoiceItem(
+                    description: $0.itemDescription,
+                    quantity: $0.quantity,
+                    unitPrice: $0.unitPrice
+                )
+            }
+
+        applySuggestedInvoiceNumber(force: true)
+    }
+
+    private func applyDuplicateDefaults(from invoice: Invoice) {
+        selectedClientID = invoice.client?.id
+        selectedIssuerID = invoice.issuer?.id ?? selectedIssuerID
+        clientName = invoice.clientName
+        clientEmail = invoice.clientEmail
+        clientIdentificationNumber = invoice.clientIdentificationNumber
+        clientAddress = invoice.clientAddress
+        issueDate = invoice.issueDate.addingMonths(1)
+        dueDays = max(Calendar.current.dateComponents([.day], from: invoice.issueDate, to: invoice.dueDate).day ?? appDefaultDueDays, 0)
+        dueDate = issueDate.addingDays(dueDays)
+        ivaPercentage = NSDecimalNumber(decimal: invoice.ivaPercentage).stringValue
+        irpfPercentage = NSDecimalNumber(decimal: invoice.irpfPercentage).stringValue
+        notes = invoice.notes
+        draftItems = invoice.items.map {
+            DraftInvoiceItem(
+                description: $0.itemDescription,
+                quantity: $0.quantity,
+                unitPrice: $0.unitPrice
+            )
+        }
+        applySuggestedInvoiceNumber(force: true)
+    }
+
+    private func handleAddClientTap() {
+        let count = clientViewModel?.clients.count ?? 0
+        if subscriptionService.canAddClient(currentCount: count) {
+            showingAddClient = true
+        } else {
+            showingPaywall = true
+        }
+    }
+
+    private func applySuggestedInvoiceNumber(force: Bool) {
+        guard let issuer = currentIssuer else { return }
+
+        let suggestion = InvoiceNumberingService.nextInvoiceNumber(for: issuer)
+        lastSuggestedInvoiceNumber = suggestion
+
+        if force || invoiceNumber.isEmpty || !hasManuallyEditedInvoiceNumber {
+            invoiceNumber = suggestion
+            hasManuallyEditedInvoiceNumber = false
+        }
+    }
+
+    private func createInvoice() {
+        guard let issuer = currentIssuer else { return }
+
+        let selectedClient = clientViewModel?.client(with: selectedClientID)
+        let preparedItems = draftItems.map {
+            InvoiceLineItemInput(
+                description: $0.description,
+                quantity: $0.quantity,
+                unitPrice: $0.unitPrice
+            )
+        }
+
+        let createdInvoice = viewModel.createInvoice(
+            invoiceNumber: invoiceNumber,
+            issuer: issuer,
+            clientName: clientName,
+            clientEmail: clientEmail,
+            clientIdentificationNumber: clientIdentificationNumber,
+            clientAddress: clientAddress,
+            client: selectedClient,
+            issueDate: issueDate,
+            dueDate: dueDate,
+            notes: notes,
+            ivaPercentage: ivaPercentageValue,
+            irpfPercentage: irpfPercentageValue,
+            items: preparedItems
+        )
+
+        guard let createdInvoice else { return }
+        selectedIssuerStorage = IssuerSelectionStore.storageValue(from: issuer.id)
+        handlePostSave(for: createdInvoice)
+    }
+
+    private func handlePostSave(for invoice: Invoice) {
+        switch selectedAfterSaveAction {
+        case .close:
+            dismiss()
+        case .openDetail:
+            onComplete?(invoice)
+            dismiss()
+        case .generatePDF:
+            guard let pdfDocument = PDFGeneratorService.generateInvoicePDF(invoice: invoice),
+                  let url = PDFGeneratorService.savePDF(
+                    pdfDocument,
+                    fileName: "Factura_\(invoice.invoiceNumber)"
+                  )
+            else {
+                onComplete?(invoice)
+                dismiss()
+                return
+            }
+
+            generatedPDFURL = url
+            invoicePendingShareCompletion = invoice
+            showingShareSheet = true
+        }
+    }
+
+    private func finalizePendingShareCompletion() {
+        if let invoicePendingShareCompletion {
+            onComplete?(invoicePendingShareCompletion)
+            self.invoicePendingShareCompletion = nil
+        }
+        dismiss()
+    }
+
+    private func removeDraftItem(_ item: DraftInvoiceItem) {
+        draftItems.removeAll { $0.id == item.id }
+    }
+}
+
+private enum InvoiceCreationMode: String, CaseIterable, Identifiable {
+    case quick
+    case advanced
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .quick:
+            return "Rapida"
+        case .advanced:
+            return "Avanzada"
+        }
+    }
+}
+
+private enum QuickInvoiceStep: String, CaseIterable, Identifiable {
+    case base
+    case amounts
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .base:
+            return "Base"
+        case .amounts:
+            return "Importes"
+        }
+    }
 }
 
 #Preview {
     let config = ModelConfiguration(isStoredInMemoryOnly: true)
     let container = try! ModelContainer(
-        for: Invoice.self, InvoiceItem.self, CompanyProfile.self, Client.self, Issuer.self,
+        for: Invoice.self,
+        InvoiceItem.self,
+        CompanyProfile.self,
+        Client.self,
+        Issuer.self,
+        InvoiceTemplate.self,
+        InvoiceTemplateItem.self,
         configurations: config
     )
 
-    let issuer = Issuer(name: "Sample Issuer", code: "SMP")
+    let issuer = Issuer(name: "Acme Studio", code: "ACM")
+    let client = Client(name: "Cliente ejemplo", email: "facturacion@cliente.com", defaultDueDays: 15)
     container.mainContext.insert(issuer)
+    container.mainContext.insert(client)
 
     let viewModel = InvoiceViewModel(modelContext: container.mainContext)
 
-    return AddInvoiceView(viewModel: viewModel)
+    return AddInvoiceView(viewModel: viewModel, seed: .client(client))
         .environmentObject(SubscriptionService())
         .modelContainer(container)
 }
-
-// MARK: - Draft Item Support
 
 private struct DraftInvoiceItem: Identifiable, Equatable {
     let id: UUID
@@ -406,13 +784,16 @@ private struct InvoiceDraftItemEditor: View {
 
         var title: String {
             switch self {
-            case .add: return "Add Item"
-            case .edit: return "Edit Item"
+            case .add:
+                return "Anadir concepto"
+            case .edit:
+                return "Editar concepto"
             }
         }
     }
 
     @Environment(\.dismiss) private var dismiss
+
     let mode: Mode
     let onSave: (DraftInvoiceItem) -> Void
 
@@ -423,6 +804,7 @@ private struct InvoiceDraftItemEditor: View {
     init(mode: Mode, onSave: @escaping (DraftInvoiceItem) -> Void) {
         self.mode = mode
         self.onSave = onSave
+
         switch mode {
         case .add:
             _descriptionText = State(initialValue: "")
@@ -438,15 +820,18 @@ private struct InvoiceDraftItemEditor: View {
     var body: some View {
         NavigationStack {
             Form {
-                Section("Item Details") {
-                    TextField("Description", text: $descriptionText, axis: .vertical)
+                Section("Concepto") {
+                    TextField("Descripcion", text: $descriptionText, axis: .vertical)
                         .lineLimit(2...4)
-                    Stepper("Quantity: \(quantity)", value: $quantity, in: 1...999)
-                    TextField("Unit Price", text: $unitPrice)
+
+                    Stepper("Cantidad: \(quantity)", value: $quantity, in: 1...999)
+
+                    TextField("Precio unitario", text: $unitPrice)
 #if os(iOS)
                         .keyboardType(.decimalPad)
 #endif
                 }
+
                 if let price = Decimal(string: unitPrice), price > 0 {
                     Section {
                         LabeledContent("Total", value: (price * Decimal(quantity)).formattedAsCurrency)
@@ -459,11 +844,16 @@ private struct InvoiceDraftItemEditor: View {
 #endif
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") { dismiss() }
+                    Button("Cancelar") {
+                        dismiss()
+                    }
                 }
+
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Save") { persist() }
-                        .disabled(!isValid)
+                    Button("Guardar") {
+                        persist()
+                    }
+                    .disabled(!isValid)
                 }
             }
         }
@@ -475,6 +865,7 @@ private struct InvoiceDraftItemEditor: View {
 
     private func persist() {
         guard let price = Decimal(string: unitPrice) else { return }
+
         let identifier: UUID
         switch mode {
         case .add:
@@ -482,13 +873,16 @@ private struct InvoiceDraftItemEditor: View {
         case .edit(let item):
             identifier = item.id
         }
-        let draft = DraftInvoiceItem(
-            id: identifier,
-            description: descriptionText,
-            quantity: quantity,
-            unitPrice: price
+
+        onSave(
+            DraftInvoiceItem(
+                id: identifier,
+                description: descriptionText,
+                quantity: quantity,
+                unitPrice: price
+            )
         )
-        onSave(draft)
         dismiss()
     }
 }
+
