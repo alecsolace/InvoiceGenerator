@@ -69,6 +69,7 @@ final class InvoiceViewModel {
     }
 
     /// Create a new invoice
+    @discardableResult
     func createInvoice(
         invoiceNumber: String,
         issuer: Issuer,
@@ -83,7 +84,7 @@ final class InvoiceViewModel {
         ivaPercentage: Decimal = 0,
         irpfPercentage: Decimal = 0,
         items: [InvoiceLineItemInput] = []
-    ) {
+    ) -> Invoice? {
         let invoice = Invoice(
             invoiceNumber: invoiceNumber,
             clientName: clientName,
@@ -115,22 +116,94 @@ final class InvoiceViewModel {
 
         InvoiceNumberingService.registerUsedInvoiceNumber(invoiceNumber, for: issuer)
         invoice.calculateTotal()
-        saveContext()
+        guard saveContext() else { return nil }
         fetchInvoices()
+        return invoice
+    }
+
+    @discardableResult
+    func createInvoice(fromTemplate template: InvoiceTemplate, month: Date = Date()) -> Invoice? {
+        guard let issuer = template.issuer else {
+            errorMessage = "La plantilla no tiene emisor asociado."
+            return nil
+        }
+
+        let issueDate = preferredIssueDate(for: month)
+        let dueDays = max(template.dueDays, 0)
+
+        let items = template.items
+            .sorted { $0.sortOrder < $1.sortOrder }
+            .map {
+                InvoiceLineItemInput(
+                    description: $0.itemDescription,
+                    quantity: $0.quantity,
+                    unitPrice: $0.unitPrice
+                )
+            }
+
+        return createInvoice(
+            invoiceNumber: InvoiceNumberingService.nextInvoiceNumber(for: issuer),
+            issuer: issuer,
+            clientName: template.client?.name ?? template.clientName,
+            clientEmail: template.client?.email ?? template.clientEmail,
+            clientIdentificationNumber: template.client?.identificationNumber ?? template.clientIdentificationNumber,
+            clientAddress: template.client?.address ?? template.clientAddress,
+            client: template.client,
+            issueDate: issueDate,
+            dueDate: issueDate.addingDays(dueDays > 0 ? dueDays : InvoiceFlowPreferences.defaultDueDays),
+            notes: template.notes,
+            ivaPercentage: template.ivaPercentage,
+            irpfPercentage: template.irpfPercentage,
+            items: items
+        )
+    }
+
+    @discardableResult
+    func duplicateInvoiceForNextMonth(_ invoice: Invoice) -> Invoice? {
+        guard let issuer = resolveIssuer(for: invoice) else {
+            errorMessage = "No se pudo resolver el emisor para duplicar la factura."
+            return nil
+        }
+
+        let issueDate = invoice.issueDate.addingMonths(1)
+        let dueDays = max(Calendar.current.dateComponents([.day], from: invoice.issueDate, to: invoice.dueDate).day ?? 0, 0)
+        let items = invoice.items.map {
+            InvoiceLineItemInput(
+                description: $0.itemDescription,
+                quantity: $0.quantity,
+                unitPrice: $0.unitPrice
+            )
+        }
+
+        return createInvoice(
+            invoiceNumber: InvoiceNumberingService.nextInvoiceNumber(for: issuer),
+            issuer: issuer,
+            clientName: invoice.clientName,
+            clientEmail: invoice.clientEmail,
+            clientIdentificationNumber: invoice.clientIdentificationNumber,
+            clientAddress: invoice.clientAddress,
+            client: invoice.client,
+            issueDate: issueDate,
+            dueDate: issueDate.addingDays(dueDays),
+            notes: invoice.notes,
+            ivaPercentage: invoice.ivaPercentage,
+            irpfPercentage: invoice.irpfPercentage,
+            items: items
+        )
     }
 
     /// Update an existing invoice
     func updateInvoice(_ invoice: Invoice) {
         invoice.updateTimestamp()
         invoice.calculateTotal()
-        saveContext()
+        _ = saveContext()
         fetchInvoices()
     }
 
     /// Delete an invoice
     func deleteInvoice(_ invoice: Invoice) {
         modelContext.delete(invoice)
-        saveContext()
+        _ = saveContext()
         fetchInvoices()
     }
 
@@ -147,7 +220,7 @@ final class InvoiceViewModel {
         invoice.updateTimestamp()
 
         modelContext.insert(item)
-        saveContext()
+        _ = saveContext()
         fetchInvoices()
     }
 
@@ -158,7 +231,7 @@ final class InvoiceViewModel {
             modelContext.delete(item)
             invoice.calculateTotal()
             invoice.updateTimestamp()
-            saveContext()
+            _ = saveContext()
             fetchInvoices()
         }
     }
@@ -177,7 +250,7 @@ final class InvoiceViewModel {
         item.updateTotal()
         invoice.calculateTotal()
         invoice.updateTimestamp()
-        saveContext()
+        _ = saveContext()
         fetchInvoices()
     }
 
@@ -185,8 +258,16 @@ final class InvoiceViewModel {
     func updateStatus(_ invoice: Invoice, status: InvoiceStatus) {
         invoice.status = status
         invoice.updateTimestamp()
-        saveContext()
+        _ = saveContext()
         fetchInvoices()
+    }
+
+    func markSent(_ invoice: Invoice) {
+        updateStatus(invoice, status: .sent)
+    }
+
+    func markPaid(_ invoice: Invoice) {
+        updateStatus(invoice, status: .paid)
     }
 
     /// Search invoices by client name or invoice number
@@ -215,12 +296,46 @@ final class InvoiceViewModel {
 
     // MARK: - Private Methods
 
-    private func saveContext() {
+    private func saveContext() -> Bool {
         do {
             try modelContext.save()
+            return true
         } catch {
             PersistenceController.logger.error("SwiftData save failed: \(error.localizedDescription)")
             errorMessage = "Failed to save: \(error.localizedDescription)"
+            return false
+        }
+    }
+
+    private func preferredIssueDate(for month: Date) -> Date {
+        let now = Date()
+        let calendar = Calendar.current
+
+        if calendar.isDate(month, equalTo: now, toGranularity: .month) {
+            return now
+        }
+
+        return month.startOfMonth
+    }
+
+    private func resolveIssuer(for invoice: Invoice) -> Issuer? {
+        if let issuer = invoice.issuer {
+            return issuer
+        }
+
+        guard !invoice.issuerCode.isEmpty else { return nil }
+
+        do {
+            let descriptor = FetchDescriptor<Issuer>(
+                sortBy: [SortDescriptor(\.name)]
+            )
+            let issuers = try modelContext.fetch(descriptor)
+            return issuers.first {
+                $0.code.caseInsensitiveCompare(invoice.issuerCode) == .orderedSame
+            }
+        } catch {
+            errorMessage = "No se pudo localizar el emisor: \(error.localizedDescription)"
+            return nil
         }
     }
 }

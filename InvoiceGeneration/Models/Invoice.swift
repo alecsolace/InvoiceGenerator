@@ -145,7 +145,18 @@ enum InvoiceStatus: String, Codable, CaseIterable {
 extension InvoiceStatus {
     /// Localized title for display purposes
     var localizedTitle: String {
-        NSLocalizedString(rawValue, comment: "Invoice status label")
+        switch self {
+        case .draft:
+            return "Borrador"
+        case .sent:
+            return "Enviada"
+        case .paid:
+            return "Cobrada"
+        case .overdue:
+            return "Vencida"
+        case .cancelled:
+            return "Cancelada"
+        }
     }
 }
 

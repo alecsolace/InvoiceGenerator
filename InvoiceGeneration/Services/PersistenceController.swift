@@ -10,7 +10,9 @@ enum PersistenceController {
     static let preview: ModelContainer = makeContainer(inMemory: true)
 
     private static func makeContainer(inMemory: Bool) -> ModelContainer {
-        if inMemory {
+        let shouldUseInMemory = inMemory || ProcessInfo.processInfo.arguments.contains("UITEST_USE_IN_MEMORY_STORE")
+
+        if shouldUseInMemory {
             let configuration = ModelConfiguration(isStoredInMemoryOnly: true)
             return try! ModelContainer(
                 for: Invoice.self,
@@ -18,6 +20,8 @@ enum PersistenceController {
                 CompanyProfile.self,
                 Client.self,
                 Issuer.self,
+                InvoiceTemplate.self,
+                InvoiceTemplateItem.self,
                 configurations: configuration
             )
         }
@@ -31,6 +35,8 @@ enum PersistenceController {
                 CompanyProfile.self,
                 Client.self,
                 Issuer.self,
+                InvoiceTemplate.self,
+                InvoiceTemplateItem.self,
                 configurations: configuration
             )
         } catch {
@@ -53,6 +59,8 @@ enum PersistenceController {
                     CompanyProfile.self,
                     Client.self,
                     Issuer.self,
+                    InvoiceTemplate.self,
+                    InvoiceTemplateItem.self,
                     configurations: configuration
                 )
             } catch {

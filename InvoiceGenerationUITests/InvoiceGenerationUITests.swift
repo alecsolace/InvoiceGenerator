@@ -1,41 +1,93 @@
-//
-//  InvoiceGenerationUITests.swift
-//  InvoiceGenerationUITests
-//
-//  Created by Alexander Aguirre on 4/12/25.
-//
-
 import XCTest
 
 final class InvoiceGenerationUITests: XCTestCase {
 
     override func setUpWithError() throws {
-        // Put setup code here. This method is called before the invocation of each test method in the class.
-
-        // In UI tests it is usually best to stop immediately when a failure occurs.
         continueAfterFailure = false
-
-        // In UI tests it’s important to set the initial state - such as interface orientation - required for your tests before they run. The setUp method is a good place to do this.
-    }
-
-    override func tearDownWithError() throws {
-        // Put teardown code here. This method is called after the invocation of each test method in the class.
     }
 
     @MainActor
-    func testExample() throws {
-        // UI tests must launch the application that they test.
+    func testOnboardingCanFinishMinimalSetup() throws {
         let app = XCUIApplication()
+        app.launchArguments = ["UITEST_USE_IN_MEMORY_STORE"]
         app.launch()
 
-        // Use XCTAssert and related functions to verify your tests produce the correct results.
+        XCTAssertTrue(app.buttons["Skip"].waitForExistence(timeout: 5))
+        app.buttons["Skip"].tap()
+
+        let companyName = app.textFields["Company Name"]
+        XCTAssertTrue(companyName.waitForExistence(timeout: 5))
+        companyName.tap()
+        companyName.typeText("Acme Studio")
+
+        app.buttons["Finish Setup"].tap()
+
+        XCTAssertTrue(app.tabBars.buttons["Inicio"].waitForExistence(timeout: 5))
     }
 
     @MainActor
-    func testLaunchPerformance() throws {
-        // This measures how long it takes to launch your application.
-        measure(metrics: [XCTApplicationLaunchMetric()]) {
-            XCUIApplication().launch()
-        }
+    func testHomeFlowCreatesInvoiceFromFrequentClient() throws {
+        let app = launchSeededApp()
+
+        XCTAssertTrue(app.buttons["Facturar"].firstMatch.waitForExistence(timeout: 5))
+        app.buttons["Facturar"].firstMatch.tap()
+
+        let primary = app.buttons["invoice-composer-primary"]
+        XCTAssertTrue(primary.waitForExistence(timeout: 5))
+        primary.tap()
+        primary.tap()
+
+        app.tabBars.buttons["Facturas"].tap()
+        XCTAssertTrue(app.staticTexts["ACM-0003"].waitForExistence(timeout: 5))
+    }
+
+    @MainActor
+    func testClientFlowCreatesInvoiceFromPreferredTemplate() throws {
+        let app = launchSeededApp()
+
+        app.tabBars.buttons["Clientes"].tap()
+        XCTAssertTrue(app.buttons["Facturar"].firstMatch.waitForExistence(timeout: 5))
+        app.buttons["Facturar"].firstMatch.tap()
+
+        let primary = app.buttons["invoice-composer-primary"]
+        XCTAssertTrue(primary.waitForExistence(timeout: 5))
+        primary.tap()
+        primary.tap()
+
+        app.tabBars.buttons["Facturas"].tap()
+        XCTAssertTrue(app.staticTexts["ACM-0003"].waitForExistence(timeout: 5))
+    }
+
+    @MainActor
+    func testDuplicateInvoiceFromDetailCreatesNextMonthInvoice() throws {
+        let app = launchSeededApp()
+
+        app.tabBars.buttons["Facturas"].tap()
+        XCTAssertTrue(app.staticTexts["ACM-0002"].waitForExistence(timeout: 5))
+        app.staticTexts["ACM-0002"].tap()
+
+        let moreButton = app.buttons["Mas"]
+        XCTAssertTrue(moreButton.waitForExistence(timeout: 5))
+        moreButton.tap()
+        app.buttons["Duplicar este mes"].tap()
+
+        let primary = app.buttons["invoice-composer-primary"]
+        XCTAssertTrue(primary.waitForExistence(timeout: 5))
+        primary.tap()
+
+        app.navigationBars.buttons.element(boundBy: 0).tap()
+        XCTAssertTrue(app.staticTexts["ACM-0003"].waitForExistence(timeout: 5))
+    }
+
+    private func launchSeededApp() -> XCUIApplication {
+        let app = XCUIApplication()
+        app.launchArguments = [
+            "UITEST_USE_IN_MEMORY_STORE",
+            "UITEST_SKIP_ONBOARDING",
+            "UITEST_SEED_SAMPLE_DATA"
+        ]
+        app.launch()
+        XCTAssertTrue(app.tabBars.buttons["Inicio"].waitForExistence(timeout: 5))
+        return app
     }
 }
