@@ -12,17 +12,49 @@ final class InvoiceGenerationUITests: XCTestCase {
         app.launchArguments = ["UITEST_USE_IN_MEMORY_STORE"]
         app.launch()
 
-        XCTAssertTrue(app.buttons["Skip"].waitForExistence(timeout: 5))
-        app.buttons["Skip"].tap()
+        let startButton = app.buttons["onboarding-start-button"]
+        XCTAssertTrue(startButton.waitForExistence(timeout: 5))
+        startButton.tap()
 
-        let companyName = app.textFields["Company Name"]
+        let companyName = app.textFields["onboarding-company-name-field"]
         XCTAssertTrue(companyName.waitForExistence(timeout: 5))
         companyName.tap()
         companyName.typeText("Acme Studio")
 
-        app.buttons["Finish Setup"].tap()
+        app.buttons["onboarding-finish-button"].tap()
 
         XCTAssertTrue(app.tabBars.buttons["Inicio"].waitForExistence(timeout: 5))
+    }
+
+    @MainActor
+    func testOnboardingProfileStepKeepsLowerFieldsAccessible() throws {
+        let app = XCUIApplication()
+        app.launchArguments = ["UITEST_USE_IN_MEMORY_STORE"]
+        app.launch()
+
+        let startButton = app.buttons["onboarding-start-button"]
+        XCTAssertTrue(startButton.waitForExistence(timeout: 5))
+        startButton.tap()
+
+        let addressField = app.textFields["onboarding-address-field"]
+        XCTAssertTrue(addressField.waitForExistence(timeout: 5))
+        scrollToElement(addressField, in: app)
+        XCTAssertTrue(addressField.isHittable)
+        XCTAssertTrue(app.buttons["onboarding-finish-button"].isHittable)
+        addressField.tap()
+        addressField.typeText("Calle Mayor 1")
+
+        let doneButton = app.buttons["Done"]
+        if doneButton.waitForExistence(timeout: 1) {
+            doneButton.tap()
+        }
+
+        let taxIdField = app.textFields["onboarding-tax-id-field"]
+        XCTAssertTrue(taxIdField.waitForExistence(timeout: 5))
+        scrollToElement(taxIdField, in: app, direction: .down)
+        XCTAssertTrue(taxIdField.isHittable)
+        taxIdField.tap()
+        taxIdField.typeText("B12345678")
     }
 
     @MainActor
@@ -89,5 +121,30 @@ final class InvoiceGenerationUITests: XCTestCase {
         app.launch()
         XCTAssertTrue(app.tabBars.buttons["Inicio"].waitForExistence(timeout: 5))
         return app
+    }
+
+    private enum ScrollDirection {
+        case up
+        case down
+    }
+
+    private func scrollToElement(
+        _ element: XCUIElement,
+        in app: XCUIApplication,
+        direction: ScrollDirection = .up,
+        maxAttempts: Int = 6
+    ) {
+        guard element.exists else { return }
+
+        var attempts = 0
+        while !element.isHittable && attempts < maxAttempts {
+            switch direction {
+            case .up:
+                app.swipeUp()
+            case .down:
+                app.swipeDown()
+            }
+            attempts += 1
+        }
     }
 }

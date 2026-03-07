@@ -5964,6 +5964,244 @@
           }
         }
       }
+    },
+    "Add your company name to finish setup.": {
+      "comment": "Validation hint shown below the onboarding finish button.",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Add your company name to finish setup."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Añade el nombre de tu empresa para terminar la configuración."
+          }
+        }
+      }
+    },
+    "%lld of %lld": {
+      "comment": "Onboarding progress label showing the current step and total steps.",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$lld of %2$lld"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$lld de %2$lld"
+          }
+        }
+      }
+    },
+    "Contact details are optional, but helpful for clients who need to reach you.": {
+      "comment": "Onboarding footer for the contact section.",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Contact details are optional, but helpful for clients who need to reach you."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Los datos de contacto son opcionales, pero ayudan a los clientes a localizarte."
+          }
+        }
+      }
+    },
+    "Create polished invoices fast": {
+      "comment": "Onboarding benefit title about invoice creation speed.",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Create polished invoices fast"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Crea facturas pulidas rápido"
+          }
+        }
+      }
+    },
+    "Only Company Name is required. You can update the rest later in Settings.": {
+      "comment": "Onboarding footer for the company information section.",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Only Company Name is required. You can update the rest later in Settings."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Solo el nombre de la empresa es obligatorio. Puedes completar el resto más tarde en Ajustes."
+          }
+        }
+      }
+    },
+    "Set Up Company": {
+      "comment": "Primary onboarding action and profile step title.",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Set Up Company"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Configurar empresa"
+          }
+        }
+      }
+    },
+    "Set up your company details once so every invoice starts ready to send.": {
+      "comment": "Onboarding intro subtitle.",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Set up your company details once so every invoice starts ready to send."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Configura los datos de tu empresa una vez para que cada factura empiece lista para enviar."
+          }
+        }
+      }
+    },
+    "Skip for now": {
+      "comment": "Secondary onboarding action that dismisses setup.",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Skip for now"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ahora no"
+          }
+        }
+      }
+    },
+    "Start with the details that should appear on every invoice.": {
+      "comment": "Onboarding benefit body about company details.",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Start with the details that should appear on every invoice."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Empieza con los datos que deben aparecer en cada factura."
+          }
+        }
+      }
+    },
+    "Stay organized from day one": {
+      "comment": "Onboarding benefit title about staying organized.",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Stay organized from day one"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mantén el orden desde el primer día"
+          }
+        }
+      }
+    },
+    "Sync securely with iCloud": {
+      "comment": "Onboarding benefit title about secure iCloud sync.",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sync securely with iCloud"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sincroniza de forma segura con iCloud"
+          }
+        }
+      }
+    },
+    "Keep your emitter profile ready for clients, templates, and recurring work.": {
+      "comment": "Onboarding benefit body about keeping the profile ready.",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Keep your emitter profile ready for clients, templates, and recurring work."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mantén listo el perfil del emisor para clientes, plantillas y trabajo recurrente."
+          }
+        }
+      }
+    },
+    "Welcome": {
+      "comment": "Navigation title for the onboarding intro step.",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Welcome"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bienvenida"
+          }
+        }
+      }
+    },
+    "Your information stays available across iPhone, iPad, and Mac.": {
+      "comment": "Onboarding benefit body about iCloud sync.",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Your information stays available across iPhone, iPad, and Mac."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tu información permanece disponible en iPhone, iPad y Mac."
+          }
+        }
+      }
     }
   },
   "version": "1.1"
