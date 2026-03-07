@@ -22,6 +22,7 @@ private enum PlatformColors {
 
 struct HomeView: View {
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.scenePhase) private var scenePhase
 
     @State private var viewModel: HomeViewModel?
     @State private var invoiceViewModel: InvoiceViewModel?
@@ -71,6 +72,11 @@ struct HomeView: View {
         .onAppear {
             loadViewModelsIfNeeded()
             refreshData()
+            openComposerForPendingSharedImportIfNeeded()
+        }
+        .onChange(of: scenePhase) { _, newValue in
+            guard newValue == .active else { return }
+            openComposerForPendingSharedImportIfNeeded()
         }
     }
 
@@ -260,6 +266,11 @@ struct HomeView: View {
             .padding()
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(PlatformColors.secondarySystemBackground, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+    }
+
+    private func openComposerForPendingSharedImportIfNeeded() {
+        guard SharedImageImportStore.hasPendingImport, composerSeed == nil else { return }
+        composerSeed = .quick
     }
 
     private func loadViewModelsIfNeeded() {

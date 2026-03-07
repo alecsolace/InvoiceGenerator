@@ -464,6 +464,83 @@ struct InvoiceGenerationTests {
         #expect(client?.defaultNotes == "Retainer mensual")
     }
 
+    @Test func imageImportParserExtractsSpanishInvoiceFields() async throws {
+        let text = """
+        NUEVA FACTURA
+        Cliente
+        no especificado
+        Fecha factura
+        28-02-2026
+        SERVICIOS FEBRERO 2026 BIBIANA
+        1,00 x 1.560,00
+        IVA 1.560,00 21,00% 327,60
+        IRPF 1.560,00 -1,00% -15,60
+        Vencimientos
+        10-03-2026 Pendiente 1.872,00
+        """
+
+        let draft = InvoiceImageImportService.parseDraft(fromRecognizedText: text)
+
+        #expect(draft.clientName == "Bibiana")
+        #expect(draft.issueDate == Calendar.current.date(from: DateComponents(year: 2026, month: 2, day: 28)))
+        #expect(draft.dueDate == Calendar.current.date(from: DateComponents(year: 2026, month: 3, day: 10)))
+        #expect(draft.items.count == 1)
+        #expect(draft.items.first?.description == "Servicios Febrero 2026 Bibiana")
+        #expect(draft.items.first?.quantity == 1)
+        #expect(draft.items.first?.unitPrice == Decimal(string: "1560"))
+        #expect(draft.ivaPercentage == 21)
+        #expect(draft.irpfPercentage == 1)
+    }
+
+    @Test func imageImportClientMatchingRequiresExactNormalizedName() async throws {
+        let clients = [
+            Client(name: "Bibiana"),
+            Client(name: "Otro Cliente")
+        ]
+
+        let matchedClient = InvoiceImageImportService.exactClientMatch(for: "  bíBIANA ", in: clients)
+        let missingClient = InvoiceImageImportService.exactClientMatch(for: "Bibiana Studio", in: clients)
+
+        #expect(matchedClient?.name == "Bibiana")
+        #expect(missingClient == nil)
+    }
+
+    @Test func imageImportServiceUsesHeuristicPathWhenFoundationModelsAreDisabled() async throws {
+        let expectedText = "SERVICIOS FEBRERO 2026 BIBIANA\n1,00 x 1.560,00"
+        let service = InvoiceImageImportService(
+            supportsFoundationModels: false,
+            recognizeTextHandler: { _ in expectedText },
+            foundationModelRefiner: { _, _ in
+                Issue.record("Foundation Models should not run in fallback mode")
+                return ImportedInvoiceDraft()
+            }
+        )
+
+        let draft = try await service.extractDraft(from: Data([0x00]))
+
+        #expect(draft.items.count == 1)
+        #expect(draft.engineDescription == AppleIntelligenceAvailability.importEngineDescription)
+    }
+
+    @Test func imageImportServiceUsesFoundationModelRefinerWhenEnabled() async throws {
+        let expectedText = "SERVICIOS FEBRERO 2026 BIBIANA\n1,00 x 1.560,00"
+        let service = InvoiceImageImportService(
+            supportsFoundationModels: true,
+            recognizeTextHandler: { _ in expectedText },
+            foundationModelRefiner: { _, baseDraft in
+                var refinedDraft = baseDraft
+                refinedDraft.clientName = "Cliente IA"
+                refinedDraft.engineDescription = "Apple Intelligence"
+                return refinedDraft
+            }
+        )
+
+        let draft = try await service.extractDraft(from: Data([0x00]))
+
+        #expect(draft.clientName == "Cliente IA")
+        #expect(draft.engineDescription == "Apple Intelligence")
+    }
+
     @MainActor
     private func makeContainer() throws -> ModelContainer {
         let configuration = ModelConfiguration(isStoredInMemoryOnly: true)
