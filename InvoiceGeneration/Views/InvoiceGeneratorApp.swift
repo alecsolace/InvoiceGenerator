@@ -19,6 +19,7 @@ struct InvoiceGeneratorApp: App {
 /// Main content view
 struct ContentView: View {
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.scenePhase) private var scenePhase
     @AppStorage("hasCompletedOnboarding") private var hasCompletedOnboarding = false
     @State private var selectedTab = 0
     @State private var showingOnboarding = false
@@ -68,6 +69,10 @@ struct ContentView: View {
             #endif
             .presentationDragIndicator(.visible)
             .interactiveDismissDisabled()
+        }
+        .onChange(of: scenePhase) { _, newValue in
+            guard newValue == .active, SharedImageImportStore.hasPendingImport else { return }
+            selectedTab = 0
         }
     }
 

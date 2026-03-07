@@ -1,6 +1,9 @@
 import Foundation
 import SwiftData
 import SwiftUI
+#if os(iOS)
+import PhotosUI
+#endif
 
 struct AddInvoiceView: View {
     @EnvironmentObject private var subscriptionService: SubscriptionService
@@ -49,6 +52,16 @@ struct AddInvoiceView: View {
     @State private var pendingInvoiceSequenceByIssuerID: [UUID: Int] = [:]
     @State private var generatedPDFURL: URL?
     @State private var invoicePendingShareCompletion: Invoice?
+    @State private var importWarnings: [String] = []
+    @State private var importErrorMessage: String?
+    @State private var importEngineDescription = AppleIntelligenceAvailability.importEngineDescription
+    @State private var importConfidence: Double?
+    @State private var isImportingDraft = false
+    @State private var hasConsumedPendingSharedImport = false
+    @State private var pendingImportedOverrides: ImportedInvoiceDraft?
+#if os(iOS)
+    @State private var selectedPhotoImportItem: PhotosPickerItem?
+#endif
 
     init(
         viewModel: InvoiceViewModel,
@@ -64,6 +77,7 @@ struct AddInvoiceView: View {
         NavigationStack {
             Form {
                 modePickerSection
+                importSection
 
                 if creationMode == .quick {
                     quickStepSection
@@ -132,6 +146,7 @@ struct AddInvoiceView: View {
             prepareViewModelsIfNeeded()
             seedDefaultIssuerIfNeeded()
             applySeedIfNeeded()
+            consumePendingSharedImportIfNeeded()
         }
         .onChange(of: selectedClientID) { _, newValue in
             guard let client = clientViewModel?.client(with: newValue) else { return }
@@ -141,11 +156,14 @@ struct AddInvoiceView: View {
                selectedTemplateID != preferredTemplateID {
                 selectedTemplateID = preferredTemplateID
             }
+
+            reapplyPendingImportedDraftIfNeeded()
         }
         .onChange(of: selectedTemplateID) { _, newValue in
             guard let newValue,
                   let template = templateViewModel?.templates.first(where: { $0.id == newValue }) else { return }
             applyTemplateDefaults(from: template)
+            reapplyPendingImportedDraftIfNeeded()
         }
         .onChange(of: selectedIssuerID) { _, newValue in
             selectedIssuerStorage = IssuerSelectionStore.storageValue(from: newValue)
@@ -162,6 +180,15 @@ struct AddInvoiceView: View {
                 hasManuallyEditedInvoiceNumber = true
             }
         }
+#if os(iOS)
+        .onChange(of: selectedPhotoImportItem) { _, newValue in
+            guard let newValue else { return }
+
+            Task {
+                await importFromPhotoLibrary(newValue)
+            }
+        }
+#endif
     }
 
     private var modePickerSection: some View {
@@ -184,6 +211,51 @@ struct AddInvoiceView: View {
                 }
             }
             .pickerStyle(.segmented)
+        }
+    }
+
+    @ViewBuilder
+    private var importSection: some View {
+        Section("Importar captura") {
+#if os(iOS)
+            PhotosPicker(selection: $selectedPhotoImportItem, matching: .images) {
+                Label("Importar desde imagen", systemImage: "photo.badge.plus")
+            }
+            .accessibilityIdentifier("invoice-import-photo")
+#else
+            Text("La importacion desde imagen esta disponible en iOS.")
+                .foregroundStyle(.secondary)
+#endif
+
+            Text("Motor activo: \(importEngineDescription)")
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+
+            if isImportingDraft {
+                ProgressView("Analizando captura…")
+            }
+
+            if let importConfidence {
+                LabeledContent("Confianza", value: "\(Int(importConfidence * 100))%")
+            }
+
+            ForEach(importWarnings, id: \.self) { warning in
+                Label(warning, systemImage: "exclamationmark.triangle")
+                    .font(.footnote)
+                    .foregroundStyle(.orange)
+            }
+
+            if let importErrorMessage {
+                Label(importErrorMessage, systemImage: "xmark.octagon")
+                    .font(.footnote)
+                    .foregroundStyle(.red)
+            }
+
+            if SharedImageImportStore.hasPendingImport {
+                Text("Hay una captura compartida pendiente. Se aplicara automaticamente al abrir este editor.")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            }
         }
     }
 
@@ -452,6 +524,17 @@ struct AddInvoiceView: View {
         }
     }
 
+    private func consumePendingSharedImportIfNeeded() {
+        guard !hasConsumedPendingSharedImport else { return }
+        hasConsumedPendingSharedImport = true
+
+        guard let imageData = SharedImageImportStore.consumePendingImageData() else { return }
+
+        Task {
+            await importImageData(imageData)
+        }
+    }
+
     private func seedDefaultIssuerIfNeeded() {
         let storedIssuerID = IssuerSelectionStore.issuerID(from: selectedIssuerStorage)
         if let storedIssuerID,
@@ -677,6 +760,99 @@ struct AddInvoiceView: View {
 
     private func removeDraftItem(_ item: DraftInvoiceItem) {
         draftItems.removeAll { $0.id == item.id }
+    }
+
+#if os(iOS)
+    private func importFromPhotoLibrary(_ item: PhotosPickerItem) async {
+        do {
+            guard let imageData = try await item.loadTransferable(type: Data.self) else {
+                importErrorMessage = "No se pudo cargar la imagen seleccionada."
+                return
+            }
+
+            await importImageData(imageData)
+        } catch {
+            importErrorMessage = "La seleccion de imagen fallo: \(error.localizedDescription)"
+        }
+    }
+#endif
+
+    @MainActor
+    private func importImageData(_ imageData: Data) async {
+        isImportingDraft = true
+        importErrorMessage = nil
+        importWarnings = []
+
+        do {
+            let service = InvoiceImageImportService()
+            let importedDraft = try await service.extractDraft(from: imageData)
+            applyImportedDraft(importedDraft)
+        } catch {
+            importErrorMessage = error.localizedDescription
+        }
+
+        isImportingDraft = false
+    }
+
+    private func applyImportedDraft(_ draft: ImportedInvoiceDraft) {
+        importWarnings = draft.warnings
+        importConfidence = draft.confidence
+        importEngineDescription = draft.engineDescription
+        pendingImportedOverrides = draft
+
+        if let importedClientName = draft.clientName?.trimmingCharacters(in: .whitespacesAndNewlines),
+           !importedClientName.isEmpty,
+           let matchedClient = InvoiceImageImportService.exactClientMatch(
+                for: importedClientName,
+                in: clientViewModel?.clients ?? []
+           ) {
+            selectedClientID = matchedClient.id
+            applyClientDefaults(from: matchedClient)
+        } else {
+            selectedClientID = nil
+        }
+
+        applyImportedOverrides(from: draft)
+        reapplyPendingImportedDraftIfNeeded()
+    }
+
+    private func reapplyPendingImportedDraftIfNeeded() {
+        guard let pendingImportedOverrides else { return }
+        applyImportedOverrides(from: pendingImportedOverrides)
+        self.pendingImportedOverrides = nil
+    }
+
+    private func applyImportedOverrides(from draft: ImportedInvoiceDraft) {
+        if let importedClientName = draft.clientName?.trimmingCharacters(in: .whitespacesAndNewlines),
+           !importedClientName.isEmpty {
+            clientName = importedClientName
+        }
+
+        if let importedIssueDate = draft.issueDate {
+            issueDate = importedIssueDate
+        }
+
+        if let importedDueDate = draft.dueDate {
+            dueDate = importedDueDate
+        }
+
+        if let ivaPercentage = draft.ivaPercentage {
+            self.ivaPercentage = NSDecimalNumber(decimal: ivaPercentage).stringValue
+        }
+
+        if let irpfPercentage = draft.irpfPercentage {
+            self.irpfPercentage = NSDecimalNumber(decimal: irpfPercentage).stringValue
+        }
+
+        if !draft.items.isEmpty {
+            draftItems = draft.items.map {
+                DraftInvoiceItem(
+                    description: $0.description,
+                    quantity: $0.quantity,
+                    unitPrice: $0.unitPrice
+                )
+            }
+        }
     }
 }
 
