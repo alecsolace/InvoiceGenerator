@@ -200,6 +200,52 @@ final class InvoiceViewModel {
         fetchInvoices()
     }
 
+    func updateInvoice(
+        _ invoice: Invoice,
+        invoiceNumber: String,
+        issuer: Issuer?,
+        clientName: String,
+        clientEmail: String,
+        clientIdentificationNumber: String,
+        clientAddress: String,
+        client: Client?,
+        issueDate: Date,
+        dueDate: Date,
+        notes: String,
+        ivaPercentage: Decimal,
+        irpfPercentage: Decimal,
+        items: [InvoiceLineItemInput]
+    ) {
+        invoice.invoiceNumber = invoiceNumber.trimmingCharacters(in: .whitespacesAndNewlines)
+        invoice.clientName = clientName
+        invoice.clientEmail = clientEmail
+        invoice.clientIdentificationNumber = clientIdentificationNumber
+        invoice.clientAddress = clientAddress
+        invoice.client = client
+        invoice.issuer = issuer
+        invoice.issueDate = issueDate
+        invoice.dueDate = dueDate
+        invoice.notes = notes
+        invoice.ivaPercentage = ivaPercentage
+        invoice.irpfPercentage = irpfPercentage
+
+        if let issuer {
+            invoice.captureIssuerSnapshot(from: issuer)
+            InvoiceNumberingService.registerUsedInvoiceNumber(invoice.invoiceNumber, for: issuer)
+        } else {
+            invoice.issuerName = ""
+            invoice.issuerCode = ""
+            invoice.issuerOwnerName = ""
+            invoice.issuerEmail = ""
+            invoice.issuerPhone = ""
+            invoice.issuerAddress = ""
+            invoice.issuerTaxId = ""
+        }
+
+        replaceItems(for: invoice, with: items)
+        updateInvoice(invoice)
+    }
+
     /// Delete an invoice
     func deleteInvoice(_ invoice: Invoice) {
         modelContext.delete(invoice)
@@ -270,6 +316,32 @@ final class InvoiceViewModel {
         updateStatus(invoice, status: .paid)
     }
 
+    @discardableResult
+    func syncLinkedData(into invoice: Invoice) -> InvoiceSyncResult {
+        var result = InvoiceSyncResult()
+
+        if let client = invoice.client {
+            invoice.clientName = client.name
+            invoice.clientEmail = client.email
+            invoice.clientIdentificationNumber = client.identificationNumber
+            invoice.clientAddress = client.address
+            result.didSyncClient = true
+        } else {
+            result.missingSources.append("cliente")
+        }
+
+        if let issuer = invoice.issuer ?? resolveIssuer(for: invoice) {
+            invoice.issuer = issuer
+            invoice.captureIssuerSnapshot(from: issuer)
+            result.didSyncIssuer = true
+        } else {
+            result.missingSources.append("emisor")
+        }
+
+        updateInvoice(invoice)
+        return result
+    }
+
     /// Search invoices by client name or invoice number
     func searchInvoices(query: String) {
         searchQuery = query
@@ -318,6 +390,24 @@ final class InvoiceViewModel {
         return month.startOfMonth
     }
 
+    private func replaceItems(for invoice: Invoice, with items: [InvoiceLineItemInput]) {
+        for existingItem in invoice.items {
+            modelContext.delete(existingItem)
+        }
+        invoice.items.removeAll()
+
+        for item in items {
+            let invoiceItem = InvoiceItem(
+                description: item.description,
+                quantity: item.quantity,
+                unitPrice: item.unitPrice
+            )
+            invoiceItem.invoice = invoice
+            invoice.items.append(invoiceItem)
+            modelContext.insert(invoiceItem)
+        }
+    }
+
     private func resolveIssuer(for invoice: Invoice) -> Issuer? {
         if let issuer = invoice.issuer {
             return issuer
@@ -345,4 +435,18 @@ struct InvoiceLineItemInput {
     let description: String
     let quantity: Int
     let unitPrice: Decimal
+}
+
+struct InvoiceSyncResult {
+    var didSyncClient = false
+    var didSyncIssuer = false
+    var missingSources: [String] = []
+
+    var message: String {
+        if missingSources.isEmpty {
+            return "Datos sincronizados con el cliente y emisor actuales."
+        }
+
+        return "Sincronizacion parcial. Falta enlace de \(missingSources.joined(separator: " y "))."
+    }
 }

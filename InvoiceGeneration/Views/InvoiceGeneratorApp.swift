@@ -4,6 +4,7 @@ import SwiftData
 /// Main app entry point with SwiftData configuration
 @main
 struct InvoiceGeneratorApp: App {
+    @Environment(\.scenePhase) private var scenePhase
     @StateObject private var subscriptionService = SubscriptionService.shared
     private let modelContainer = PersistenceController.shared
 
@@ -13,12 +14,20 @@ struct InvoiceGeneratorApp: App {
                 .environmentObject(subscriptionService)
         }
         .modelContainer(modelContainer)
+        .onChange(of: scenePhase) { _, newPhase in
+            guard newPhase == .active else { return }
+            Task {
+                await subscriptionService.refreshEntitlements()
+                await subscriptionService.refreshICloudAvailability()
+            }
+        }
     }
 }
 
 /// Main content view
 struct ContentView: View {
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.scenePhase) private var scenePhase
     @AppStorage("hasCompletedOnboarding") private var hasCompletedOnboarding = false
     @State private var selectedTab = 0
     @State private var showingOnboarding = false
@@ -68,6 +77,10 @@ struct ContentView: View {
             #endif
             .presentationDragIndicator(.visible)
             .interactiveDismissDisabled()
+        }
+        .onChange(of: scenePhase) { _, newValue in
+            guard newValue == .active, SharedImageImportStore.hasPendingImport else { return }
+            selectedTab = 0
         }
     }
 

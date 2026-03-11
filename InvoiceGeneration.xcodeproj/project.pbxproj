@@ -16,6 +16,7 @@
 		0D2DB27A2EE1D2B8000C327E /* CONVENTIONS.md in Resources */ = {isa = PBXBuildFile; fileRef = 0D2DB26F2EE1D2B8000C327E /* CONVENTIONS.md */; };
 		0D2DB27B2EE1D2B8000C327E /* LICENSE in Resources */ = {isa = PBXBuildFile; fileRef = 0D2DB2702EE1D2B8000C327E /* LICENSE */; };
 		0D2DB2AC2EE1E500000C327E /* Localizable.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = 0D2DB2AB2EE1E500000C327E /* Localizable.xcstrings */; };
+		A1B2C3D42EE1D2B8000C327E /* InvoiceImageShareExtension.appex in Embed App Extensions */ = {isa = PBXBuildFile; fileRef = A1B2C3CF2EE1D2B8000C327E /* InvoiceImageShareExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -33,7 +34,28 @@
 			remoteGlobalIDString = 0D2DB21D2EE1D275000C327E;
 			remoteInfo = InvoiceGeneration;
 		};
+		A1B2C3D72EE1D2B8000C327E /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 0D2DB2162EE1D275000C327E /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = A1B2C3D02EE1D2B8000C327E;
+			remoteInfo = InvoiceImageShareExtension;
+		};
 /* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		A1B2C3D82EE1D2B8000C327E /* Embed App Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				A1B2C3D42EE1D2B8000C327E /* InvoiceImageShareExtension.appex in Embed App Extensions */,
+			);
+			name = "Embed App Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
 		0D2DB21E2EE1D275000C327E /* InvoiceGeneration.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = InvoiceGeneration.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -48,6 +70,7 @@
 		0D2DB2722EE1D2B8000C327E /* QUICKSTART.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = QUICKSTART.md; sourceTree = "<group>"; };
 		0D2DB2732EE1D2B8000C327E /* VERIFICATION.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = VERIFICATION.md; sourceTree = "<group>"; };
 		0D2DB2AB2EE1E500000C327E /* Localizable.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = Localizable.xcstrings; sourceTree = "<group>"; };
+		A1B2C3CF2EE1D2B8000C327E /* InvoiceImageShareExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = InvoiceImageShareExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -57,6 +80,13 @@
 				Info.plist,
 			);
 			target = 0D2DB21D2EE1D275000C327E /* InvoiceGeneration */;
+		};
+		A1B2C3D62EE1D2B8000C327E /* Exceptions for "InvoiceImageShareExtension" folder in "InvoiceImageShareExtension" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = A1B2C3D02EE1D2B8000C327E /* InvoiceImageShareExtension */;
 		};
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
@@ -77,6 +107,14 @@
 		0D2DB23C2EE1D277000C327E /* InvoiceGenerationUITests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = InvoiceGenerationUITests;
+			sourceTree = "<group>";
+		};
+		A1B2C3D52EE1D2B8000C327E /* InvoiceImageShareExtension */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				A1B2C3D62EE1D2B8000C327E /* Exceptions for "InvoiceImageShareExtension" folder in "InvoiceImageShareExtension" target */,
+			);
+			path = InvoiceImageShareExtension;
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -103,6 +141,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		A1B2C3D12EE1D2B8000C327E /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -121,6 +166,7 @@
 				0D2DB2202EE1D275000C327E /* InvoiceGeneration */,
 				0D2DB2322EE1D277000C327E /* InvoiceGenerationTests */,
 				0D2DB23C2EE1D277000C327E /* InvoiceGenerationUITests */,
+				A1B2C3D52EE1D2B8000C327E /* InvoiceImageShareExtension */,
 				0D2DB21F2EE1D275000C327E /* Products */,
 			);
 			sourceTree = "<group>";
@@ -131,6 +177,7 @@
 				0D2DB21E2EE1D275000C327E /* InvoiceGeneration.app */,
 				0D2DB22F2EE1D277000C327E /* InvoiceGenerationTests.xctest */,
 				0D2DB2392EE1D277000C327E /* InvoiceGenerationUITests.xctest */,
+				A1B2C3CF2EE1D2B8000C327E /* InvoiceImageShareExtension.appex */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -145,10 +192,12 @@
 				0D2DB21A2EE1D275000C327E /* Sources */,
 				0D2DB21B2EE1D275000C327E /* Frameworks */,
 				0D2DB21C2EE1D275000C327E /* Resources */,
+				A1B2C3D82EE1D2B8000C327E /* Embed App Extensions */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				A1B2C3D92EE1D2B8000C327E /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				0D2DB2202EE1D275000C327E /* InvoiceGeneration */,
@@ -206,6 +255,28 @@
 			productReference = 0D2DB2392EE1D277000C327E /* InvoiceGenerationUITests.xctest */;
 			productType = "com.apple.product-type.bundle.ui-testing";
 		};
+		A1B2C3D02EE1D2B8000C327E /* InvoiceImageShareExtension */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = A1B2C3DE2EE1D2B8000C327E /* Build configuration list for PBXNativeTarget "InvoiceImageShareExtension" */;
+			buildPhases = (
+				A1B2C3D22EE1D2B8000C327E /* Sources */,
+				A1B2C3D12EE1D2B8000C327E /* Frameworks */,
+				A1B2C3D32EE1D2B8000C327E /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				A1B2C3D52EE1D2B8000C327E /* InvoiceImageShareExtension */,
+			);
+			name = InvoiceImageShareExtension;
+			packageProductDependencies = (
+			);
+			productName = InvoiceImageShareExtension;
+			productReference = A1B2C3CF2EE1D2B8000C327E /* InvoiceImageShareExtension.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -227,6 +298,9 @@
 						CreatedOnToolsVersion = 26.0;
 						TestTargetID = 0D2DB21D2EE1D275000C327E;
 					};
+					A1B2C3D02EE1D2B8000C327E = {
+						CreatedOnToolsVersion = 26.0;
+					};
 				};
 			};
 			buildConfigurationList = 0D2DB2192EE1D275000C327E /* Build configuration list for PBXProject "InvoiceGeneration" */;
@@ -247,6 +321,7 @@
 				0D2DB21D2EE1D275000C327E /* InvoiceGeneration */,
 				0D2DB22E2EE1D277000C327E /* InvoiceGenerationTests */,
 				0D2DB2382EE1D277000C327E /* InvoiceGenerationUITests */,
+				A1B2C3D02EE1D2B8000C327E /* InvoiceImageShareExtension */,
 			);
 		};
 /* End PBXProject section */
@@ -282,6 +357,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		A1B2C3D32EE1D2B8000C327E /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
@@ -306,6 +388,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		A1B2C3D22EE1D2B8000C327E /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
@@ -319,6 +408,11 @@
 			target = 0D2DB21D2EE1D275000C327E /* InvoiceGeneration */;
 			targetProxy = 0D2DB23A2EE1D277000C327E /* PBXContainerItemProxy */;
 		};
+		A1B2C3D92EE1D2B8000C327E /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = A1B2C3D02EE1D2B8000C327E /* InvoiceImageShareExtension */;
+			targetProxy = A1B2C3D72EE1D2B8000C327E /* PBXContainerItemProxy */;
+		};
 /* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
@@ -328,6 +422,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
+				CODE_SIGN_ENTITLEMENTS = InvoiceGeneration/InvoiceGeneration.entitlements;
 				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
@@ -376,6 +471,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
+				CODE_SIGN_ENTITLEMENTS = InvoiceGeneration/InvoiceGeneration.entitlements;
 				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
@@ -638,6 +734,64 @@
 			};
 			name = Release;
 		};
+		A1B2C3DC2EE1D2B8000C327E /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = InvoiceImageShareExtension/InvoiceImageShareExtension.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = PPH5V74W42;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = InvoiceImageShareExtension/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.alecsolace.InvoiceGeneration.ShareExtension;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = auto;
+				SKIP_INSTALL = YES;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		A1B2C3DD2EE1D2B8000C327E /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = InvoiceImageShareExtension/InvoiceImageShareExtension.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = PPH5V74W42;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = InvoiceImageShareExtension/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.alecsolace.InvoiceGeneration.ShareExtension;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = auto;
+				SKIP_INSTALL = YES;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -673,6 +827,15 @@
 			buildConfigurations = (
 				0D2DB24B2EE1D277000C327E /* Debug */,
 				0D2DB24C2EE1D277000C327E /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		A1B2C3DE2EE1D2B8000C327E /* Build configuration list for PBXNativeTarget "InvoiceImageShareExtension" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				A1B2C3DC2EE1D2B8000C327E /* Debug */,
+				A1B2C3DD2EE1D2B8000C327E /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Debug;

@@ -13,6 +13,9 @@ import AppKit
 struct InvoiceDetailView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
+    #if os(iOS)
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+    #endif
     
     @Bindable var invoice: Invoice
     @Bindable var viewModel: InvoiceViewModel
@@ -31,6 +34,8 @@ struct InvoiceDetailView: View {
     @State private var previewNeedsRefresh = true
     @State private var composerSeed: InvoiceComposerSeed?
     @State private var duplicatedInvoice: Invoice?
+    @State private var syncResultMessage: String?
+    @State private var showingSyncResult = false
     #if canImport(UIKit)
     @State private var showingFullScreenPreview = false
     @State private var fullScreenDocument: PDFDocument?
@@ -151,6 +156,11 @@ struct InvoiceDetailView: View {
                 }
             }
         )
+        .alert("Sincronizacion completada", isPresented: $showingSyncResult) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(syncResultMessage ?? "")
+        }
     }
     
     // MARK: - Sections
@@ -383,31 +393,94 @@ struct InvoiceDetailView: View {
             }
             .frame(height: 360)
             
-            HStack {
-                Button(action: { refreshPreview() }) {
-                    Label("Vista previa", systemImage: "sparkles.rectangle.stack")
-                }
-                .buttonStyle(.borderedProminent)
-                
-                Button(action: { generatePDF() }) {
-                    Label("Generar PDF", systemImage: "doc.fill")
-                }
-                .buttonStyle(.bordered)
-                
-                if savedPDFURL != nil {
-                    Button(action: { shareSavedPDF() }) {
-                        Label("Compartir PDF", systemImage: "square.and.arrow.up")
-                    }
-                }
-
-                Button(action: { sendInvoiceByEmail() }) {
-                    Label("Enviar email", systemImage: "envelope")
-                }
-                .buttonStyle(.bordered)
-            }
+            pdfActionButtons
         }
         .padding(24)
         .glassBackground()
+    }
+
+    @ViewBuilder
+    private var pdfActionButtons: some View {
+        if usesCompactPDFActionLayout {
+            let columns = [
+                GridItem(.flexible(), spacing: 12),
+                GridItem(.flexible(), spacing: 12)
+            ]
+            LazyVGrid(columns: columns, spacing: 12) {
+                pdfPreviewButton
+                pdfGenerateButton
+                pdfSyncButton
+                if savedPDFURL != nil {
+                    pdfShareButton
+                }
+                pdfSendEmailButton
+            }
+        } else {
+            HStack(spacing: 12) {
+                pdfPreviewButton
+                pdfGenerateButton
+                pdfSyncButton
+                if savedPDFURL != nil {
+                    pdfShareButton
+                }
+                pdfSendEmailButton
+            }
+        }
+    }
+
+    private var usesCompactPDFActionLayout: Bool {
+        #if os(iOS)
+        horizontalSizeClass == .compact
+        #else
+        false
+        #endif
+    }
+
+    private var pdfPreviewButton: some View {
+        Button(action: { refreshPreview() }) {
+            actionLabel(title: "Vista previa", systemImage: "sparkles.rectangle.stack")
+        }
+        .buttonStyle(.borderedProminent)
+        .frame(maxWidth: .infinity)
+    }
+
+    private var pdfGenerateButton: some View {
+        Button(action: { generatePDF() }) {
+            actionLabel(title: "Generar PDF", systemImage: "doc.fill")
+        }
+        .buttonStyle(.bordered)
+        .frame(maxWidth: .infinity)
+    }
+
+    private var pdfSyncButton: some View {
+        Button(action: { syncAndRegeneratePDF() }) {
+            actionLabel(title: "Sincronizar y regenerar", systemImage: "arrow.triangle.2.circlepath.doc.on.clipboard")
+        }
+        .buttonStyle(.bordered)
+        .frame(maxWidth: .infinity)
+    }
+
+    private var pdfShareButton: some View {
+        Button(action: { shareSavedPDF() }) {
+            actionLabel(title: "Compartir PDF", systemImage: "square.and.arrow.up")
+        }
+        .buttonStyle(.bordered)
+        .frame(maxWidth: .infinity)
+    }
+
+    private var pdfSendEmailButton: some View {
+        Button(action: { sendInvoiceByEmail() }) {
+            actionLabel(title: "Enviar email", systemImage: "envelope")
+        }
+        .buttonStyle(.bordered)
+        .frame(maxWidth: .infinity)
+    }
+
+    private func actionLabel(title: String, systemImage: String) -> some View {
+        Label(title, systemImage: systemImage)
+            .lineLimit(1)
+            .minimumScaleFactor(0.8)
+            .frame(maxWidth: .infinity)
     }
     
     // MARK: - Components
@@ -417,6 +490,9 @@ struct InvoiceDetailView: View {
             Menu {
                 Button(action: { generatePDF() }) {
                     Label("Generar PDF", systemImage: "doc.fill")
+                }
+                Button(action: { syncAndRegeneratePDF() }) {
+                    Label("Sincronizar y regenerar", systemImage: "arrow.triangle.2.circlepath.doc.on.clipboard")
                 }
                 if savedPDFURL != nil {
                     Button(action: { shareSavedPDF() }) {
@@ -450,7 +526,7 @@ struct InvoiceDetailView: View {
             }
         }
     }
-    
+
     private var backgroundGradient: some View {
         LinearGradient(
             colors: [
@@ -730,6 +806,13 @@ struct InvoiceDetailView: View {
         guard let url = savedPDFURL else { return }
         pdfURL = url
         showingShareSheet = true
+    }
+
+    private func syncAndRegeneratePDF() {
+        let result = viewModel.syncLinkedData(into: invoice)
+        syncResultMessage = result.message
+        showingSyncResult = true
+        _ = generatePDF(showConfirmation: false)
     }
 
     private func saveTemplate() {

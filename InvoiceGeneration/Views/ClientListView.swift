@@ -316,5 +316,5 @@ private extension View {
 
     return ClientListView()
         .modelContainer(container)
-        .environmentObject(SubscriptionService())
+        .environmentObject(try! SubscriptionService(storeConfiguration: .testing, startTasks: false))
 }
