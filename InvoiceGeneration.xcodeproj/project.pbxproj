@@ -16,7 +16,8 @@
 		0D2DB27A2EE1D2B8000C327E /* CONVENTIONS.md in Resources */ = {isa = PBXBuildFile; fileRef = 0D2DB26F2EE1D2B8000C327E /* CONVENTIONS.md */; };
 		0D2DB27B2EE1D2B8000C327E /* LICENSE in Resources */ = {isa = PBXBuildFile; fileRef = 0D2DB2702EE1D2B8000C327E /* LICENSE */; };
 		0D2DB2AC2EE1E500000C327E /* Localizable.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = 0D2DB2AB2EE1E500000C327E /* Localizable.xcstrings */; };
-		A1B2C3D42EE1D2B8000C327E /* InvoiceImageShareExtension.appex in Embed App Extensions */ = {isa = PBXBuildFile; fileRef = A1B2C3CF2EE1D2B8000C327E /* InvoiceImageShareExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		0DD00BBE2F6302A3008DEA72 /* storekit.storekit in Resources */ = {isa = PBXBuildFile; fileRef = 0DD00BBD2F6302A3008DEA72 /* storekit.storekit */; };
+		A1B2C3D42EE1D2B8000C327E /* InvoiceImageShareExtension.appex in Embed App Extensions */ = {isa = PBXBuildFile; fileRef = A1B2C3CF2EE1D2B8000C327E /* InvoiceImageShareExtension.appex */; platformFilter = ios; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -70,6 +71,7 @@
 		0D2DB2722EE1D2B8000C327E /* QUICKSTART.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = QUICKSTART.md; sourceTree = "<group>"; };
 		0D2DB2732EE1D2B8000C327E /* VERIFICATION.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = VERIFICATION.md; sourceTree = "<group>"; };
 		0D2DB2AB2EE1E500000C327E /* Localizable.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = Localizable.xcstrings; sourceTree = "<group>"; };
+		0DD00BBD2F6302A3008DEA72 /* storekit.storekit */ = {isa = PBXFileReference; lastKnownFileType = text; path = storekit.storekit; sourceTree = "<group>"; };
 		A1B2C3CF2EE1D2B8000C327E /* InvoiceImageShareExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = InvoiceImageShareExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
@@ -154,6 +156,7 @@
 		0D2DB2152EE1D275000C327E = {
 			isa = PBXGroup;
 			children = (
+				0DD00BBD2F6302A3008DEA72 /* storekit.storekit */,
 				0D2DB2AB2EE1E500000C327E /* Localizable.xcstrings */,
 				0D2DB26C2EE1D2B8000C327E /* ARCHITECTURE.md */,
 				0D2DB26D2EE1D2B8000C327E /* BUILDING.md */,
@@ -332,6 +335,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				0D2DB2742EE1D2B8000C327E /* CLOUDKIT.md in Resources */,
+				0DD00BBE2F6302A3008DEA72 /* storekit.storekit in Resources */,
 				0D2DB2752EE1D2B8000C327E /* PROJECT_SUMMARY.md in Resources */,
 				0D2DB2762EE1D2B8000C327E /* ARCHITECTURE.md in Resources */,
 				0D2DB2772EE1D2B8000C327E /* QUICKSTART.md in Resources */,
@@ -750,7 +754,7 @@
 					"@executable_path/../../Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.alecsolace.InvoiceGeneration.ShareExtension;
+				PRODUCT_BUNDLE_IDENTIFIER = com.alecsolace.InvoiceFlow.ShareExtension;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = auto;
 				SKIP_INSTALL = YES;
@@ -779,7 +783,7 @@
 					"@executable_path/../../Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.alecsolace.InvoiceGeneration.ShareExtension;
+				PRODUCT_BUNDLE_IDENTIFIER = com.alecsolace.InvoiceFlow.ShareExtension;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = auto;
 				SKIP_INSTALL = YES;

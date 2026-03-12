@@ -66,12 +66,17 @@ final class IssuerViewModel {
 
         modelContext.insert(issuer)
 
-        if saveContext() {
-            fetchIssuers()
-            return issuer
+        guard saveContext() else { return nil }
+        fetchIssuers()
+
+        if SubscriptionService.shared.syncEnabled {
+            Task {
+                do { try await CloudKitService.shared.syncIssuers([issuer]) }
+                catch { PersistenceController.logger.error("CloudKit issuer sync failed: \(error.localizedDescription)") }
+            }
         }
 
-        return nil
+        return issuer
     }
 
     @discardableResult
@@ -111,6 +116,12 @@ final class IssuerViewModel {
         let success = saveContext()
         if success {
             fetchIssuers()
+            if SubscriptionService.shared.syncEnabled {
+                Task {
+                    do { try await CloudKitService.shared.syncIssuers([issuer]) }
+                    catch { PersistenceController.logger.error("CloudKit issuer sync failed: \(error.localizedDescription)") }
+                }
+            }
         }
 
         return success
@@ -123,10 +134,17 @@ final class IssuerViewModel {
             return false
         }
 
+        let issuerID = issuer.id
         modelContext.delete(issuer)
         let success = saveContext()
         if success {
             fetchIssuers()
+            if SubscriptionService.shared.syncEnabled {
+                Task {
+                    do { try await CloudKitService.shared.deleteIssuer(with: issuerID) }
+                    catch { PersistenceController.logger.error("CloudKit issuer delete failed: \(error.localizedDescription)") }
+                }
+            }
         }
         return success
     }
