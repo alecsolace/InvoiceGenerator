@@ -6,15 +6,18 @@ import OSLog
 enum PersistenceController {
     static let logger = Logger(subsystem: "InvoiceGeneration", category: "Persistence")
 
-    static let shared: ModelContainer = makeContainer(inMemory: false)
-    static let preview: ModelContainer = makeContainer(inMemory: true)
+    // swiftlint:disable:next force_try
+    static let preview: ModelContainer = try! makeContainer(inMemory: true)
 
-    private static func makeContainer(inMemory: Bool) -> ModelContainer {
+    // MARK: - Public
+
+    /// Creates the shared ModelContainer. Throws if even the in-memory fallback cannot be created.
+    static func makeContainer(inMemory: Bool = false) throws -> ModelContainer {
         let shouldUseInMemory = inMemory || ProcessInfo.processInfo.arguments.contains("UITEST_USE_IN_MEMORY_STORE")
 
         if shouldUseInMemory {
             let configuration = ModelConfiguration(isStoredInMemoryOnly: true)
-            return try! ModelContainer(
+            return try ModelContainer(
                 for: Invoice.self,
                 InvoiceItem.self,
                 CompanyProfile.self,
@@ -65,10 +68,12 @@ enum PersistenceController {
                 )
             } catch {
                 logger.critical("Disk-backed SwiftData container failed after reset (\(error.localizedDescription)); falling back to in-memory store.")
-                return makeContainer(inMemory: true)
+                return try makeContainer(inMemory: true)
             }
         }
     }
+
+    // MARK: - Private
 
     private static func diskConfiguration() throws -> ModelConfiguration {
         let url = try storeURL()
