@@ -4,21 +4,21 @@ import SwiftData
 /// Main Invoice model with SwiftData support
 @Model
 final class Invoice {
-    var id: UUID
-    var invoiceNumber: String
-    var clientName: String
-    var clientEmail: String
-    var clientIdentificationNumber: String
-    var clientAddress: String
+    var id: UUID = UUID()
+    var invoiceNumber: String = ""
+    var clientName: String = ""
+    var clientEmail: String = ""
+    var clientIdentificationNumber: String = ""
+    var clientAddress: String = ""
 
     // Snapshot of issuer information captured at creation time.
-    var issuerName: String
-    var issuerCode: String
-    var issuerOwnerName: String
-    var issuerEmail: String
-    var issuerPhone: String
-    var issuerAddress: String
-    var issuerTaxId: String
+    var issuerName: String = ""
+    var issuerCode: String = ""
+    var issuerOwnerName: String = ""
+    var issuerEmail: String = ""
+    var issuerPhone: String = ""
+    var issuerAddress: String = ""
+    var issuerTaxId: String = ""
 
     @Relationship(inverse: \Client.invoices)
     var client: Client?
@@ -26,19 +26,19 @@ final class Invoice {
     @Relationship(inverse: \Issuer.invoices)
     var issuer: Issuer?
 
-    var issueDate: Date
-    var dueDate: Date
-    var status: InvoiceStatus
-    var notes: String
-    var totalAmount: Decimal
-    var ivaPercentage: Decimal
-    var irpfPercentage: Decimal
+    var issueDate: Date = Date()
+    var dueDate: Date = Date()
+    var status: InvoiceStatus = InvoiceStatus.draft
+    var notes: String = ""
+    var totalAmount: Decimal = 0
+    var ivaPercentage: Decimal = 0
+    var irpfPercentage: Decimal = 0
 
     @Relationship(deleteRule: .cascade, inverse: \InvoiceItem.invoice)
-    var items: [InvoiceItem]
+    var items: [InvoiceItem]?
 
-    var createdAt: Date
-    var updatedAt: Date
+    var createdAt: Date = Date()
+    var updatedAt: Date = Date()
     var pdfLastGeneratedAt: Date?
 
     init(
@@ -121,7 +121,7 @@ final class Invoice {
     }
 
     var itemsSubtotal: Decimal {
-        items.reduce(0) { $0 + $1.total }
+        (items ?? []).reduce(0) { $0 + $1.total }
     }
 
     var ivaAmount: Decimal {
@@ -168,11 +168,11 @@ extension Invoice {
 /// Individual line item in an invoice
 @Model
 final class InvoiceItem {
-    var id: UUID
-    var itemDescription: String
-    var quantity: Int
-    var unitPrice: Decimal
-    var total: Decimal
+    var id: UUID = UUID()
+    var itemDescription: String = ""
+    var quantity: Int = 0
+    var unitPrice: Decimal = 0
+    var total: Decimal = 0
 
     var invoice: Invoice?
 

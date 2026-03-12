@@ -4,28 +4,30 @@ import SwiftData
 /// Reusable monthly invoice preset tied to a client and issuer.
 @Model
 final class InvoiceTemplate {
-    var id: UUID
-    var name: String
+    var id: UUID = UUID()
+    var name: String = ""
 
+    @Relationship(deleteRule: .nullify, inverse: \Client.templates)
     var client: Client?
 
+    @Relationship(deleteRule: .nullify, inverse: \Issuer.templates)
     var issuer: Issuer?
 
     // Snapshot fields keep the template usable even when related entities change.
-    var clientName: String
-    var clientEmail: String
-    var clientIdentificationNumber: String
-    var clientAddress: String
-    var dueDays: Int
-    var ivaPercentage: Decimal
-    var irpfPercentage: Decimal
-    var notes: String
+    var clientName: String = ""
+    var clientEmail: String = ""
+    var clientIdentificationNumber: String = ""
+    var clientAddress: String = ""
+    var dueDays: Int = 0
+    var ivaPercentage: Decimal = 0
+    var irpfPercentage: Decimal = 0
+    var notes: String = ""
 
     @Relationship(deleteRule: .cascade, inverse: \InvoiceTemplateItem.template)
-    var items: [InvoiceTemplateItem]
+    var items: [InvoiceTemplateItem]?
 
-    var createdAt: Date
-    var updatedAt: Date
+    var createdAt: Date = Date()
+    var updatedAt: Date = Date()
 
     init(
         id: UUID = UUID(),
@@ -77,11 +79,11 @@ final class InvoiceTemplate {
 
 @Model
 final class InvoiceTemplateItem {
-    var id: UUID
-    var itemDescription: String
-    var quantity: Int
-    var unitPrice: Decimal
-    var sortOrder: Int
+    var id: UUID = UUID()
+    var itemDescription: String = ""
+    var quantity: Int = 0
+    var unitPrice: Decimal = 0
+    var sortOrder: Int = 0
 
     var template: InvoiceTemplate?
 
