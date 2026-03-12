@@ -133,7 +133,7 @@ final class CloudKitService {
     func fetchClients() async throws -> [CKRecord] {
         try guardSyncReady()
         let query = CKQuery(recordType: clientRecordType, predicate: NSPredicate(value: true))
-        query.sortDescriptors = [NSSortDescriptor(key: "modifiedAt", ascending: false)]
+        query.sortDescriptors = [NSSortDescriptor(key: "modificationDate", ascending: false)]
 
         let (matchResults, _) = try await privateDatabase.records(matching: query)
 
@@ -175,7 +175,7 @@ final class CloudKitService {
     func fetchIssuers() async throws -> [CKRecord] {
         try guardSyncReady()
         let query = CKQuery(recordType: issuerRecordType, predicate: NSPredicate(value: true))
-        query.sortDescriptors = [NSSortDescriptor(key: "modifiedAt", ascending: false)]
+        query.sortDescriptors = [NSSortDescriptor(key: "modificationDate", ascending: false)]
 
         let (matchResults, _) = try await privateDatabase.records(matching: query)
 
