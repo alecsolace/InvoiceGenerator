@@ -1,24 +1,38 @@
-import SwiftUI
+import OSLog
 import SwiftData
+import SwiftUI
 
 /// Main app entry point with SwiftData configuration
 @main
 struct InvoiceGeneratorApp: App {
     @Environment(\.scenePhase) private var scenePhase
     @StateObject private var subscriptionService = SubscriptionService.shared
-    private let modelContainer = PersistenceController.shared
+
+    private static let containerResult: Result<ModelContainer, Error> = {
+        do {
+            return .success(try PersistenceController.makeContainer())
+        } catch {
+            PersistenceController.logger.critical("ModelContainer failed to initialize: \(error.localizedDescription)")
+            return .failure(error)
+        }
+    }()
 
     var body: some Scene {
         WindowGroup {
-            ContentView()
-                .environmentObject(subscriptionService)
-        }
-        .modelContainer(modelContainer)
-        .onChange(of: scenePhase) { _, newPhase in
-            guard newPhase == .active else { return }
-            Task {
-                await subscriptionService.refreshEntitlements()
-                await subscriptionService.refreshICloudAvailability()
+            switch Self.containerResult {
+            case .success(let container):
+                ContentView()
+                    .environmentObject(subscriptionService)
+                    .modelContainer(container)
+                    .onChange(of: scenePhase) { _, newPhase in
+                        guard newPhase == .active else { return }
+                        Task {
+                            await subscriptionService.refreshEntitlements()
+                            await subscriptionService.refreshICloudAvailability()
+                        }
+                    }
+            case .failure(let error):
+                PersistenceErrorView(error: error)
             }
         }
     }

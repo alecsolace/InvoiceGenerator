@@ -1,4 +1,5 @@
 import Foundation
+import OSLog
 import StoreKit
 import Combine
 
@@ -56,11 +57,17 @@ final class SubscriptionService: ObservableObject {
         }
     }
 
+    private static let logger = Logger(subsystem: "InvoiceGeneration", category: "StoreKit")
+
     static let shared: SubscriptionService = {
         do {
             return try SubscriptionService(storeConfiguration: StoreConfiguration.load())
         } catch {
-            fatalError("Invalid StoreKit configuration: \(error.localizedDescription)")
+            logger.critical("StoreKit configuration invalid: \(error.localizedDescription). Running in free-tier mode.")
+            // StoreConfiguration.testing has hardcoded valid non-empty product IDs, so this init cannot throw.
+            // startTasks: false prevents StoreKit calls with invalid identifiers.
+            // swiftlint:disable:next force_try
+            return try! SubscriptionService(storeConfiguration: .testing, startTasks: false)
         }
     }()
 
