@@ -285,12 +285,12 @@ struct InvoiceDetailView: View {
                 .buttonStyle(.borderedProminent)
             }
             
-            if invoice.items.isEmpty {
+            if (invoice.items ?? []).isEmpty {
                 Text("Aun no hay conceptos. Anadelos para calcular los totales.")
                     .foregroundStyle(.secondary)
             } else {
                 VStack(spacing: 12) {
-                    ForEach(invoice.items) { item in
+                    ForEach(invoice.items ?? []) { item in
                         itemCard(for: item)
                     }
                 }
