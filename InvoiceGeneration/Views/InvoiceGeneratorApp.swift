@@ -172,10 +172,20 @@ private func performCloudKitFetch(container: ModelContainer) async {
                 if let address = record["address"] as? String { issuer.address = address }
                 if let taxId = record["taxId"] as? String { issuer.taxId = taxId }
                 if let seq = record["nextInvoiceSequence"] as? Int { issuer.nextInvoiceSequence = seq }
-                issuer.logoData = record["logoData"] as? Data
+                if let asset = record["logoData"] as? CKAsset, let fileURL = asset.fileURL {
+                    issuer.logoData = try? Data(contentsOf: fileURL)
+                } else {
+                    issuer.logoData = nil
+                }
             } else {
                 guard let name = record["name"] as? String,
                       let code = record["code"] as? String else { continue }
+                let logoData: Data?
+                if let asset = record["logoData"] as? CKAsset, let fileURL = asset.fileURL {
+                    logoData = try? Data(contentsOf: fileURL)
+                } else {
+                    logoData = nil
+                }
                 let issuer = Issuer(
                     name: name,
                     code: code,
@@ -184,7 +194,7 @@ private func performCloudKitFetch(container: ModelContainer) async {
                     phone: record["phone"] as? String ?? "",
                     address: record["address"] as? String ?? "",
                     taxId: record["taxId"] as? String ?? "",
-                    logoData: record["logoData"] as? Data,
+                    logoData: logoData,
                     nextInvoiceSequence: record["nextInvoiceSequence"] as? Int ?? 1
                 )
                 context.insert(issuer)

@@ -304,7 +304,15 @@ final class CloudKitService {
         record["updatedAt"] = issuer.updatedAt as CKRecordValue
 
         if let logo = issuer.logoData {
-            record["logoData"] = logo as CKRecordValue
+            let tempURL = FileManager.default.temporaryDirectory
+                .appendingPathComponent(UUID().uuidString)
+                .appendingPathExtension("dat")
+            do {
+                try logo.write(to: tempURL)
+                record["logoData"] = CKAsset(fileURL: tempURL)
+            } catch {
+                logger.error("Failed to write logoData to temp file: \(error.localizedDescription)")
+            }
         }
 
         return record
