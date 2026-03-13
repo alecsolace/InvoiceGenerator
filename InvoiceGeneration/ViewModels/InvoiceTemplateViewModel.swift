@@ -86,7 +86,7 @@ final class InvoiceTemplateViewModel {
                 sortOrder: index
             )
             templateItem.template = template
-            template.items.append(templateItem)
+            template.items?.append(templateItem)
             modelContext.insert(templateItem)
         }
 
@@ -110,7 +110,7 @@ final class InvoiceTemplateViewModel {
             ? suggestedName!
             : "\(invoice.clientName) mensual"
 
-        let items = invoice.items.enumerated().map { index, item in
+        let items = (invoice.items ?? []).enumerated().map { index, item in
             TemplateLineItemInput(
                 description: item.itemDescription,
                 quantity: item.quantity,

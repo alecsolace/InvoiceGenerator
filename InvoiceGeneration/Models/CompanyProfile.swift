@@ -4,17 +4,17 @@ import SwiftData
 /// Company or user profile information
 @Model
 final class CompanyProfile {
-    var id: UUID
-    var companyName: String
-    var ownerName: String
-    var email: String
-    var phone: String
-    var address: String
-    var taxId: String
+    var id: UUID = UUID()
+    var companyName: String = ""
+    var ownerName: String = ""
+    var email: String = ""
+    var phone: String = ""
+    var address: String = ""
+    var taxId: String = ""
     var logoData: Data?
-    
-    var createdAt: Date
-    var updatedAt: Date
+
+    var createdAt: Date = Date()
+    var updatedAt: Date = Date()
     
     init(
         id: UUID = UUID(),

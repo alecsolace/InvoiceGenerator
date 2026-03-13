@@ -330,7 +330,7 @@ final class PDFGeneratorService {
 
         yPosition = headerRect.maxY + 6
 
-        for (index, item) in invoice.items.enumerated() {
+        for (index, item) in (invoice.items ?? []).enumerated() {
             let descriptionHeight = height(for: item.itemDescription, style: cellStyle, width: descriptionWidth)
             let rowHeight = max(26, descriptionHeight + 8)
             if index.isMultiple(of: 2) {

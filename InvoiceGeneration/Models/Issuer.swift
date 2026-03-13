@@ -4,24 +4,27 @@ import SwiftData
 /// Issuer profile used as the sender entity for invoices.
 @Model
 final class Issuer {
-    var id: UUID
-    var name: String
+    var id: UUID = UUID()
+    var name: String = ""
     /// Unique invoice prefix (for example: FAM, ANA).
-    var code: String
-    var ownerName: String
-    var email: String
-    var phone: String
-    var address: String
-    var taxId: String
+    var code: String = ""
+    var ownerName: String = ""
+    var email: String = ""
+    var phone: String = ""
+    var address: String = ""
+    var taxId: String = ""
     var logoData: Data?
     /// Next sequence to be used when generating invoice numbers.
-    var nextInvoiceSequence: Int
+    var nextInvoiceSequence: Int = 1
 
     @Relationship(deleteRule: .nullify)
     var invoices: [Invoice]?
 
-    var createdAt: Date
-    var updatedAt: Date
+    @Relationship(deleteRule: .nullify)
+    var templates: [InvoiceTemplate]?
+
+    var createdAt: Date = Date()
+    var updatedAt: Date = Date()
 
     init(
         id: UUID = UUID(),

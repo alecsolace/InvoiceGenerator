@@ -1,5 +1,6 @@
 import Foundation
 import CloudKit
+import OSLog
 
 enum ICloudAvailability: Equatable {
     case available
@@ -31,11 +32,20 @@ final class CloudKitService {
 
     private let container: CKContainer
     private let privateDatabase: CKDatabase
+    private let logger = Logger(subsystem: "InvoiceGeneration", category: "CloudKit")
+
+    // MARK: - Record Type Constants
+
+    private let invoiceRecordType = "Invoice"
+    private let clientRecordType = "Client"
+    private let issuerRecordType = "Issuer"
 
     private init() {
         container = CKContainer.default()
         privateDatabase = container.privateCloudDatabase
     }
+
+    // MARK: - Account
 
     func fetchAccountAvailability() async -> ICloudAvailability {
         do {
@@ -58,6 +68,8 @@ final class CloudKitService {
         }
     }
 
+    // MARK: - Invoices
+
     /// Sync invoices to CloudKit when the app is commercially and technically eligible.
     func syncInvoices(_ invoices: [Invoice]) async throws {
         try guardSyncReady()
@@ -77,7 +89,7 @@ final class CloudKitService {
     /// Fetch invoices from CloudKit
     func fetchInvoices() async throws -> [CKRecord] {
         try guardSyncReady()
-        let query = CKQuery(recordType: "Invoice", predicate: NSPredicate(value: true))
+        let query = CKQuery(recordType: invoiceRecordType, predicate: NSPredicate(value: true))
         query.sortDescriptors = [NSSortDescriptor(key: "issueDate", ascending: false)]
 
         let (matchResults, _) = try await privateDatabase.records(matching: query)
@@ -88,22 +100,140 @@ final class CloudKitService {
             case .success(let record):
                 records.append(record)
             case .failure(let error):
-                print("Error fetching record: \(error)")
+                logger.error("Error fetching record: \(error.localizedDescription)")
             }
         }
 
         return records
     }
 
-    /// Save a single record to CloudKit
+    /// Delete record from CloudKit
+    func deleteInvoice(with id: UUID) async throws {
+        try guardSyncReady()
+        let recordID = CKRecord.ID(recordName: id.uuidString)
+        try await privateDatabase.deleteRecord(withID: recordID)
+    }
+
+    // MARK: - Clients
+
+    func syncClients(_ clients: [Client]) async throws {
+        try guardSyncReady()
+        let records = clients.map { clientToRecord($0) }
+
+        try await withThrowingTaskGroup(of: Void.self) { group in
+            for record in records {
+                group.addTask {
+                    try await self.saveRecord(record)
+                }
+            }
+            try await group.waitForAll()
+        }
+    }
+
+    func fetchClients() async throws -> [CKRecord] {
+        try guardSyncReady()
+        let query = CKQuery(recordType: clientRecordType, predicate: NSPredicate(value: true))
+        query.sortDescriptors = [NSSortDescriptor(key: "modifiedAt", ascending: false)]
+
+        let (matchResults, _) = try await privateDatabase.records(matching: query)
+
+        var records: [CKRecord] = []
+        for (_, result) in matchResults {
+            switch result {
+            case .success(let record):
+                records.append(record)
+            case .failure(let error):
+                logger.error("Error fetching client record: \(error.localizedDescription)")
+            }
+        }
+
+        return records
+    }
+
+    func deleteClient(with id: UUID) async throws {
+        try guardSyncReady()
+        let recordID = CKRecord.ID(recordName: id.uuidString)
+        try await privateDatabase.deleteRecord(withID: recordID)
+    }
+
+    // MARK: - Issuers
+
+    func syncIssuers(_ issuers: [Issuer]) async throws {
+        try guardSyncReady()
+        let records = issuers.map { issuerToRecord($0) }
+
+        try await withThrowingTaskGroup(of: Void.self) { group in
+            for record in records {
+                group.addTask {
+                    try await self.saveRecord(record)
+                }
+            }
+            try await group.waitForAll()
+        }
+    }
+
+    func fetchIssuers() async throws -> [CKRecord] {
+        try guardSyncReady()
+        let query = CKQuery(recordType: issuerRecordType, predicate: NSPredicate(value: true))
+        query.sortDescriptors = [NSSortDescriptor(key: "modifiedAt", ascending: false)]
+
+        let (matchResults, _) = try await privateDatabase.records(matching: query)
+
+        var records: [CKRecord] = []
+        for (_, result) in matchResults {
+            switch result {
+            case .success(let record):
+                records.append(record)
+            case .failure(let error):
+                logger.error("Error fetching issuer record: \(error.localizedDescription)")
+            }
+        }
+
+        return records
+    }
+
+    func deleteIssuer(with id: UUID) async throws {
+        try guardSyncReady()
+        let recordID = CKRecord.ID(recordName: id.uuidString)
+        try await privateDatabase.deleteRecord(withID: recordID)
+    }
+
+    // MARK: - Subscription
+
+    /// Subscribe to changes in CloudKit
+    func setupSubscription() async throws {
+        try guardSyncReady()
+        let subscription = CKQuerySubscription(
+            recordType: invoiceRecordType,
+            predicate: NSPredicate(value: true),
+            options: [.firesOnRecordCreation, .firesOnRecordUpdate, .firesOnRecordDeletion]
+        )
+
+        let notificationInfo = CKSubscription.NotificationInfo()
+        notificationInfo.shouldSendContentAvailable = true
+        subscription.notificationInfo = notificationInfo
+
+        try await privateDatabase.save(subscription)
+    }
+
+    // MARK: - Private Helpers
+
     private func saveRecord(_ record: CKRecord) async throws {
         try await privateDatabase.save(record)
     }
 
-    /// Convert Invoice to CKRecord
+    private func guardSyncReady() throws {
+        let syncStatus = SubscriptionService.shared.syncStatus
+        if syncStatus != .ready {
+            throw CloudKitServiceError.syncNotReady(syncStatus)
+        }
+    }
+
+    // MARK: - Record Mapping
+
     private func invoiceToRecord(_ invoice: Invoice) -> CKRecord {
         let recordID = CKRecord.ID(recordName: invoice.id.uuidString)
-        let record = CKRecord(recordType: "Invoice", recordID: recordID)
+        let record = CKRecord(recordType: invoiceRecordType, recordID: recordID)
 
         record["invoiceNumber"] = invoice.invoiceNumber as CKRecordValue
         record["issuerName"] = invoice.issuerName as CKRecordValue
@@ -131,33 +261,60 @@ final class CloudKitService {
         return record
     }
 
-    /// Delete record from CloudKit
-    func deleteInvoice(with id: UUID) async throws {
-        try guardSyncReady()
-        let recordID = CKRecord.ID(recordName: id.uuidString)
-        try await privateDatabase.deleteRecord(withID: recordID)
-    }
+    private func clientToRecord(_ client: Client) -> CKRecord {
+        let recordID = CKRecord.ID(recordName: client.id.uuidString)
+        let record = CKRecord(recordType: clientRecordType, recordID: recordID)
 
-    /// Subscribe to changes in CloudKit
-    func setupSubscription() async throws {
-        try guardSyncReady()
-        let subscription = CKQuerySubscription(
-            recordType: "Invoice",
-            predicate: NSPredicate(value: true),
-            options: [.firesOnRecordCreation, .firesOnRecordUpdate, .firesOnRecordDeletion]
-        )
+        record["name"] = client.name as CKRecordValue
+        record["email"] = client.email as CKRecordValue
+        record["address"] = client.address as CKRecordValue
+        record["identificationNumber"] = client.identificationNumber as CKRecordValue
+        record["accentColorHex"] = client.accentColorHex as CKRecordValue
+        record["defaultDueDays"] = client.defaultDueDays as CKRecordValue
+        record["defaultNotes"] = client.defaultNotes as CKRecordValue
+        record["createdAt"] = client.createdAt as CKRecordValue
+        record["updatedAt"] = client.updatedAt as CKRecordValue
 
-        let notificationInfo = CKSubscription.NotificationInfo()
-        notificationInfo.shouldSendContentAvailable = true
-        subscription.notificationInfo = notificationInfo
-
-        try await privateDatabase.save(subscription)
-    }
-
-    private func guardSyncReady() throws {
-        let syncStatus = SubscriptionService.shared.syncStatus
-        if syncStatus != .ready {
-            throw CloudKitServiceError.syncNotReady(syncStatus)
+        if let iva = client.defaultIVAPercentage {
+            record["defaultIVAPercentage"] = iva as NSDecimalNumber as CKRecordValue
         }
+        if let irpf = client.defaultIRPFPercentage {
+            record["defaultIRPFPercentage"] = irpf as NSDecimalNumber as CKRecordValue
+        }
+        if let templateID = client.preferredTemplateID {
+            record["preferredTemplateID"] = templateID.uuidString as CKRecordValue
+        }
+
+        return record
+    }
+
+    private func issuerToRecord(_ issuer: Issuer) -> CKRecord {
+        let recordID = CKRecord.ID(recordName: issuer.id.uuidString)
+        let record = CKRecord(recordType: issuerRecordType, recordID: recordID)
+
+        record["name"] = issuer.name as CKRecordValue
+        record["code"] = issuer.code as CKRecordValue
+        record["ownerName"] = issuer.ownerName as CKRecordValue
+        record["email"] = issuer.email as CKRecordValue
+        record["phone"] = issuer.phone as CKRecordValue
+        record["address"] = issuer.address as CKRecordValue
+        record["taxId"] = issuer.taxId as CKRecordValue
+        record["nextInvoiceSequence"] = issuer.nextInvoiceSequence as CKRecordValue
+        record["createdAt"] = issuer.createdAt as CKRecordValue
+        record["updatedAt"] = issuer.updatedAt as CKRecordValue
+
+        if let logo = issuer.logoData {
+            let tempURL = FileManager.default.temporaryDirectory
+                .appendingPathComponent(UUID().uuidString)
+                .appendingPathExtension("dat")
+            do {
+                try logo.write(to: tempURL)
+                record["logoData"] = CKAsset(fileURL: tempURL)
+            } catch {
+                logger.error("Failed to write logoData to temp file: \(error.localizedDescription)")
+            }
+        }
+
+        return record
     }
 }

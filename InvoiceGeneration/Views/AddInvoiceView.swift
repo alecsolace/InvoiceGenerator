@@ -618,7 +618,7 @@ struct AddInvoiceView: View {
         ivaPercentage = NSDecimalNumber(decimal: template.ivaPercentage).stringValue
         irpfPercentage = NSDecimalNumber(decimal: template.irpfPercentage).stringValue
         notes = template.notes
-        draftItems = template.items
+        draftItems = (template.items ?? [])
             .sorted { $0.sortOrder < $1.sortOrder }
             .map {
                 DraftInvoiceItem(
@@ -644,7 +644,7 @@ struct AddInvoiceView: View {
         ivaPercentage = NSDecimalNumber(decimal: invoice.ivaPercentage).stringValue
         irpfPercentage = NSDecimalNumber(decimal: invoice.irpfPercentage).stringValue
         notes = invoice.notes
-        draftItems = invoice.items.map {
+        draftItems = (invoice.items ?? []).map {
             DraftInvoiceItem(
                 description: $0.itemDescription,
                 quantity: $0.quantity,
