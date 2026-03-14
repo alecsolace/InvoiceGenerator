@@ -17,6 +17,10 @@ final class Client {
     var defaultIVAPercentage: Decimal?
     var defaultIRPFPercentage: Decimal?
     var defaultNotes: String = ""
+    /// Custom invoice code prefix for this client. Empty string means fall back to the issuer code.
+    var invoiceCode: String = ""
+    /// Next sequence number to use when generating invoice numbers for this client.
+    var nextInvoiceSequence: Int = 1
     var preferredTemplateID: UUID?
 
     @Relationship(deleteRule: .nullify)
@@ -41,6 +45,8 @@ final class Client {
         defaultIVAPercentage: Decimal? = nil,
         defaultIRPFPercentage: Decimal? = nil,
         defaultNotes: String = "",
+        invoiceCode: String = "",
+        nextInvoiceSequence: Int = 1,
         preferredTemplateID: UUID? = nil
     ) {
         self.id = id
@@ -53,6 +59,8 @@ final class Client {
         self.defaultIVAPercentage = defaultIVAPercentage
         self.defaultIRPFPercentage = defaultIRPFPercentage
         self.defaultNotes = defaultNotes
+        self.invoiceCode = invoiceCode
+        self.nextInvoiceSequence = max(nextInvoiceSequence, 1)
         self.preferredTemplateID = preferredTemplateID
         self.createdAt = Date()
         self.updatedAt = Date()

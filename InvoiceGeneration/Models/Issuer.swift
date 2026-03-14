@@ -14,6 +14,8 @@ final class Issuer {
     var address: String = ""
     var taxId: String = ""
     var logoData: Data?
+    /// Default notes/observations to pre-fill when creating invoices from this issuer.
+    var defaultNotes: String = ""
     /// Next sequence to be used when generating invoice numbers.
     var nextInvoiceSequence: Int = 1
 
@@ -36,6 +38,7 @@ final class Issuer {
         address: String = "",
         taxId: String = "",
         logoData: Data? = nil,
+        defaultNotes: String = "",
         nextInvoiceSequence: Int = 1
     ) {
         self.id = id
@@ -47,6 +50,7 @@ final class Issuer {
         self.address = address
         self.taxId = taxId
         self.logoData = logoData
+        self.defaultNotes = defaultNotes
         self.nextInvoiceSequence = max(nextInvoiceSequence, 1)
         self.createdAt = Date()
         self.updatedAt = Date()

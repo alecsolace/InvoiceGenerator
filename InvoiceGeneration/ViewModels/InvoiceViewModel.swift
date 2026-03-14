@@ -114,7 +114,11 @@ final class InvoiceViewModel {
             modelContext.insert(invoiceItem)
         }
 
-        InvoiceNumberingService.registerUsedInvoiceNumber(invoiceNumber, for: issuer)
+        if let client {
+            InvoiceNumberingService.registerUsedInvoiceNumber(invoiceNumber, for: client, issuer: issuer)
+        } else {
+            InvoiceNumberingService.registerUsedInvoiceNumber(invoiceNumber, for: issuer)
+        }
         invoice.calculateTotal()
         guard saveContext() else { return nil }
         fetchInvoices()
@@ -149,8 +153,12 @@ final class InvoiceViewModel {
                 )
             }
 
+        let invoiceNum = template.client.map {
+            InvoiceNumberingService.nextInvoiceNumber(for: $0, issuer: issuer)
+        } ?? InvoiceNumberingService.nextInvoiceNumber(for: issuer)
+
         return createInvoice(
-            invoiceNumber: InvoiceNumberingService.nextInvoiceNumber(for: issuer),
+            invoiceNumber: invoiceNum,
             issuer: issuer,
             clientName: template.client?.name ?? template.clientName,
             clientEmail: template.client?.email ?? template.clientEmail,
@@ -183,8 +191,12 @@ final class InvoiceViewModel {
             )
         }
 
+        let invoiceNum = invoice.client.map {
+            InvoiceNumberingService.nextInvoiceNumber(for: $0, issuer: issuer)
+        } ?? InvoiceNumberingService.nextInvoiceNumber(for: issuer)
+
         return createInvoice(
-            invoiceNumber: InvoiceNumberingService.nextInvoiceNumber(for: issuer),
+            invoiceNumber: invoiceNum,
             issuer: issuer,
             clientName: invoice.clientName,
             clientEmail: invoice.clientEmail,
@@ -246,7 +258,11 @@ final class InvoiceViewModel {
 
         if let issuer {
             invoice.captureIssuerSnapshot(from: issuer)
-            InvoiceNumberingService.registerUsedInvoiceNumber(invoice.invoiceNumber, for: issuer)
+            if let client {
+                InvoiceNumberingService.registerUsedInvoiceNumber(invoice.invoiceNumber, for: client, issuer: issuer)
+            } else {
+                InvoiceNumberingService.registerUsedInvoiceNumber(invoice.invoiceNumber, for: issuer)
+            }
         } else {
             invoice.issuerName = ""
             invoice.issuerCode = ""

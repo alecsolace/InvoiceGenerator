@@ -52,6 +52,7 @@ final class ClientViewModel {
         defaultIVAPercentage: Decimal? = nil,
         defaultIRPFPercentage: Decimal? = nil,
         defaultNotes: String = "",
+        invoiceCode: String = "",
         preferredTemplateID: UUID? = nil
     ) -> Client? {
         let client = Client(
@@ -64,6 +65,7 @@ final class ClientViewModel {
             defaultIVAPercentage: defaultIVAPercentage,
             defaultIRPFPercentage: defaultIRPFPercentage,
             defaultNotes: defaultNotes,
+            invoiceCode: invoiceCode,
             preferredTemplateID: preferredTemplateID
         )
         modelContext.insert(client)
@@ -99,6 +101,7 @@ final class ClientViewModel {
         defaultIVAPercentage: Decimal?,
         defaultIRPFPercentage: Decimal?,
         defaultNotes: String,
+        invoiceCode: String = "",
         preferredTemplateID: UUID?
     ) -> Bool {
         client.name = name
@@ -110,6 +113,7 @@ final class ClientViewModel {
         client.defaultIVAPercentage = defaultIVAPercentage
         client.defaultIRPFPercentage = defaultIRPFPercentage
         client.defaultNotes = defaultNotes
+        client.invoiceCode = invoiceCode
         client.preferredTemplateID = preferredTemplateID
         client.updateTimestamp()
 
