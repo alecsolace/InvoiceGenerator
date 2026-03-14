@@ -151,7 +151,12 @@ struct InvoiceEditorSections: View {
                             .buttonStyle(.plain)
                         }
                     }
+
+#if os(macOS)
+                    .padding(.vertical, 8)
+#else
                     .padding(.vertical, 4)
+#endif
                 }
             }
 
@@ -276,6 +281,9 @@ struct InvoiceDraftItemEditor: View {
                     }
                 }
             }
+#if os(macOS)
+            .formStyle(.grouped)
+#endif
             .navigationTitle(mode.title)
 #if os(iOS)
             .navigationBarTitleDisplayMode(.inline)
@@ -295,6 +303,9 @@ struct InvoiceDraftItemEditor: View {
                 }
             }
         }
+#if os(macOS)
+        .frame(minWidth: 360, idealWidth: 420, maxWidth: 520, minHeight: 280, idealHeight: 360)
+#endif
     }
 
     private var isValid: Bool {
