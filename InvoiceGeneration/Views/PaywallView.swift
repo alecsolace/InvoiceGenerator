@@ -1,10 +1,4 @@
 import SwiftUI
-#if canImport(UIKit)
-import UIKit
-#endif
-#if canImport(AppKit)
-import AppKit
-#endif
 
 enum PaywallReason {
     case clientLimit
@@ -278,35 +272,12 @@ struct PaywallView: View {
     }
 
     private var backgroundGradient: some View {
-        LinearGradient(
-            colors: [
-                Color.accentColor.opacity(0.15),
-                platformBackgroundColor
-            ],
-            startPoint: .topLeading,
-            endPoint: .bottomTrailing
-        )
-        .ignoresSafeArea()
-    }
-
-    private var platformBackgroundColor: Color {
-        #if canImport(UIKit)
-        return Color(.systemBackground)
-        #elseif canImport(AppKit)
-        return Color(NSColor.windowBackgroundColor)
-        #else
-        return Color.white
-        #endif
+        Color.appBackground
+            .ignoresSafeArea()
     }
 
     private var cardBackgroundColor: Color {
-        #if canImport(UIKit)
-        return Color(.secondarySystemBackground)
-        #elseif canImport(AppKit)
-        return Color(NSColor.windowBackgroundColor)
-        #else
-        return Color.white
-        #endif
+        Color.cardBackground
     }
 }
 

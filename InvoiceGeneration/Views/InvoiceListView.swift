@@ -1,35 +1,6 @@
 import SwiftData
 import SwiftUI
 
-#if os(iOS)
-import UIKit
-#endif
-#if os(macOS)
-import AppKit
-#endif
-
-private enum PlatformColors {
-    static var systemBackground: Color {
-        #if os(iOS)
-        return Color(UIColor.systemBackground)
-        #elseif os(macOS)
-        return Color(NSColor.windowBackgroundColor)
-        #else
-        return Color(.white)
-        #endif
-    }
-
-    static var secondarySystemBackground: Color {
-        #if os(iOS)
-        return Color(UIColor.secondarySystemBackground)
-        #elseif os(macOS)
-        return Color(NSColor.underPageBackgroundColor)
-        #else
-        return Color(.white)
-        #endif
-    }
-}
-
 struct InvoiceListView: View {
     @Environment(\.modelContext) private var modelContext
 
@@ -55,6 +26,7 @@ struct InvoiceListView: View {
                 filterBar
                 content
             }
+            .background(Color.appBackground.ignoresSafeArea())
             .navigationTitle("Facturas")
             .searchable(text: $searchText, prompt: "Buscar por cliente, numero o emisor")
             .toolbar {
@@ -202,7 +174,7 @@ struct InvoiceListView: View {
             .padding(.horizontal)
             .padding(.vertical, 12)
         }
-        .background(PlatformColors.systemBackground)
+        .background(Color.primaryBackground)
     }
 
     private var emptyState: some View {
@@ -278,6 +250,8 @@ struct InvoiceListView: View {
     }
 }
 
+// MARK: - Invoice Row
+
 struct InvoiceRowView: View {
     let invoice: Invoice
 
@@ -327,9 +301,8 @@ struct InvoiceRowView: View {
             .fontWeight(.medium)
             .padding(.horizontal, 8)
             .padding(.vertical, 4)
-            .background(statusColor.opacity(0.18))
+            .background(statusColor.opacity(0.12), in: Capsule())
             .foregroundStyle(statusColor)
-            .clipShape(Capsule())
     }
 
     private var pdfBadge: some View {
@@ -340,8 +313,7 @@ struct InvoiceRowView: View {
         .font(.caption2)
         .padding(.horizontal, 8)
         .padding(.vertical, 4)
-        .background(.thinMaterial)
-        .clipShape(Capsule())
+        .background(Color.cardBackground, in: Capsule())
         .foregroundStyle(invoice.hasGeneratedPDF ? .teal : .secondary)
     }
 
@@ -355,6 +327,8 @@ struct InvoiceRowView: View {
         }
     }
 }
+
+// MARK: - Filter Chip
 
 private struct FilterChip: View {
     let title: String
@@ -378,11 +352,13 @@ private struct FilterChip: View {
             .font(.subheadline)
             .padding(.horizontal, 12)
             .padding(.vertical, 8)
-            .background(PlatformColors.secondarySystemBackground, in: Capsule())
+            .background(Color.cardBackground, in: Capsule())
         }
         .buttonStyle(.plain)
     }
 }
+
+// MARK: - Filters Sheet
 
 private struct InvoiceFiltersSheet: View {
     @Environment(\.dismiss) private var dismiss
@@ -452,6 +428,8 @@ private struct InvoiceFiltersSheet: View {
     InvoiceListView()
         .modelContainer(for: [Invoice.self, InvoiceItem.self, CompanyProfile.self, Client.self, Issuer.self, InvoiceTemplate.self, InvoiceTemplateItem.self])
 }
+
+// MARK: - Row Actions
 
 private extension View {
     @ViewBuilder

@@ -1,25 +1,6 @@
 import SwiftData
 import SwiftUI
 
-#if os(iOS)
-import UIKit
-#endif
-#if os(macOS)
-import AppKit
-#endif
-
-private enum PlatformColors {
-    static var secondarySystemBackground: Color {
-        #if os(iOS)
-        return Color(UIColor.secondarySystemBackground)
-        #elseif os(macOS)
-        return Color(NSColor.underPageBackgroundColor)
-        #else
-        return Color(.white)
-        #endif
-    }
-}
-
 struct HomeView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.scenePhase) private var scenePhase
@@ -45,6 +26,7 @@ struct HomeView: View {
                         }
                         .padding()
                     }
+                    .background(Color.appBackground.ignoresSafeArea())
                     .navigationDestination(item: $selectedInvoice) { invoice in
                         InvoiceDetailView(invoice: invoice, viewModel: invoiceViewModel)
                     }
@@ -80,6 +62,8 @@ struct HomeView: View {
         }
     }
 
+    // MARK: - Hero Card
+
     private var heroCard: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text("Tu facturacion del mes")
@@ -87,6 +71,7 @@ struct HomeView: View {
                 .fontWeight(.bold)
 
             Text("Crea la factura de este mes, reutiliza plantillas y sigue los cobros pendientes sin salir de Inicio.")
+                .font(.subheadline)
                 .foregroundStyle(.secondary)
 
             Button {
@@ -96,20 +81,14 @@ struct HomeView: View {
                     .frame(maxWidth: .infinity)
             }
             .buttonStyle(.borderedProminent)
+            .controlSize(.large)
             .accessibilityIdentifier("home-quick-create")
         }
-        .padding()
-        .background(
-            RoundedRectangle(cornerRadius: 24, style: .continuous)
-                .fill(
-                    LinearGradient(
-                        colors: [Color.blue.opacity(0.18), Color.teal.opacity(0.12)],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    )
-                )
-        )
+        .padding(16)
+        .materialCardStyle(cornerRadius: 16)
     }
+
+    // MARK: - Stats
 
     private func statsSection(viewModel: HomeViewModel) -> some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -123,6 +102,8 @@ struct HomeView: View {
             }
         }
     }
+
+    // MARK: - Templates
 
     private func templatesSection(viewModel: HomeViewModel) -> some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -154,15 +135,16 @@ struct HomeView: View {
                             Image(systemName: "arrow.up.right.square")
                                 .foregroundStyle(.tint)
                         }
-                        .padding()
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .background(PlatformColors.secondarySystemBackground, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+                        .padding(16)
+                        .cardStyle(cornerRadius: 16)
                     }
                     .buttonStyle(.plain)
                 }
             }
         }
     }
+
+    // MARK: - Frequent Clients
 
     private func frequentClientsSection(viewModel: HomeViewModel) -> some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -190,12 +172,14 @@ struct HomeView: View {
                         .buttonStyle(.borderedProminent)
                         .accessibilityIdentifier("home-client-\(summary.client.id.uuidString)")
                     }
-                    .padding()
-                    .background(PlatformColors.secondarySystemBackground, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+                    .padding(16)
+                    .cardStyle(cornerRadius: 16)
                 }
             }
         }
     }
+
+    // MARK: - Pending
 
     private func pendingSection(viewModel: HomeViewModel) -> some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -217,6 +201,8 @@ struct HomeView: View {
         }
     }
 
+    // MARK: - Drafts
+
     private func draftsSection(viewModel: HomeViewModel) -> some View {
         VStack(alignment: .leading, spacing: 12) {
             Text("Borradores recientes")
@@ -237,6 +223,8 @@ struct HomeView: View {
         }
     }
 
+    // MARK: - Analytics Link
+
     private var analyticsLink: some View {
         NavigationLink {
             DashboardView()
@@ -254,19 +242,23 @@ struct HomeView: View {
                     .font(.title3)
                     .foregroundStyle(.tint)
             }
-            .padding()
-            .background(PlatformColors.secondarySystemBackground, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+            .padding(16)
+            .cardStyle(cornerRadius: 16)
         }
         .buttonStyle(.plain)
     }
 
+    // MARK: - Helper Card
+
     private func helperCard(text: String) -> some View {
         Text(text)
             .foregroundStyle(.secondary)
-            .padding()
+            .padding(16)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .background(PlatformColors.secondarySystemBackground, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+            .cardStyle(cornerRadius: 16)
     }
+
+    // MARK: - Private Methods
 
     private func openComposerForPendingSharedImportIfNeeded() {
         guard SharedImageImportStore.hasPendingImport, composerSeed == nil else { return }
@@ -289,6 +281,8 @@ struct HomeView: View {
     }
 }
 
+// MARK: - HomeStatCard
+
 private struct HomeStatCard: View {
     let title: String
     let value: String
@@ -296,18 +290,25 @@ private struct HomeStatCard: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text(title)
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
+            HStack(spacing: 6) {
+                Circle()
+                    .fill(tint)
+                    .frame(width: 8, height: 8)
+                Text(title)
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+            }
             Text(value)
                 .font(.headline)
                 .foregroundStyle(.primary)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding()
-        .background(tint.opacity(0.12), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+        .padding(16)
+        .cardStyle(cornerRadius: 16)
     }
 }
+
+// MARK: - CompactInvoiceCard
 
 private struct CompactInvoiceCard: View {
     let invoice: Invoice
@@ -334,14 +335,25 @@ private struct CompactInvoiceCard: View {
                     .foregroundStyle(.primary)
                 Text(invoice.status.localizedTitle)
                     .font(.caption)
+                    .fontWeight(.medium)
                     .padding(.horizontal, 8)
                     .padding(.vertical, 4)
-                    .background(Color.secondary.opacity(0.12), in: Capsule())
-                    .foregroundStyle(.secondary)
+                    .background(statusColor.opacity(0.12), in: Capsule())
+                    .foregroundStyle(statusColor)
             }
         }
-        .padding()
-        .background(PlatformColors.secondarySystemBackground, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+        .padding(16)
+        .cardStyle(cornerRadius: 16)
+    }
+
+    private var statusColor: Color {
+        switch invoice.status {
+        case .draft: return .gray
+        case .sent: return .blue
+        case .paid: return .green
+        case .overdue: return .red
+        case .cancelled: return .orange
+        }
     }
 }
 
