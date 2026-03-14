@@ -24,6 +24,37 @@ enum InvoiceNumberingService {
         }
     }
 
+    // MARK: - Client-scoped numbering
+
+    static func nextInvoiceNumber(for client: Client, issuer: Issuer) -> String {
+        invoiceNumber(for: client, issuer: issuer, sequence: client.nextInvoiceSequence)
+    }
+
+    static func invoiceNumber(for client: Client, issuer: Issuer, sequence: Int) -> String {
+        let rawCode = client.invoiceCode.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            ? issuer.code
+            : client.invoiceCode
+        let code = normalizedCode(from: rawCode)
+        return "\(code)-\(formattedSequence(max(sequence, 1)))"
+    }
+
+    static func registerUsedInvoiceNumber(_ invoiceNumber: String, for client: Client, issuer: Issuer) {
+        let rawCode = client.invoiceCode.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            ? issuer.code
+            : client.invoiceCode
+        let code = normalizedCode(from: rawCode)
+        let current = max(client.nextInvoiceSequence, 1)
+
+        guard let parsed = parse(invoiceNumber: invoiceNumber, expectedCode: code) else {
+            return
+        }
+
+        if parsed >= current {
+            client.nextInvoiceSequence = parsed + 1
+            client.updateTimestamp()
+        }
+    }
+
     static func sanitizeCode(_ raw: String) -> String {
         let normalized = normalizedCode(from: raw)
         return normalized.isEmpty ? "ISSUER" : normalized
