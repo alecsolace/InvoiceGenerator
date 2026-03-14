@@ -90,6 +90,9 @@ struct AddInvoiceView: View {
                     advancedSections
                 }
             }
+#if os(macOS)
+            .formStyle(.grouped)
+#endif
             .navigationTitle(seedTitle)
 #if os(iOS)
             .navigationBarTitleDisplayMode(.inline)
@@ -142,6 +145,9 @@ struct AddInvoiceView: View {
                 }
             }
         }
+#if os(macOS)
+        .frame(minWidth: 480, idealWidth: 560, maxWidth: 640, minHeight: 500, idealHeight: 680)
+#endif
         .onAppear {
             prepareViewModelsIfNeeded()
             seedDefaultIssuerIfNeeded()
@@ -199,6 +205,9 @@ struct AddInvoiceView: View {
                 }
             }
             .pickerStyle(.segmented)
+#if os(macOS)
+            .frame(maxWidth: 300)
+#endif
             .accessibilityIdentifier("invoice-composer-mode")
         }
     }
@@ -211,6 +220,9 @@ struct AddInvoiceView: View {
                 }
             }
             .pickerStyle(.segmented)
+#if os(macOS)
+            .frame(maxWidth: 300)
+#endif
         }
     }
 
@@ -398,7 +410,12 @@ struct AddInvoiceView: View {
                             .buttonStyle(.plain)
                         }
                     }
+
+#if os(macOS)
+                    .padding(.vertical, 8)
+#else
                     .padding(.vertical, 4)
+#endif
                 }
             }
 
