@@ -140,7 +140,7 @@ final class PDFGeneratorService {
 
         let nameStyle = PDFTextStyle(font: PDFFont.bold(14), color: palette.textPrimary)
         let infoStyle = PDFTextStyle(font: PDFFont.regular(11), color: palette.textSecondary)
-        let leftColumnWidth: CGFloat = 250
+        let leftColumnWidth: CGFloat = 220
         let leftColumnX: CGFloat = 50
         var leftColumnY = yPosition
 
@@ -178,14 +178,14 @@ final class PDFGeneratorService {
             leftColumnY += blockHeight + 8
         }
 
-        let detailBoxWidth: CGFloat = 230
+        let detailBoxWidth: CGFloat = 260
         let detailBoxX = pageRect.width - detailBoxWidth - 50
         let labelStyle = PDFTextStyle(font: PDFFont.bold(11), color: palette.textSecondary)
         let valueStyle = PDFTextStyle(font: PDFFont.regular(12), color: palette.textPrimary)
         let formatter = DateFormatter()
         formatter.dateStyle = .short
-        let rowLabelWidth: CGFloat = 106
-        let rowValueWidth = detailBoxWidth - 36 - rowLabelWidth
+        let rowLabelWidth: CGFloat = 90
+        let rowValueWidth = detailBoxWidth - 32 - rowLabelWidth
         let detailRows: [(String, String)] = [
             (localized("Invoice Number", comment: "PDF invoice number label"), invoice.invoiceNumber),
             (localized("Invoice Date", comment: "PDF invoice date label"), formatter.string(from: invoice.issueDate)),
@@ -220,7 +220,7 @@ final class PDFGeneratorService {
             _ = drawMultilineText(
                 row.1,
                 style: valueStyle,
-                in: CGRect(x: detailBoxX + 24 + rowLabelWidth, y: detailY, width: rowValueWidth, height: rowHeight),
+                in: CGRect(x: detailBoxX + 20 + rowLabelWidth, y: detailY, width: rowValueWidth, height: rowHeight),
                 context: context
             )
             detailY += rowHeight + 10
