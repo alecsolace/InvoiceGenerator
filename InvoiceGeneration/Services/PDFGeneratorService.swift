@@ -140,7 +140,7 @@ final class PDFGeneratorService {
 
         let nameStyle = PDFTextStyle(font: PDFFont.bold(14), color: palette.textPrimary)
         let infoStyle = PDFTextStyle(font: PDFFont.regular(11), color: palette.textSecondary)
-        let leftColumnWidth: CGFloat = 220
+        let leftColumnWidth: CGFloat = 200
         let leftColumnX: CGFloat = 50
         var leftColumnY = yPosition
 
@@ -178,13 +178,13 @@ final class PDFGeneratorService {
             leftColumnY += blockHeight + 8
         }
 
-        let detailBoxWidth: CGFloat = 260
+        let detailBoxWidth: CGFloat = 280
         let detailBoxX = pageRect.width - detailBoxWidth - 50
         let labelStyle = PDFTextStyle(font: PDFFont.bold(11), color: palette.textSecondary)
         let valueStyle = PDFTextStyle(font: PDFFont.regular(12), color: palette.textPrimary)
         let formatter = DateFormatter()
         formatter.dateStyle = .short
-        let rowLabelWidth: CGFloat = 90
+        let rowLabelWidth: CGFloat = 130
         let rowValueWidth = detailBoxWidth - 32 - rowLabelWidth
         let detailRows: [(String, String)] = [
             (localized("Invoice Number", comment: "PDF invoice number label"), invoice.invoiceNumber),
