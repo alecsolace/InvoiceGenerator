@@ -610,10 +610,7 @@ private func drawMultilineText(
     path.addRect(drawingRect)
     let frame = CTFramesetterCreateFrame(framesetter, CFRangeMake(0, attributedString.length), path, nil)
 
-    context.saveGState()
-    context.clip(to: drawingRect)
     CTFrameDraw(frame, context)
-    context.restoreGState()
 
     return actualHeight
 }
