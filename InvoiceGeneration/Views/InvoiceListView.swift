@@ -457,44 +457,191 @@ private struct InvoiceFiltersSheet: View {
 
     var body: some View {
         NavigationStack {
-            Form {
-                Section("Estado") {
-                    Picker("Estado", selection: $selectedStatus) {
-                        Text("Todos").tag(InvoiceStatus?.none)
-                        ForEach(InvoiceStatus.allCases, id: \.self) { status in
-                            Text(status.localizedTitle).tag(Optional(status))
-                        }
-                    }
+            ScrollView {
+                VStack(alignment: .leading, spacing: 28) {
+                    statusSection
+                    if !clients.isEmpty { clientSection }
+                    if !issuers.isEmpty { issuerSection }
                 }
-
-                Section("Cliente") {
-                    Picker("Cliente", selection: $selectedClientID) {
-                        Text("Todos").tag(UUID?.none)
-                        ForEach(clients) { client in
-                            Text(client.name).tag(Optional(client.id))
-                        }
-                    }
-                }
-
-                Section("Emisor") {
-                    Picker("Emisor", selection: $selectedIssuerID) {
-                        Text("Todos").tag(UUID?.none)
-                        ForEach(issuers) { issuer in
-                            Text(issuer.name).tag(Optional(issuer.id))
-                        }
-                    }
-                }
+                .padding(20)
             }
+            .background(Color.appBackground.ignoresSafeArea())
             .navigationTitle("Filtros")
-#if os(iOS)
+            #if os(iOS)
             .navigationBarTitleDisplayMode(.inline)
-#endif
+            #endif
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Cerrar") { dismiss() }
+                    Button("Resetear") { resetAll() }
+                        .foregroundStyle(hasAnyFilter ? .primary : .secondary)
+                        .disabled(!hasAnyFilter)
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Hecho") { dismiss() }
+                        .fontWeight(.semibold)
                 }
             }
         }
+        #if os(iOS)
+        .presentationDetents([.medium, .large])
+        .presentationDragIndicator(.visible)
+        #endif
+    }
+
+    // MARK: - Status Section
+
+    private var statusSection: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            FilterSectionTitle("Estado")
+
+            let columns = [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)]
+            LazyVGrid(columns: columns, spacing: 12) {
+                FilterOptionChip(title: "Todos", isSelected: selectedStatus == nil) {
+                    selectedStatus = nil
+                }
+                ForEach(InvoiceStatus.allCases, id: \.self) { status in
+                    FilterOptionChip(
+                        title: status.localizedTitle,
+                        isSelected: selectedStatus == status,
+                        accentColor: statusColor(for: status)
+                    ) {
+                        selectedStatus = (selectedStatus == status) ? nil : status
+                    }
+                }
+            }
+        }
+    }
+
+    // MARK: - Client Section
+
+    private var clientSection: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            FilterSectionTitle("Cliente")
+
+            VStack(spacing: 1) {
+                FilterSelectRow(label: "Todos", isSelected: selectedClientID == nil) {
+                    selectedClientID = nil
+                }
+                ForEach(clients) { client in
+                    FilterSelectRow(label: client.name, isSelected: selectedClientID == client.id) {
+                        selectedClientID = (selectedClientID == client.id) ? nil : client.id
+                    }
+                }
+            }
+            .cardStyle(cornerRadius: 14)
+        }
+    }
+
+    // MARK: - Issuer Section
+
+    private var issuerSection: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            FilterSectionTitle("Emisor")
+
+            VStack(spacing: 1) {
+                FilterSelectRow(label: "Todos", isSelected: selectedIssuerID == nil) {
+                    selectedIssuerID = nil
+                }
+                ForEach(issuers) { issuer in
+                    FilterSelectRow(label: issuer.name, isSelected: selectedIssuerID == issuer.id) {
+                        selectedIssuerID = (selectedIssuerID == issuer.id) ? nil : issuer.id
+                    }
+                }
+            }
+            .cardStyle(cornerRadius: 14)
+        }
+    }
+
+    // MARK: - Helpers
+
+    private var hasAnyFilter: Bool {
+        selectedStatus != nil || selectedClientID != nil || selectedIssuerID != nil
+    }
+
+    private func resetAll() {
+        selectedStatus = nil
+        selectedClientID = nil
+        selectedIssuerID = nil
+    }
+
+    private func statusColor(for status: InvoiceStatus) -> Color {
+        switch status {
+        case .draft: return .gray
+        case .sent: return .blue
+        case .paid: return .green
+        case .overdue: return .red
+        case .cancelled: return .orange
+        }
+    }
+}
+
+// MARK: - Filter Section Title
+
+private struct FilterSectionTitle: View {
+    let text: String
+
+    init(_ text: String) { self.text = text }
+
+    var body: some View {
+        Text(text)
+            .font(.title2)
+            .fontWeight(.bold)
+    }
+}
+
+// MARK: - Filter Option Chip (for Status grid)
+
+private struct FilterOptionChip: View {
+    let title: String
+    let isSelected: Bool
+    var accentColor: Color = .accentColor
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            Text(title)
+                .font(.subheadline)
+                .fontWeight(isSelected ? .semibold : .regular)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 12)
+                .foregroundStyle(isSelected ? accentColor : .primary)
+                .background(
+                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        .fill(isSelected ? accentColor.opacity(0.12) : Color.cardBackground)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                .stroke(isSelected ? accentColor.opacity(0.4) : Color.clear, lineWidth: 1.5)
+                        )
+                )
+        }
+        .buttonStyle(.plain)
+    }
+}
+
+// MARK: - Filter Select Row (for Client / Issuer lists)
+
+private struct FilterSelectRow: View {
+    let label: String
+    let isSelected: Bool
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            HStack {
+                Text(label)
+                    .font(.body)
+                    .foregroundStyle(.primary)
+                Spacer()
+                if isSelected {
+                    Image(systemName: "checkmark")
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(.tint)
+                }
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 13)
+        }
+        .buttonStyle(.plain)
     }
 }
 
