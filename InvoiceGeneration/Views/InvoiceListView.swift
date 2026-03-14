@@ -74,15 +74,9 @@ struct InvoiceListView: View {
             selectedIssuerID = IssuerSelectionStore.issuerID(from: selectedIssuerStorage)
             applyFilters()
         }
-        .onChange(of: searchText) { _, _ in
-            applyFilters()
-        }
-        .onChange(of: selectedStatus) { _, _ in
-            applyFilters()
-        }
-        .onChange(of: selectedClientID) { _, _ in
-            applyFilters()
-        }
+        .onChange(of: searchText) { _, _ in applyFilters() }
+        .onChange(of: selectedStatus) { _, _ in applyFilters() }
+        .onChange(of: selectedClientID) { _, _ in applyFilters() }
         .onChange(of: selectedIssuerID) { _, _ in
             selectedIssuerStorage = IssuerSelectionStore.storageValue(from: selectedIssuerID)
             applyFilters()
@@ -94,13 +88,11 @@ struct InvoiceListView: View {
             }
             applyFilters()
         }
-        .onChange(of: issuers.count) { _, _ in
-            applyFilters()
-        }
-        .onChange(of: clients.count) { _, _ in
-            applyFilters()
-        }
+        .onChange(of: issuers.count) { _, _ in applyFilters() }
+        .onChange(of: clients.count) { _, _ in applyFilters() }
     }
+
+    // MARK: - Content
 
     @ViewBuilder
     private var content: some View {
@@ -112,24 +104,35 @@ struct InvoiceListView: View {
             } else if viewModel.invoices.isEmpty {
                 emptyState
             } else {
-                List {
-                    ForEach(viewModel.invoices) { invoice in
-                        Button {
-                            selectedInvoice = invoice
-                        } label: {
-                            InvoiceRowView(invoice: invoice)
+                ScrollView {
+                    LazyVStack(alignment: .leading, spacing: 0, pinnedViews: .sectionHeaders) {
+                        ForEach(groupedInvoices(from: viewModel.invoices), id: \.key) { group in
+                            Section {
+                                VStack(spacing: 12) {
+                                    ForEach(group.invoices) { invoice in
+                                        Button {
+                                            selectedInvoice = invoice
+                                        } label: {
+                                            InvoiceCard(invoice: invoice)
+                                        }
+                                        .buttonStyle(.plain)
+                                        .contextMenu {
+                                            invoiceContextMenu(invoice: invoice, viewModel: viewModel)
+                                        }
+                                    }
+                                }
+                                .padding(.horizontal, 16)
+                                .padding(.bottom, 20)
+                            } header: {
+                                MonthSectionHeader(
+                                    title: group.key,
+                                    total: group.total,
+                                    count: group.invoices.count
+                                )
+                            }
                         }
-                        .buttonStyle(.plain)
-                        .invoiceRowActions(
-                            onDuplicate: { composerSeed = .duplicate(invoice) },
-                            onMarkSent: { viewModel.markSent(invoice) },
-                            onMarkPaid: { viewModel.markPaid(invoice) },
-                            onShare: { share(invoice) },
-                            onDelete: { viewModel.deleteInvoice(invoice) }
-                        )
                     }
                 }
-                .listStyle(.plain)
             }
         } else {
             Spacer()
@@ -137,6 +140,62 @@ struct InvoiceListView: View {
             Spacer()
         }
     }
+
+    // MARK: - Grouping
+
+    private struct InvoiceGroup {
+        let key: String
+        let date: Date
+        let invoices: [Invoice]
+        var total: Decimal { invoices.reduce(0) { $0 + $1.totalAmount } }
+    }
+
+    private func groupedInvoices(from invoices: [Invoice]) -> [InvoiceGroup] {
+        let dict = Dictionary(grouping: invoices) { $0.issueDate.startOfMonth }
+        return dict
+            .map { (date, invoices) in
+                InvoiceGroup(
+                    key: date.monthYearFormat,
+                    date: date,
+                    invoices: invoices.sorted { $0.issueDate > $1.issueDate }
+                )
+            }
+            .sorted { $0.date > $1.date }
+    }
+
+    // MARK: - Context Menu
+
+    @ViewBuilder
+    private func invoiceContextMenu(invoice: Invoice, viewModel: InvoiceViewModel) -> some View {
+        Button {
+            composerSeed = .duplicate(invoice)
+        } label: {
+            Label("Duplicar", systemImage: "plus.square.on.square")
+        }
+        Button {
+            viewModel.markSent(invoice)
+        } label: {
+            Label("Marcar enviada", systemImage: "paperplane")
+        }
+        Button {
+            viewModel.markPaid(invoice)
+        } label: {
+            Label("Marcar cobrada", systemImage: "checkmark.circle")
+        }
+        Button {
+            share(invoice)
+        } label: {
+            Label("Compartir PDF", systemImage: "square.and.arrow.up")
+        }
+        Divider()
+        Button(role: .destructive) {
+            viewModel.deleteInvoice(invoice)
+        } label: {
+            Label("Eliminar", systemImage: "trash")
+        }
+    }
+
+    // MARK: - Filter Bar
 
     private var filterBar: some View {
         ScrollView(.horizontal, showsIndicators: false) {
@@ -177,6 +236,8 @@ struct InvoiceListView: View {
         .background(Color.primaryBackground)
     }
 
+    // MARK: - Empty State
+
     private var emptyState: some View {
         VStack(spacing: 16) {
             Spacer()
@@ -208,6 +269,8 @@ struct InvoiceListView: View {
         }
         .padding()
     }
+
+    // MARK: - Helpers
 
     private var hasActiveFilters: Bool {
         selectedStatus != nil || selectedClientID != nil || selectedIssuerID != nil
@@ -250,49 +313,71 @@ struct InvoiceListView: View {
     }
 }
 
-// MARK: - Invoice Row
+// MARK: - Month Section Header
 
-struct InvoiceRowView: View {
+private struct MonthSectionHeader: View {
+    let title: String
+    let total: Decimal
+    let count: Int
+
+    var body: some View {
+        HStack {
+            Text(title)
+                .font(.headline)
+            Spacer()
+            Text("\(count) facturas · \(total.formattedAsCurrency)")
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 10)
+        .background(Color.appBackground)
+    }
+}
+
+// MARK: - Invoice Card
+
+private struct InvoiceCard: View {
     let invoice: Invoice
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: 12) {
+            // Top: client + status badge
             HStack(alignment: .top) {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(invoice.invoiceNumber)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(invoice.clientName)
                         .font(.headline)
                         .foregroundStyle(.primary)
-                    Text(invoice.clientName)
+                    Text(invoice.invoiceNumber)
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
-                    if !invoice.issuerName.isEmpty {
-                        Text(invoice.issuerName)
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
                 }
-
                 Spacer()
-
-                Text(invoice.totalAmount.formattedAsCurrency)
-                    .font(.headline)
-                    .foregroundStyle(.primary)
+                statusBadge
             }
 
-            HStack {
-                Label(invoice.issueDate.shortFormat, systemImage: "calendar")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+            // Amount
+            Text(invoice.totalAmount.formattedAsCurrency)
+                .font(.system(.title2, design: .rounded))
+                .fontWeight(.bold)
+                .foregroundStyle(.primary)
+
+            // Dates + PDF badge
+            HStack(alignment: .center) {
+                Label(
+                    "\(invoice.issueDate.shortFormat)  →  \(invoice.dueDate.shortFormat)",
+                    systemImage: "calendar"
+                )
+                .font(.caption)
+                .foregroundStyle(.secondary)
 
                 Spacer()
 
-                HStack(spacing: 8) {
-                    statusBadge
-                    pdfBadge
-                }
+                pdfBadge
             }
         }
-        .padding(.vertical, 6)
+        .padding(16)
+        .cardStyle(cornerRadius: 16)
     }
 
     private var statusBadge: some View {
@@ -307,7 +392,7 @@ struct InvoiceRowView: View {
 
     private var pdfBadge: some View {
         Label(
-            invoice.hasGeneratedPDF ? "PDF listo" : "Sin PDF",
+            invoice.hasGeneratedPDF ? "PDF" : "Sin PDF",
             systemImage: invoice.hasGeneratedPDF ? "doc.richtext.fill" : "doc.badge.gearshape"
         )
         .font(.caption2)
@@ -375,36 +460,27 @@ private struct InvoiceFiltersSheet: View {
             Form {
                 Section("Estado") {
                     Picker("Estado", selection: $selectedStatus) {
-                        Text("Todos")
-                            .tag(InvoiceStatus?.none)
-
+                        Text("Todos").tag(InvoiceStatus?.none)
                         ForEach(InvoiceStatus.allCases, id: \.self) { status in
-                            Text(status.localizedTitle)
-                                .tag(Optional(status))
+                            Text(status.localizedTitle).tag(Optional(status))
                         }
                     }
                 }
 
                 Section("Cliente") {
                     Picker("Cliente", selection: $selectedClientID) {
-                        Text("Todos")
-                            .tag(UUID?.none)
-
+                        Text("Todos").tag(UUID?.none)
                         ForEach(clients) { client in
-                            Text(client.name)
-                                .tag(Optional(client.id))
+                            Text(client.name).tag(Optional(client.id))
                         }
                     }
                 }
 
                 Section("Emisor") {
                     Picker("Emisor", selection: $selectedIssuerID) {
-                        Text("Todos")
-                            .tag(UUID?.none)
-
+                        Text("Todos").tag(UUID?.none)
                         ForEach(issuers) { issuer in
-                            Text(issuer.name)
-                                .tag(Optional(issuer.id))
+                            Text(issuer.name).tag(Optional(issuer.id))
                         }
                     }
                 }
@@ -415,9 +491,7 @@ private struct InvoiceFiltersSheet: View {
 #endif
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Cerrar") {
-                        dismiss()
-                    }
+                    Button("Cerrar") { dismiss() }
                 }
             }
         }
@@ -427,65 +501,4 @@ private struct InvoiceFiltersSheet: View {
 #Preview {
     InvoiceListView()
         .modelContainer(for: [Invoice.self, InvoiceItem.self, CompanyProfile.self, Client.self, Issuer.self, InvoiceTemplate.self, InvoiceTemplateItem.self])
-}
-
-// MARK: - Row Actions
-
-private extension View {
-    @ViewBuilder
-    func invoiceRowActions(
-        onDuplicate: @escaping () -> Void,
-        onMarkSent: @escaping () -> Void,
-        onMarkPaid: @escaping () -> Void,
-        onShare: @escaping () -> Void,
-        onDelete: @escaping () -> Void
-    ) -> some View {
-        #if os(iOS)
-        self
-            .swipeActions(edge: .leading, allowsFullSwipe: false) {
-                Button(action: onDuplicate) {
-                    Label("Duplicar", systemImage: "plus.square.on.square")
-                }
-                .tint(.indigo)
-
-                Button(action: onShare) {
-                    Label("Compartir", systemImage: "square.and.arrow.up")
-                }
-                .tint(.teal)
-            }
-            .swipeActions(edge: .trailing, allowsFullSwipe: false) {
-                Button(action: onMarkPaid) {
-                    Label("Cobrada", systemImage: "checkmark.circle")
-                }
-                .tint(.green)
-
-                Button(action: onMarkSent) {
-                    Label("Enviada", systemImage: "paperplane")
-                }
-                .tint(.blue)
-
-                Button(role: .destructive, action: onDelete) {
-                    Label("Eliminar", systemImage: "trash")
-                }
-            }
-        #else
-        self.contextMenu {
-            Button(action: onDuplicate) {
-                Label("Duplicar", systemImage: "plus.square.on.square")
-            }
-            Button(action: onShare) {
-                Label("Compartir PDF", systemImage: "square.and.arrow.up")
-            }
-            Button(action: onMarkSent) {
-                Label("Marcar enviada", systemImage: "paperplane")
-            }
-            Button(action: onMarkPaid) {
-                Label("Marcar cobrada", systemImage: "checkmark.circle")
-            }
-            Button(role: .destructive, action: onDelete) {
-                Label("Eliminar", systemImage: "trash")
-            }
-        }
-        #endif
-    }
 }
