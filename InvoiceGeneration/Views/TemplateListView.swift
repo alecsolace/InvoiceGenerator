@@ -27,7 +27,7 @@ struct TemplateListView: View {
                                         .font(.caption)
                                         .foregroundStyle(.secondary)
                                 }
-                                Text("\(template.items.count) conceptos")
+                                Text("\((template.items ?? []).count) conceptos")
                                     .font(.caption)
                                     .foregroundStyle(.secondary)
                             }

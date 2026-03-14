@@ -126,7 +126,7 @@ struct EditInvoiceView: View {
         _selectedClientID = State(initialValue: invoice.client?.id)
         _selectedIssuerID = State(initialValue: invoice.issuer?.id)
         _draftItems = State(
-            initialValue: invoice.items.map {
+            initialValue: (invoice.items ?? []).map {
                 DraftInvoiceItem(
                     id: $0.id,
                     description: $0.itemDescription,

@@ -6,24 +6,31 @@ import CoreGraphics
 /// Client model persisted with SwiftData
 @Model
 final class Client {
-    var id: UUID
-    var name: String
-    var email: String
-    var address: String
-    var identificationNumber: String
-    var accentColorHex: String
+    var id: UUID = UUID()
+    var name: String = ""
+    var email: String = ""
+    var address: String = ""
+    var identificationNumber: String = ""
+    var accentColorHex: String = Client.defaultAccentHex
     /// When 0, the app-wide quick invoice default is used.
-    var defaultDueDays: Int
+    var defaultDueDays: Int = 0
     var defaultIVAPercentage: Decimal?
     var defaultIRPFPercentage: Decimal?
-    var defaultNotes: String
+    var defaultNotes: String = ""
+    /// Custom invoice code prefix for this client. Empty string means fall back to the issuer code.
+    var invoiceCode: String = ""
+    /// Next sequence number to use when generating invoice numbers for this client.
+    var nextInvoiceSequence: Int = 1
     var preferredTemplateID: UUID?
 
     @Relationship(deleteRule: .nullify)
     var invoices: [Invoice]?
 
-    var createdAt: Date
-    var updatedAt: Date
+    @Relationship(deleteRule: .nullify)
+    var templates: [InvoiceTemplate]?
+
+    var createdAt: Date = Date()
+    var updatedAt: Date = Date()
 
     static let defaultAccentHex = "#1F5FB8"
 
@@ -38,6 +45,8 @@ final class Client {
         defaultIVAPercentage: Decimal? = nil,
         defaultIRPFPercentage: Decimal? = nil,
         defaultNotes: String = "",
+        invoiceCode: String = "",
+        nextInvoiceSequence: Int = 1,
         preferredTemplateID: UUID? = nil
     ) {
         self.id = id
@@ -50,6 +59,8 @@ final class Client {
         self.defaultIVAPercentage = defaultIVAPercentage
         self.defaultIRPFPercentage = defaultIRPFPercentage
         self.defaultNotes = defaultNotes
+        self.invoiceCode = invoiceCode
+        self.nextInvoiceSequence = max(nextInvoiceSequence, 1)
         self.preferredTemplateID = preferredTemplateID
         self.createdAt = Date()
         self.updatedAt = Date()

@@ -50,6 +50,7 @@ struct AddInvoiceView: View {
     @State private var hasManuallyEditedInvoiceNumber = false
     @State private var lastSuggestedInvoiceNumber = ""
     @State private var pendingInvoiceSequenceByIssuerID: [UUID: Int] = [:]
+    @State private var pendingInvoiceSequenceByClientID: [UUID: Int] = [:]
     @State private var generatedPDFURL: URL?
     @State private var invoicePendingShareCompletion: Invoice?
     @State private var importWarnings: [String] = []
@@ -90,6 +91,9 @@ struct AddInvoiceView: View {
                     advancedSections
                 }
             }
+#if os(macOS)
+            .formStyle(.grouped)
+#endif
             .navigationTitle(seedTitle)
 #if os(iOS)
             .navigationBarTitleDisplayMode(.inline)
@@ -142,6 +146,9 @@ struct AddInvoiceView: View {
                 }
             }
         }
+#if os(macOS)
+        .frame(minWidth: 480, idealWidth: 560, maxWidth: 640, minHeight: 500, idealHeight: 680)
+#endif
         .onAppear {
             prepareViewModelsIfNeeded()
             seedDefaultIssuerIfNeeded()
@@ -151,6 +158,7 @@ struct AddInvoiceView: View {
         .onChange(of: selectedClientID) { _, newValue in
             guard let client = clientViewModel?.client(with: newValue) else { return }
             applyClientDefaults(from: client)
+            applySuggestedInvoiceNumber(force: false)
 
             if let preferredTemplateID = client.preferredTemplateID,
                selectedTemplateID != preferredTemplateID {
@@ -168,6 +176,9 @@ struct AddInvoiceView: View {
         .onChange(of: selectedIssuerID) { _, newValue in
             selectedIssuerStorage = IssuerSelectionStore.storageValue(from: newValue)
             applySuggestedInvoiceNumber(force: false)
+            if notes.isEmpty, let issuer = currentIssuer, !issuer.defaultNotes.isEmpty {
+                notes = issuer.defaultNotes
+            }
         }
         .onChange(of: issueDate) { _, newValue in
             dueDate = newValue.addingDays(max(dueDays, 0))
@@ -199,6 +210,9 @@ struct AddInvoiceView: View {
                 }
             }
             .pickerStyle(.segmented)
+#if os(macOS)
+            .frame(maxWidth: 300)
+#endif
             .accessibilityIdentifier("invoice-composer-mode")
         }
     }
@@ -211,6 +225,9 @@ struct AddInvoiceView: View {
                 }
             }
             .pickerStyle(.segmented)
+#if os(macOS)
+            .frame(maxWidth: 300)
+#endif
         }
     }
 
@@ -398,7 +415,12 @@ struct AddInvoiceView: View {
                             .buttonStyle(.plain)
                         }
                     }
+
+#if os(macOS)
+                    .padding(.vertical, 8)
+#else
                     .padding(.vertical, 4)
+#endif
                 }
             }
 
@@ -545,6 +567,9 @@ struct AddInvoiceView: View {
         }
 
         applySuggestedInvoiceNumber(force: true)
+        if notes.isEmpty, let issuer = currentIssuer, !issuer.defaultNotes.isEmpty {
+            notes = issuer.defaultNotes
+        }
     }
 
     private func applySeedIfNeeded() {
@@ -597,10 +622,6 @@ struct AddInvoiceView: View {
         if let irpf = client.defaultIRPFPercentage {
             irpfPercentage = NSDecimalNumber(decimal: irpf).stringValue
         }
-
-        if !client.defaultNotes.isEmpty {
-            notes = client.defaultNotes
-        }
     }
 
     private func applyTemplateDefaults(from template: InvoiceTemplate) {
@@ -618,7 +639,7 @@ struct AddInvoiceView: View {
         ivaPercentage = NSDecimalNumber(decimal: template.ivaPercentage).stringValue
         irpfPercentage = NSDecimalNumber(decimal: template.irpfPercentage).stringValue
         notes = template.notes
-        draftItems = template.items
+        draftItems = (template.items ?? [])
             .sorted { $0.sortOrder < $1.sortOrder }
             .map {
                 DraftInvoiceItem(
@@ -644,7 +665,7 @@ struct AddInvoiceView: View {
         ivaPercentage = NSDecimalNumber(decimal: invoice.ivaPercentage).stringValue
         irpfPercentage = NSDecimalNumber(decimal: invoice.irpfPercentage).stringValue
         notes = invoice.notes
-        draftItems = invoice.items.map {
+        draftItems = (invoice.items ?? []).map {
             DraftInvoiceItem(
                 description: $0.itemDescription,
                 quantity: $0.quantity,
@@ -665,18 +686,38 @@ struct AddInvoiceView: View {
 
     private func applySuggestedInvoiceNumber(force: Bool) {
         guard let issuer = currentIssuer else { return }
-        let sequence = pendingInvoiceSequenceByIssuerID[issuer.id] ?? issuer.nextInvoiceSequence
-        setSuggestedInvoiceNumber(
-            for: issuer,
-            sequence: max(sequence, 1),
-            replacingCurrentValue: force || invoiceNumber.isEmpty || !hasManuallyEditedInvoiceNumber
-        )
+        let replacing = force || invoiceNumber.isEmpty || !hasManuallyEditedInvoiceNumber
+
+        if let client = clientViewModel?.client(with: selectedClientID) {
+            let sequence = pendingInvoiceSequenceByClientID[client.id] ?? client.nextInvoiceSequence
+            setSuggestedInvoiceNumber(for: client, issuer: issuer, sequence: max(sequence, 1), replacingCurrentValue: replacing)
+        } else {
+            let sequence = pendingInvoiceSequenceByIssuerID[issuer.id] ?? issuer.nextInvoiceSequence
+            setSuggestedInvoiceNumber(for: issuer, sequence: max(sequence, 1), replacingCurrentValue: replacing)
+        }
     }
 
     private func incrementSuggestedInvoiceNumber() {
         guard let issuer = currentIssuer else { return }
-        let currentSequence = pendingInvoiceSequenceByIssuerID[issuer.id] ?? issuer.nextInvoiceSequence
-        setSuggestedInvoiceNumber(for: issuer, sequence: max(currentSequence, 1) + 1, replacingCurrentValue: true)
+
+        if let client = clientViewModel?.client(with: selectedClientID) {
+            let current = pendingInvoiceSequenceByClientID[client.id] ?? client.nextInvoiceSequence
+            setSuggestedInvoiceNumber(for: client, issuer: issuer, sequence: max(current, 1) + 1, replacingCurrentValue: true)
+        } else {
+            let current = pendingInvoiceSequenceByIssuerID[issuer.id] ?? issuer.nextInvoiceSequence
+            setSuggestedInvoiceNumber(for: issuer, sequence: max(current, 1) + 1, replacingCurrentValue: true)
+        }
+    }
+
+    private func setSuggestedInvoiceNumber(for client: Client, issuer: Issuer, sequence: Int, replacingCurrentValue: Bool) {
+        let suggestion = InvoiceNumberingService.invoiceNumber(for: client, issuer: issuer, sequence: sequence)
+        pendingInvoiceSequenceByClientID[client.id] = sequence
+        lastSuggestedInvoiceNumber = suggestion
+
+        if replacingCurrentValue {
+            invoiceNumber = suggestion
+            hasManuallyEditedInvoiceNumber = false
+        }
     }
 
     private func setSuggestedInvoiceNumber(for issuer: Issuer, sequence: Int, replacingCurrentValue: Bool) {

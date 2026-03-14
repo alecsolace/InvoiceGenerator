@@ -1,0 +1,131 @@
+{
+  "identifier" : "InvoiceGenerationStoreKit",
+  "nonSubscriptionProducts" : [
+
+  ],
+  "settings" : {
+    "_applicationInternalID" : "com.alecsolace.InvoiceFlow",
+    "_developerTeamID" : "",
+    "_failTransactionsEnabled" : false,
+    "_locale" : "en_US",
+    "_storefront" : "USA",
+    "_storeKitErrors" : [
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "Load Products"
+      },
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "Purchase"
+      },
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "Verification"
+      },
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "App Store Sync"
+      },
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "Subscription Status"
+      },
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "App Transaction"
+      },
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "Entitlement Verification"
+      }
+    ]
+  },
+  "subscriptionGroups" : [
+    {
+      "id" : "pro_group",
+      "localizations" : [
+
+      ],
+      "name" : "Pro",
+      "subscriptions" : [
+        {
+          "adHocOffers" : [
+
+          ],
+          "codeOffers" : [
+
+          ],
+          "displayPrice" : "2.99",
+          "familySharable" : false,
+          "groupNumber" : 1,
+          "internalID" : "pro_monthly_internal",
+          "introductoryOffer" : {
+            "display price" : "0.00",
+            "displayPrice" : "0.00",
+            "offerID" : "intro_monthly",
+            "offerMode" : "FREE_TRIAL",
+            "offerPeriod" : "P7D",
+            "periodCount" : 1,
+            "type" : "Introductory"
+          },
+          "localizations" : [
+            {
+              "description" : "Full access to all Pro features, billed monthly.",
+              "displayName" : "Pro Monthly",
+              "locale" : "en_US"
+            }
+          ],
+          "productID" : "pro_monthly",
+          "recurringSubscriptionPeriod" : "P1M",
+          "referenceName" : "Pro Monthly",
+          "subscriptionGroupID" : "pro_group",
+          "type" : "RecurringSubscription"
+        },
+        {
+          "adHocOffers" : [
+
+          ],
+          "codeOffers" : [
+
+          ],
+          "displayPrice" : "19.99",
+          "familySharable" : false,
+          "groupNumber" : 2,
+          "internalID" : "pro_yearly_internal",
+          "introductoryOffer" : {
+            "display price" : "0.00",
+            "displayPrice" : "0.00",
+            "offerID" : "intro_yearly",
+            "offerMode" : "FREE_TRIAL",
+            "offerPeriod" : "P14D",
+            "periodCount" : 1,
+            "type" : "Introductory"
+          },
+          "localizations" : [
+            {
+              "description" : "Full access to all Pro features, billed yearly.",
+              "displayName" : "Pro Yearly",
+              "locale" : "en_US"
+            }
+          ],
+          "productID" : "pro_yearly",
+          "recurringSubscriptionPeriod" : "P1Y",
+          "referenceName" : "Pro Yearly",
+          "subscriptionGroupID" : "pro_group",
+          "type" : "RecurringSubscription"
+        }
+      ]
+    }
+  ],
+  "version" : {
+    "major" : 2,
+    "minor" : 0
+  }
+}

@@ -110,14 +110,26 @@ final class InvoiceViewModel {
                 unitPrice: item.unitPrice
             )
             invoiceItem.invoice = invoice
-            invoice.items.append(invoiceItem)
+            invoice.items?.append(invoiceItem)
             modelContext.insert(invoiceItem)
         }
 
-        InvoiceNumberingService.registerUsedInvoiceNumber(invoiceNumber, for: issuer)
+        if let client {
+            InvoiceNumberingService.registerUsedInvoiceNumber(invoiceNumber, for: client, issuer: issuer)
+        } else {
+            InvoiceNumberingService.registerUsedInvoiceNumber(invoiceNumber, for: issuer)
+        }
         invoice.calculateTotal()
         guard saveContext() else { return nil }
         fetchInvoices()
+
+        if SubscriptionService.shared.syncEnabled {
+            Task {
+                do { try await CloudKitService.shared.syncInvoices([invoice]) }
+                catch { PersistenceController.logger.error("CloudKit invoice sync failed: \(error.localizedDescription)") }
+            }
+        }
+
         return invoice
     }
 
@@ -131,7 +143,7 @@ final class InvoiceViewModel {
         let issueDate = preferredIssueDate(for: month)
         let dueDays = max(template.dueDays, 0)
 
-        let items = template.items
+        let items = (template.items ?? [])
             .sorted { $0.sortOrder < $1.sortOrder }
             .map {
                 InvoiceLineItemInput(
@@ -141,8 +153,12 @@ final class InvoiceViewModel {
                 )
             }
 
+        let invoiceNum = template.client.map {
+            InvoiceNumberingService.nextInvoiceNumber(for: $0, issuer: issuer)
+        } ?? InvoiceNumberingService.nextInvoiceNumber(for: issuer)
+
         return createInvoice(
-            invoiceNumber: InvoiceNumberingService.nextInvoiceNumber(for: issuer),
+            invoiceNumber: invoiceNum,
             issuer: issuer,
             clientName: template.client?.name ?? template.clientName,
             clientEmail: template.client?.email ?? template.clientEmail,
@@ -167,7 +183,7 @@ final class InvoiceViewModel {
 
         let issueDate = invoice.issueDate.addingMonths(1)
         let dueDays = max(Calendar.current.dateComponents([.day], from: invoice.issueDate, to: invoice.dueDate).day ?? 0, 0)
-        let items = invoice.items.map {
+        let items = (invoice.items ?? []).map {
             InvoiceLineItemInput(
                 description: $0.itemDescription,
                 quantity: $0.quantity,
@@ -175,8 +191,12 @@ final class InvoiceViewModel {
             )
         }
 
+        let invoiceNum = invoice.client.map {
+            InvoiceNumberingService.nextInvoiceNumber(for: $0, issuer: issuer)
+        } ?? InvoiceNumberingService.nextInvoiceNumber(for: issuer)
+
         return createInvoice(
-            invoiceNumber: InvoiceNumberingService.nextInvoiceNumber(for: issuer),
+            invoiceNumber: invoiceNum,
             issuer: issuer,
             clientName: invoice.clientName,
             clientEmail: invoice.clientEmail,
@@ -198,6 +218,13 @@ final class InvoiceViewModel {
         invoice.calculateTotal()
         _ = saveContext()
         fetchInvoices()
+
+        if SubscriptionService.shared.syncEnabled {
+            Task {
+                do { try await CloudKitService.shared.syncInvoices([invoice]) }
+                catch { PersistenceController.logger.error("CloudKit invoice sync failed: \(error.localizedDescription)") }
+            }
+        }
     }
 
     func updateInvoice(
@@ -231,7 +258,11 @@ final class InvoiceViewModel {
 
         if let issuer {
             invoice.captureIssuerSnapshot(from: issuer)
-            InvoiceNumberingService.registerUsedInvoiceNumber(invoice.invoiceNumber, for: issuer)
+            if let client {
+                InvoiceNumberingService.registerUsedInvoiceNumber(invoice.invoiceNumber, for: client, issuer: issuer)
+            } else {
+                InvoiceNumberingService.registerUsedInvoiceNumber(invoice.invoiceNumber, for: issuer)
+            }
         } else {
             invoice.issuerName = ""
             invoice.issuerCode = ""
@@ -248,9 +279,17 @@ final class InvoiceViewModel {
 
     /// Delete an invoice
     func deleteInvoice(_ invoice: Invoice) {
+        let invoiceID = invoice.id
         modelContext.delete(invoice)
         _ = saveContext()
         fetchInvoices()
+
+        if SubscriptionService.shared.syncEnabled {
+            Task {
+                do { try await CloudKitService.shared.deleteInvoice(with: invoiceID) }
+                catch { PersistenceController.logger.error("CloudKit invoice delete failed: \(error.localizedDescription)") }
+            }
+        }
     }
 
     /// Add item to invoice
@@ -261,7 +300,7 @@ final class InvoiceViewModel {
             unitPrice: unitPrice
         )
         item.invoice = invoice
-        invoice.items.append(item)
+        invoice.items?.append(item)
         invoice.calculateTotal()
         invoice.updateTimestamp()
 
@@ -272,8 +311,8 @@ final class InvoiceViewModel {
 
     /// Remove item from invoice
     func removeItem(_ item: InvoiceItem, from invoice: Invoice) {
-        if let index = invoice.items.firstIndex(where: { $0.id == item.id }) {
-            invoice.items.remove(at: index)
+        if let index = invoice.items?.firstIndex(where: { $0.id == item.id }) {
+            invoice.items?.remove(at: index)
             modelContext.delete(item)
             invoice.calculateTotal()
             invoice.updateTimestamp()
@@ -306,6 +345,13 @@ final class InvoiceViewModel {
         invoice.updateTimestamp()
         _ = saveContext()
         fetchInvoices()
+
+        if SubscriptionService.shared.syncEnabled {
+            Task {
+                do { try await CloudKitService.shared.syncInvoices([invoice]) }
+                catch { PersistenceController.logger.error("CloudKit invoice sync failed: \(error.localizedDescription)") }
+            }
+        }
     }
 
     func markSent(_ invoice: Invoice) {
@@ -391,10 +437,10 @@ final class InvoiceViewModel {
     }
 
     private func replaceItems(for invoice: Invoice, with items: [InvoiceLineItemInput]) {
-        for existingItem in invoice.items {
+        for existingItem in invoice.items ?? [] {
             modelContext.delete(existingItem)
         }
-        invoice.items.removeAll()
+        invoice.items?.removeAll()
 
         for item in items {
             let invoiceItem = InvoiceItem(
@@ -403,7 +449,7 @@ final class InvoiceViewModel {
                 unitPrice: item.unitPrice
             )
             invoiceItem.invoice = invoice
-            invoice.items.append(invoiceItem)
+            invoice.items?.append(invoiceItem)
             modelContext.insert(invoiceItem)
         }
     }

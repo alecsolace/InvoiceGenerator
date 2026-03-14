@@ -4,24 +4,29 @@ import SwiftData
 /// Issuer profile used as the sender entity for invoices.
 @Model
 final class Issuer {
-    var id: UUID
-    var name: String
+    var id: UUID = UUID()
+    var name: String = ""
     /// Unique invoice prefix (for example: FAM, ANA).
-    var code: String
-    var ownerName: String
-    var email: String
-    var phone: String
-    var address: String
-    var taxId: String
+    var code: String = ""
+    var ownerName: String = ""
+    var email: String = ""
+    var phone: String = ""
+    var address: String = ""
+    var taxId: String = ""
     var logoData: Data?
+    /// Default notes/observations to pre-fill when creating invoices from this issuer.
+    var defaultNotes: String = ""
     /// Next sequence to be used when generating invoice numbers.
-    var nextInvoiceSequence: Int
+    var nextInvoiceSequence: Int = 1
 
     @Relationship(deleteRule: .nullify)
     var invoices: [Invoice]?
 
-    var createdAt: Date
-    var updatedAt: Date
+    @Relationship(deleteRule: .nullify)
+    var templates: [InvoiceTemplate]?
+
+    var createdAt: Date = Date()
+    var updatedAt: Date = Date()
 
     init(
         id: UUID = UUID(),
@@ -33,6 +38,7 @@ final class Issuer {
         address: String = "",
         taxId: String = "",
         logoData: Data? = nil,
+        defaultNotes: String = "",
         nextInvoiceSequence: Int = 1
     ) {
         self.id = id
@@ -44,6 +50,7 @@ final class Issuer {
         self.address = address
         self.taxId = taxId
         self.logoData = logoData
+        self.defaultNotes = defaultNotes
         self.nextInvoiceSequence = max(nextInvoiceSequence, 1)
         self.createdAt = Date()
         self.updatedAt = Date()

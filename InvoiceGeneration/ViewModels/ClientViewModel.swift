@@ -52,6 +52,7 @@ final class ClientViewModel {
         defaultIVAPercentage: Decimal? = nil,
         defaultIRPFPercentage: Decimal? = nil,
         defaultNotes: String = "",
+        invoiceCode: String = "",
         preferredTemplateID: UUID? = nil
     ) -> Client? {
         let client = Client(
@@ -64,6 +65,7 @@ final class ClientViewModel {
             defaultIVAPercentage: defaultIVAPercentage,
             defaultIRPFPercentage: defaultIRPFPercentage,
             defaultNotes: defaultNotes,
+            invoiceCode: invoiceCode,
             preferredTemplateID: preferredTemplateID
         )
         modelContext.insert(client)
@@ -71,12 +73,20 @@ final class ClientViewModel {
         do {
             try modelContext.save()
             fetchClients()
-            return client
         } catch {
             PersistenceController.logger.error("Failed to save client: \(error.localizedDescription)")
             errorMessage = "Failed to save client: \(error.localizedDescription)"
             return nil
         }
+
+        if SubscriptionService.shared.syncEnabled {
+            Task {
+                do { try await CloudKitService.shared.syncClients([client]) }
+                catch { PersistenceController.logger.error("CloudKit client sync failed: \(error.localizedDescription)") }
+            }
+        }
+
+        return client
     }
 
     @discardableResult
@@ -91,6 +101,7 @@ final class ClientViewModel {
         defaultIVAPercentage: Decimal?,
         defaultIRPFPercentage: Decimal?,
         defaultNotes: String,
+        invoiceCode: String = "",
         preferredTemplateID: UUID?
     ) -> Bool {
         client.name = name
@@ -102,12 +113,19 @@ final class ClientViewModel {
         client.defaultIVAPercentage = defaultIVAPercentage
         client.defaultIRPFPercentage = defaultIRPFPercentage
         client.defaultNotes = defaultNotes
+        client.invoiceCode = invoiceCode
         client.preferredTemplateID = preferredTemplateID
         client.updateTimestamp()
 
         let saved = saveContext()
         if saved {
             fetchClients()
+            if SubscriptionService.shared.syncEnabled {
+                Task {
+                    do { try await CloudKitService.shared.syncClients([client]) }
+                    catch { PersistenceController.logger.error("CloudKit client sync failed: \(error.localizedDescription)") }
+                }
+            }
         }
         return saved
     }
@@ -118,9 +136,17 @@ final class ClientViewModel {
     }
 
     func deleteClient(_ client: Client) {
+        let clientID = client.id
         modelContext.delete(client)
         _ = saveContext()
         fetchClients()
+
+        if SubscriptionService.shared.syncEnabled {
+            Task {
+                do { try await CloudKitService.shared.deleteClient(with: clientID) }
+                catch { PersistenceController.logger.error("CloudKit client delete failed: \(error.localizedDescription)") }
+            }
+        }
     }
 
     func searchClients(query: String) {

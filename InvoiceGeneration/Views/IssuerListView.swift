@@ -201,6 +201,7 @@ private struct IssuerEditorView: View {
     @State private var phone = ""
     @State private var address = ""
     @State private var taxId = ""
+    @State private var defaultNotes = ""
     @State private var errorMessage: String?
 
     var body: some View {
@@ -225,6 +226,11 @@ private struct IssuerEditorView: View {
                     TextField("Tax ID", text: $taxId)
                     TextField("Address", text: $address, axis: .vertical)
                         .lineLimit(3...6)
+                }
+
+                Section("Invoice Defaults") {
+                    TextField("Default Notes", text: $defaultNotes, axis: .vertical)
+                        .lineLimit(3...5)
                 }
 
                 if let errorMessage {
@@ -272,6 +278,7 @@ private struct IssuerEditorView: View {
         phone = issuer.phone
         address = issuer.address
         taxId = issuer.taxId
+        defaultNotes = issuer.defaultNotes
     }
 
     private func persist() {
@@ -284,7 +291,8 @@ private struct IssuerEditorView: View {
                 email: email,
                 phone: phone,
                 address: address,
-                taxId: taxId
+                taxId: taxId,
+                defaultNotes: defaultNotes
             ) else {
                 errorMessage = viewModel.errorMessage
                 return
@@ -302,7 +310,8 @@ private struct IssuerEditorView: View {
                 phone: phone,
                 address: address,
                 taxId: taxId,
-                logoData: issuer.logoData
+                logoData: issuer.logoData,
+                defaultNotes: defaultNotes
             )
             guard success else {
                 errorMessage = viewModel.errorMessage
