@@ -16,12 +16,13 @@ struct DashboardView: View {
             Group {
                 if let viewModel = viewModel {
                     ScrollView {
-                        VStack(alignment: .leading, spacing: 24) {
+                        VStack(alignment: .leading, spacing: 20) {
                             statusSection(viewModel: viewModel)
                             revenueSection(viewModel: viewModel)
                         }
                         .padding()
                     }
+                    .background(Color.appBackground.ignoresSafeArea())
                 } else {
                     ProgressView("Loading dashboard…")
                 }
@@ -71,7 +72,7 @@ struct DashboardView: View {
                                 .font(.headline)
                         }
                         .padding(6)
-                        .background(.thinMaterial)
+                        .background(Color.cardBackground)
                         .clipShape(RoundedRectangle(cornerRadius: 8))
                     }
                 }
@@ -80,6 +81,8 @@ struct DashboardView: View {
                 .frame(height: 260)
             }
         }
+        .padding(16)
+        .cardStyle(cornerRadius: 16)
     }
 
     private func revenueSection(viewModel: DashboardViewModel) -> some View {
@@ -116,6 +119,8 @@ struct DashboardView: View {
                 .frame(height: 260)
             }
         }
+        .padding(16)
+        .cardStyle(cornerRadius: 16)
     }
 
     @ToolbarContentBuilder

@@ -231,7 +231,7 @@ struct ClientListView: View {
             }
             .buttonStyle(.borderedProminent)
         }
-        .padding()
+        .padding(16)
         .listRowInsets(EdgeInsets())
         .listRowBackground(Color.clear)
     }

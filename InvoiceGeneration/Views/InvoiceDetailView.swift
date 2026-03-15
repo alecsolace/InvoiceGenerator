@@ -9,17 +9,16 @@ import MessageUI
 import AppKit
 #endif
 
-/// Detailed view for a single invoice with modern, glass-inspired layout
 struct InvoiceDetailView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
     #if os(iOS)
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     #endif
-    
+
     @Bindable var invoice: Invoice
     @Bindable var viewModel: InvoiceViewModel
-    
+
     @State private var showingAddItem = false
     @State private var showingEditInvoice = false
     @State private var showingShareSheet = false
@@ -40,11 +39,11 @@ struct InvoiceDetailView: View {
     @State private var showingFullScreenPreview = false
     @State private var fullScreenDocument: PDFDocument?
     #endif
-    
+
     var body: some View {
         NavigationStack {
             ScrollView {
-                VStack(spacing: 24) {
+                VStack(spacing: 20) {
                     headerSection
                     invoiceInformationCard
                     clientInformationCard
@@ -54,10 +53,10 @@ struct InvoiceDetailView: View {
                     }
                     pdfPreviewCard
                 }
-                .padding(.horizontal)
-                .padding(.vertical, 32)
+                .padding(.horizontal, 16)
+                .padding(.vertical, 24)
             }
-            .background(backgroundGradient)
+            .background(Color.appBackground.ignoresSafeArea())
             .navigationTitle("Detalle factura")
             #if os(iOS)
             .navigationBarTitleDisplayMode(.inline)
@@ -162,9 +161,9 @@ struct InvoiceDetailView: View {
             Text(syncResultMessage ?? "")
         }
     }
-    
+
     // MARK: - Sections
-    
+
     private var headerSection: some View {
         VStack(alignment: .leading, spacing: 20) {
             HStack(alignment: .top) {
@@ -179,7 +178,7 @@ struct InvoiceDetailView: View {
                 Spacer()
                 pdfStateChip
             }
-            
+
             HStack(alignment: .lastTextBaseline, spacing: 16) {
                 Text(invoice.totalAmount.formattedAsCurrency)
                     .font(.system(size: 40, weight: .bold, design: .rounded))
@@ -202,22 +201,22 @@ struct InvoiceDetailView: View {
                     .buttonStyle(.borderedProminent)
                 }
             }
-            
-            HStack(spacing: 16) {
+
+            HStack(spacing: 12) {
                 infoCapsule(icon: "calendar.badge.clock", title: "Emitida", value: invoice.issueDate.mediumFormat)
                 infoCapsule(icon: "calendar.badge.exclamationmark", title: "Vence", value: invoice.dueDate.mediumFormat)
             }
         }
-        .padding(24)
-        .glassBackground()
+        .padding(20)
+        .materialCardStyle(cornerRadius: 16)
     }
-    
+
     private var invoiceInformationCard: some View {
         VStack(alignment: .leading, spacing: 16) {
             Text("Datos de la factura")
                 .font(.title2)
                 .fontWeight(.semibold)
-            
+
             infoRow(title: "Numero", value: invoice.invoiceNumber)
             if !invoice.issuerName.isEmpty {
                 infoRow(title: "Emisor", value: invoice.issuerName)
@@ -231,10 +230,10 @@ struct InvoiceDetailView: View {
                 infoRow(title: "PDF actualizado", value: formattedDate(updated))
             }
         }
-        .padding(24)
-        .glassBackground()
+        .padding(20)
+        .cardStyle(cornerRadius: 16)
     }
-    
+
     private var clientInformationCard: some View {
         VStack(alignment: .leading, spacing: 16) {
             HStack {
@@ -247,7 +246,7 @@ struct InvoiceDetailView: View {
                 }
                 .buttonStyle(.bordered)
             }
-            
+
             infoRow(title: "Nombre", value: invoice.clientName)
             if !clientIdentificationNumber.isEmpty {
                 infoRow(
@@ -268,10 +267,10 @@ struct InvoiceDetailView: View {
                 }
             }
         }
-        .padding(24)
-        .glassBackground()
+        .padding(20)
+        .cardStyle(cornerRadius: 16)
     }
-    
+
     private var itemsCard: some View {
         VStack(alignment: .leading, spacing: 16) {
             HStack {
@@ -284,7 +283,7 @@ struct InvoiceDetailView: View {
                 }
                 .buttonStyle(.borderedProminent)
             }
-            
+
             if (invoice.items ?? []).isEmpty {
                 Text("Aun no hay conceptos. Anadelos para calcular los totales.")
                     .foregroundStyle(.secondary)
@@ -295,9 +294,8 @@ struct InvoiceDetailView: View {
                     }
                 }
             }
-            
+
             Divider()
-                .tint(.white.opacity(0.4))
 
             VStack(spacing: 8) {
                 HStack {
@@ -325,7 +323,6 @@ struct InvoiceDetailView: View {
                 .font(.subheadline)
 
                 Divider()
-                    .tint(.white.opacity(0.25))
 
                 HStack {
                     Text("Total")
@@ -337,10 +334,10 @@ struct InvoiceDetailView: View {
                 }
             }
         }
-        .padding(24)
-        .glassBackground()
+        .padding(20)
+        .cardStyle(cornerRadius: 16)
     }
-    
+
     private var notesCard: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text("Notas")
@@ -349,30 +346,27 @@ struct InvoiceDetailView: View {
             Text(invoice.notes)
                 .font(.body)
         }
-        .padding(24)
-        .glassBackground()
+        .padding(20)
+        .cardStyle(cornerRadius: 16)
     }
-    
+
     private var pdfPreviewCard: some View {
         VStack(alignment: .leading, spacing: 16) {
             Text("Vista previa del PDF")
                 .font(.title2)
                 .fontWeight(.semibold)
-            
+
             ZStack {
-                RoundedRectangle(cornerRadius: 28, style: .continuous)
-                    .fill(.thickMaterial)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 28, style: .continuous)
-                            .stroke(Color.white.opacity(0.1), lineWidth: 1)
-                    )
-                
+                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                    .fill(Color.cardBackground)
+                    .shadow(color: .black.opacity(0.04), radius: 6, y: 2)
+
                 if isPreviewLoading {
                     ProgressView("Generando vista previa…")
                 } else if let previewDocument {
                     PDFPreview(document: previewDocument)
-                        .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
-                        .contentShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
+                        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+                        .contentShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
                         .onTapGesture { handlePreviewTap() }
                         .accessibilityAddTraits(.isButton)
                 } else {
@@ -392,11 +386,11 @@ struct InvoiceDetailView: View {
                 }
             }
             .frame(height: 360)
-            
+
             pdfActionButtons
         }
-        .padding(24)
-        .glassBackground()
+        .padding(20)
+        .cardStyle(cornerRadius: 16)
     }
 
     @ViewBuilder
@@ -482,9 +476,9 @@ struct InvoiceDetailView: View {
             .minimumScaleFactor(0.8)
             .frame(maxWidth: .infinity)
     }
-    
+
     // MARK: - Components
-    
+
     private var toolbarMenu: some ToolbarContent {
         ToolbarItem(placement: .primaryAction) {
             Menu {
@@ -527,27 +521,6 @@ struct InvoiceDetailView: View {
         }
     }
 
-    private var backgroundGradient: some View {
-        LinearGradient(
-            colors: [
-                Color.indigo.opacity(0.18),
-                Color.teal.opacity(0.12),
-                {
-                    #if canImport(UIKit)
-                    return Color(.systemBackground)
-                    #elseif canImport(AppKit)
-                    return Color(NSColor.windowBackgroundColor)
-                    #else
-                    return Color.white
-                    #endif
-                }()
-            ],
-            startPoint: .topLeading,
-            endPoint: .bottomTrailing
-        )
-        .ignoresSafeArea()
-    }
-    
     private var pdfStateChip: some View {
         VStack(alignment: .leading, spacing: 4) {
             Label(
@@ -558,16 +531,12 @@ struct InvoiceDetailView: View {
             Text(pdfStateSubtitle)
                 .font(.caption)
         }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 12)
+        .padding(.horizontal, 14)
+        .padding(.vertical, 10)
         .foregroundStyle(invoice.hasGeneratedPDF ? .teal : .secondary)
-        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: 20, style: .continuous)
-                .stroke(invoice.hasGeneratedPDF ? Color.teal.opacity(0.3) : Color.gray.opacity(0.25), lineWidth: 1)
-        )
+        .materialCardStyle(cornerRadius: 12)
     }
-    
+
     private var pdfStateSubtitle: String {
         if let date = invoice.pdfLastGeneratedAt {
             let formatter = RelativeDateTimeFormatter()
@@ -582,7 +551,7 @@ struct InvoiceDetailView: View {
         }
         return invoice.client?.identificationNumber ?? ""
     }
-    
+
     private var statusPicker: some View {
         Menu {
             ForEach(InvoiceStatus.allCases, id: \.self) { status in
@@ -602,7 +571,7 @@ struct InvoiceDetailView: View {
             .foregroundStyle(statusColor)
         }
     }
-    
+
     private func infoRow(title: String, value: String) -> some View {
         HStack(alignment: .top) {
             Text(title)
@@ -615,7 +584,7 @@ struct InvoiceDetailView: View {
         }
         .padding(.vertical, 4)
     }
-    
+
     private func infoCapsule(icon: String, title: String, value: String) -> some View {
         VStack(alignment: .leading, spacing: 4) {
             Label(title, systemImage: icon)
@@ -624,14 +593,14 @@ struct InvoiceDetailView: View {
             Text(value)
                 .font(.headline)
         }
-        .padding()
+        .padding(12)
         .frame(maxWidth: .infinity)
         .background(
-            RoundedRectangle(cornerRadius: 20, style: .continuous)
-                .fill(.ultraThinMaterial)
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .fill(Color.cardBackground)
         )
     }
-    
+
     private func itemCard(for item: InvoiceItem) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(alignment: .firstTextBaseline) {
@@ -650,7 +619,7 @@ struct InvoiceDetailView: View {
                         .labelStyle(.iconOnly)
                 }
                 .buttonStyle(.plain)
-                
+
                 Button(role: .destructive, action: { viewModel.removeItem(item, from: invoice) }) {
                     Label("Eliminar", systemImage: "trash")
                         .labelStyle(.iconOnly)
@@ -658,20 +627,20 @@ struct InvoiceDetailView: View {
                 .buttonStyle(.plain)
             }
         }
-        .padding(16)
+        .padding(14)
         .background(
-            RoundedRectangle(cornerRadius: 20, style: .continuous)
-                .fill(.thinMaterial)
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .fill(Color.cardBackground)
         )
     }
-    
+
     private func formattedDate(_ date: Date) -> String {
         let formatter = DateFormatter()
         formatter.dateStyle = .medium
         formatter.timeStyle = .short
         return formatter.string(from: date)
     }
-    
+
     private var statusColor: Color {
         switch invoice.status {
         case .draft: return .gray
@@ -681,7 +650,7 @@ struct InvoiceDetailView: View {
         case .cancelled: return .orange
         }
     }
-    
+
     private var pdfFileName: String {
         String(
             format: NSLocalizedString(
@@ -691,9 +660,9 @@ struct InvoiceDetailView: View {
             invoice.invoiceNumber
         )
     }
-    
+
     // MARK: - Actions
-    
+
     private func refreshPreview() {
         isPreviewLoading = true
         let document = PDFGeneratorService.generateInvoicePDF(invoice: invoice)
@@ -711,7 +680,7 @@ struct InvoiceDetailView: View {
         showingFullScreenPreview = true
         #endif
     }
-    
+
     private func hydrateSavedPDFIfNeeded() {
         guard invoice.hasGeneratedPDF else {
             savedPDFURL = nil
@@ -729,7 +698,7 @@ struct InvoiceDetailView: View {
             previewNeedsRefresh = true
         }
     }
-    
+
     #if canImport(AppKit)
     private func openInPreviewApp(document: PDFDocument) {
         if let url = savedPDFURL ?? persistTemporaryPDF(document: document) {
@@ -801,7 +770,7 @@ struct InvoiceDetailView: View {
         showingShareSheet = true
         #endif
     }
-    
+
     private func shareSavedPDF() {
         guard let url = savedPDFURL else { return }
         pdfURL = url
@@ -819,7 +788,7 @@ struct InvoiceDetailView: View {
         guard let templateViewModel else { return }
         _ = templateViewModel.createTemplate(from: invoice)
     }
-    
+
     #if canImport(AppKit)
     private func revealPDFInFinder() {
         guard let url = savedPDFURL else { return }
@@ -832,7 +801,7 @@ struct InvoiceDetailView: View {
 
 private struct PDFPreview: View {
     let document: PDFDocument
-    
+
     var body: some View {
         #if canImport(UIKit)
         PDFKitView(document: document)
@@ -847,7 +816,7 @@ private struct PDFPreview: View {
 #if canImport(UIKit)
 private struct PDFKitView: UIViewRepresentable {
     let document: PDFDocument
-    
+
     func makeUIView(context: Context) -> PDFView {
         let view = PDFView()
         view.autoScales = true
@@ -856,7 +825,7 @@ private struct PDFKitView: UIViewRepresentable {
         view.document = document
         return view
     }
-    
+
     func updateUIView(_ uiView: PDFView, context: Context) {
         uiView.document = document
     }
@@ -864,7 +833,7 @@ private struct PDFKitView: UIViewRepresentable {
 #elseif canImport(AppKit)
 private struct PDFKitNSView: NSViewRepresentable {
     let document: PDFDocument
-    
+
     func makeNSView(context: Context) -> PDFView {
         let view = PDFView()
         view.autoScales = true
@@ -873,28 +842,27 @@ private struct PDFKitNSView: NSViewRepresentable {
         view.document = document
         return view
     }
-    
+
     func updateNSView(_ nsView: PDFView, context: Context) {
         nsView.document = document
     }
 }
 #endif
 
-/// Share sheet for sharing PDF documents - iOS/macOS compatible
 #if canImport(UIKit)
 struct ShareSheet: UIViewControllerRepresentable {
     let items: [Any]
-    
+
     func makeUIViewController(context: Context) -> UIActivityViewController {
         UIActivityViewController(activityItems: items, applicationActivities: nil)
     }
-    
+
     func updateUIViewController(_ uiViewController: UIActivityViewController, context: Context) {}
 }
 #elseif canImport(AppKit)
 struct ShareSheet: NSViewRepresentable {
     let items: [Any]
-    
+
     func makeNSView(context: Context) -> NSView {
         let view = NSView()
         DispatchQueue.main.async {
@@ -903,7 +871,7 @@ struct ShareSheet: NSViewRepresentable {
         }
         return view
     }
-    
+
     func updateNSView(_ nsView: NSView, context: Context) {}
 }
 #endif
@@ -938,18 +906,17 @@ private struct MailComposeView: UIViewControllerRepresentable {
 }
 #endif
 
-/// Inline editor for existing invoice items
 struct InvoiceItemEditorView: View {
     @Environment(\.dismiss) private var dismiss
-    
+
     let invoice: Invoice
     @Bindable var viewModel: InvoiceViewModel
     let item: InvoiceItem
-    
+
     @State private var descriptionText: String
     @State private var quantity: Int
     @State private var unitPrice: String
-    
+
     init(invoice: Invoice, viewModel: InvoiceViewModel, item: InvoiceItem) {
         self.invoice = invoice
         self.viewModel = viewModel
@@ -958,7 +925,7 @@ struct InvoiceItemEditorView: View {
         _quantity = State(initialValue: item.quantity)
         _unitPrice = State(initialValue: NSDecimalNumber(decimal: item.unitPrice).stringValue)
     }
-    
+
     var body: some View {
         NavigationStack {
             Form {
@@ -992,11 +959,11 @@ struct InvoiceItemEditorView: View {
             }
         }
     }
-    
+
     private var isValid: Bool {
         !descriptionText.isEmpty && Decimal(string: unitPrice) != nil
     }
-    
+
     private func saveChanges() {
         guard let price = Decimal(string: unitPrice) else { return }
         viewModel.updateItem(
@@ -1010,37 +977,21 @@ struct InvoiceItemEditorView: View {
     }
 }
 
-// MARK: - Styling Helpers
-
-private extension View {
-    func glassBackground(cornerRadius: CGFloat = 32) -> some View {
-        self
-            .background(
-                RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                    .fill(.ultraThinMaterial)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                            .stroke(Color.white.opacity(0.15), lineWidth: 1)
-                    )
-            )
-    }
-}
-
 #Preview {
     let config = ModelConfiguration(isStoredInMemoryOnly: true)
     let container = try! ModelContainer(
         for: Invoice.self, InvoiceItem.self, CompanyProfile.self, Client.self, Issuer.self, InvoiceTemplate.self, InvoiceTemplateItem.self,
         configurations: config
     )
-    
+
     let invoice = Invoice(
         invoiceNumber: "INV-202412-1234",
         clientName: "Acme Corp"
     )
     container.mainContext.insert(invoice)
-    
+
     let viewModel = InvoiceViewModel(modelContext: container.mainContext)
-    
+
     return InvoiceDetailView(invoice: invoice, viewModel: viewModel)
         .modelContainer(container)
 }

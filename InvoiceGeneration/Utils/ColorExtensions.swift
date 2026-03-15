@@ -86,6 +86,62 @@ extension Color {
     }
 }
 
+// MARK: - Cross-Platform Design System Colors
+
+extension Color {
+    static var cardBackground: Color {
+        #if os(iOS)
+        Color(UIColor.secondarySystemGroupedBackground)
+        #elseif os(macOS)
+        Color(NSColor.controlBackgroundColor)
+        #else
+        Color.white
+        #endif
+    }
+
+    static var appBackground: Color {
+        #if os(iOS)
+        Color(UIColor.systemGroupedBackground)
+        #elseif os(macOS)
+        Color(NSColor.windowBackgroundColor)
+        #else
+        Color(.sRGB, white: 0.95, opacity: 1)
+        #endif
+    }
+
+    static var primaryBackground: Color {
+        #if os(iOS)
+        Color(UIColor.systemBackground)
+        #elseif os(macOS)
+        Color(NSColor.windowBackgroundColor)
+        #else
+        Color.white
+        #endif
+    }
+}
+
+// MARK: - Card Style Modifier
+
+extension View {
+    func cardStyle(cornerRadius: CGFloat = 16) -> some View {
+        self
+            .background(
+                RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                    .fill(Color.cardBackground)
+                    .shadow(color: .black.opacity(0.06), radius: 8, y: 2)
+            )
+    }
+
+    func materialCardStyle(cornerRadius: CGFloat = 16) -> some View {
+        self
+            .background(
+                RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                    .fill(.thinMaterial)
+                    .shadow(color: .black.opacity(0.04), radius: 6, y: 2)
+            )
+    }
+}
+
 extension CGColor {
     static func fromHex(_ hex: String, defaultColor: CGColor) -> CGColor {
         Color(hex: hex)?.cgColorRepresentation ?? defaultColor
