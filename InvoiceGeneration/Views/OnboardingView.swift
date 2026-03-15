@@ -179,6 +179,7 @@ struct OnboardingView: View {
                         .textFieldStyle(.roundedBorder)
                 }
                 .padding(.top, 8)
+                .padding(.bottom, 32)
             }
             .padding(.horizontal)
         }
