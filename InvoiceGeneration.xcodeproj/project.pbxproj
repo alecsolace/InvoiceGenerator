@@ -17,7 +17,7 @@
 		0D2DB27B2EE1D2B8000C327E /* LICENSE in Resources */ = {isa = PBXBuildFile; fileRef = 0D2DB2702EE1D2B8000C327E /* LICENSE */; };
 		0D2DB2AC2EE1E500000C327E /* Localizable.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = 0D2DB2AB2EE1E500000C327E /* Localizable.xcstrings */; };
 		0DD00BBE2F6302A3008DEA72 /* storekit.storekit in Resources */ = {isa = PBXBuildFile; fileRef = 0DD00BBD2F6302A3008DEA72 /* storekit.storekit */; };
-		A1B2C3D42EE1D2B8000C327E /* InvoiceImageShareExtension.appex in Embed App Extensions */ = {isa = PBXBuildFile; fileRef = A1B2C3CF2EE1D2B8000C327E /* InvoiceImageShareExtension.appex */; platformFilter = ios; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		A1B2C3D42EE1D2B8000C327E /* InvoiceImageShareExtension.appex in Embed App Extensions */ = {isa = PBXBuildFile; fileRef = A1B2C3CF2EE1D2B8000C327E /* InvoiceImageShareExtension.appex */; platformFilter = ios; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
