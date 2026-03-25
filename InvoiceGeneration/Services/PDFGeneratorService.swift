@@ -518,28 +518,42 @@ final class PDFGeneratorService {
         pageRect: CGRect,
         startY: CGFloat
     ) -> CGFloat {
-        var yPosition = startY
         let qrSize: CGFloat = 100
         let margin: CGFloat = 50
+        let footerHeight: CGFloat = qrSize + 16  // QR + top padding
+        // Always anchor footer to the bottom of the page so QR is never clipped
+        let footerY = pageRect.height - margin - footerHeight
+
+        // Separator line above footer
+        context.saveGState()
+        context.setStrokeColor(palette.separator)
+        context.setLineWidth(0.5)
+        context.move(to: CGPoint(x: margin, y: footerY - 10))
+        context.addLine(to: CGPoint(x: pageRect.width - margin, y: footerY - 10))
+        context.strokePath()
+        context.restoreGState()
+
+        var yPosition = footerY
         let qrX = pageRect.width - margin - qrSize
 
-        // Draw QR code
+        // Draw QR code pinned to top-right of footer area
         if let qrImage = VerifactuQRService.generateQRImage(for: record.qrCodeUrl, size: qrSize) {
             let qrRect = CGRect(x: qrX, y: yPosition, width: qrSize, height: qrSize)
 
             context.saveGState()
-            // Flip for image drawing (already in flipped coordinate system)
+            // CGContext is in flipped (top-down) coordinate system; restore for image drawing
             context.translateBy(x: qrRect.origin.x, y: qrRect.origin.y + qrRect.height)
             context.scaleBy(x: 1, y: -1)
             context.draw(qrImage, in: CGRect(origin: .zero, size: qrRect.size))
             context.restoreGState()
         }
 
-        // VeriFACTU legend text (left of QR)
+        // VeriFACTU legend text in the column to the left of the QR
         let legendWidth = qrX - margin - 20
         let legendStyle = PDFTextStyle(font: PDFFont.regular(8), color: palette.textSecondary)
         let boldLegendStyle = PDFTextStyle(font: PDFFont.bold(9), color: palette.textPrimary)
 
+        // "VeriFactu" heading
         drawText(
             localized("VeriFactu", comment: "PDF VeriFACTU label"),
             style: boldLegendStyle,
@@ -548,30 +562,29 @@ final class PDFGeneratorService {
         )
         yPosition += 14
 
+        // Verification legend (up to 2 lines at 8pt ≈ 22pt total)
         let legendText = localized(
             "Invoice verifiable at the AEAT electronic office",
             comment: "PDF VeriFACTU verification legend"
         )
-        _ = drawMultilineText(
-            legendText,
-            style: legendStyle,
-            in: CGRect(x: margin, y: yPosition, width: legendWidth, height: 30),
-            context: context
-        )
-        yPosition += 16
+        let legendRect = CGRect(x: margin, y: yPosition, width: legendWidth, height: 22)
+        _ = drawMultilineText(legendText, style: legendStyle, in: legendRect, context: context)
+        yPosition += 24
 
+        // Truncated hash
         let hashLabel = String(
             format: localized("Hash: %@", comment: "PDF hash label"),
-            String(record.recordHash.prefix(16)) + "..."
+            String(record.recordHash.prefix(20)) + "..."
         )
         _ = drawMultilineText(
             hashLabel,
             style: legendStyle,
-            in: CGRect(x: margin, y: yPosition, width: legendWidth, height: 14),
+            in: CGRect(x: margin, y: yPosition, width: legendWidth, height: 12),
             context: context
         )
         yPosition += 14
 
+        // Invoice type and regime
         let typeLabel = String(
             format: localized("Type: %@ | Regime: %@", comment: "PDF invoice type and regime"),
             record.invoiceType.rawValue,
@@ -580,11 +593,11 @@ final class PDFGeneratorService {
         _ = drawMultilineText(
             typeLabel,
             style: legendStyle,
-            in: CGRect(x: margin, y: yPosition, width: legendWidth, height: 14),
+            in: CGRect(x: margin, y: yPosition, width: legendWidth, height: 12),
             context: context
         )
 
-        return max(yPosition + 14, startY + qrSize)
+        return pageRect.height - margin  // footer always ends at bottom margin
     }
 
     /// Save PDF to file
