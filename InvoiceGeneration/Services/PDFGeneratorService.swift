@@ -94,6 +94,13 @@ final class PDFGeneratorService {
             startY: yPosition
         )
 
+        // Calculate the maximum Y the content can occupy before the footer
+        let hasVerifactu = invoice.verifactuRecord != nil && !(invoice.verifactuRecord?.qrCodeUrl.isEmpty ?? true)
+        let verifactuFooterHeight: CGFloat = 100 + 16 + 10  // qrSize + padding + separator gap
+        let contentMaxY = hasVerifactu
+            ? pageRect.height - 50 - verifactuFooterHeight - 10
+            : pageRect.height - 50
+
         if !invoice.notes.isEmpty {
             yPosition += 24
             yPosition = drawNotes(
@@ -101,13 +108,13 @@ final class PDFGeneratorService {
                 palette: palette,
                 in: context,
                 pageRect: pageRect,
-                startY: yPosition
+                startY: yPosition,
+                maxY: contentMaxY
             )
         }
 
         // VeriFACTU QR code and legend (only for invoices with a verifactu record)
         if let verifactuRecord = invoice.verifactuRecord, !verifactuRecord.qrCodeUrl.isEmpty {
-            yPosition += 20
             _ = drawVerifactuFooter(
                 record: verifactuRecord,
                 palette: palette,
@@ -487,12 +494,16 @@ final class PDFGeneratorService {
         palette: PDFPalette,
         in context: CGContext,
         pageRect: CGRect,
-        startY: CGFloat
+        startY: CGFloat,
+        maxY: CGFloat = .greatestFiniteMagnitude
     ) -> CGFloat {
         let bodyStyle = PDFTextStyle(font: PDFFont.regular(11), color: palette.textPrimary)
         let headerStyle = PDFTextStyle(font: PDFFont.bold(12), color: palette.accent)
         let bodyHeight = height(for: invoice.notes, style: bodyStyle, width: pageRect.width - 124)
-        let container = CGRect(x: 50, y: startY, width: pageRect.width - 100, height: max(110, bodyHeight + 52))
+        let desiredHeight = max(110, bodyHeight + 52)
+        let availableHeight = maxY - startY
+        let clampedHeight = min(desiredHeight, max(52, availableHeight))
+        let container = CGRect(x: 50, y: startY, width: pageRect.width - 100, height: clampedHeight)
         context.setFillColor(palette.sectionBackground)
         context.fill(container)
 
