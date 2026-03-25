@@ -96,8 +96,20 @@ final class PDFGeneratorService {
 
         if !invoice.notes.isEmpty {
             yPosition += 24
-            _ = drawNotes(
+            yPosition = drawNotes(
                 invoice: invoice,
+                palette: palette,
+                in: context,
+                pageRect: pageRect,
+                startY: yPosition
+            )
+        }
+
+        // VeriFACTU QR code and legend (only for invoices with a verifactu record)
+        if let verifactuRecord = invoice.verifactuRecord, !verifactuRecord.qrCodeUrl.isEmpty {
+            yPosition += 20
+            _ = drawVerifactuFooter(
+                record: verifactuRecord,
                 palette: palette,
                 in: context,
                 pageRect: pageRect,
@@ -186,12 +198,20 @@ final class PDFGeneratorService {
         formatter.dateStyle = .short
         let rowLabelWidth: CGFloat = 130
         let rowValueWidth = detailBoxWidth - 32 - rowLabelWidth
-        let detailRows: [(String, String)] = [
+        var detailRows: [(String, String)] = [
             (localized("Invoice Number", comment: "PDF invoice number label"), invoice.invoiceNumber),
             (localized("Invoice Date", comment: "PDF invoice date label"), formatter.string(from: invoice.issueDate)),
             (localized("Due Date", comment: "PDF due date label"), formatter.string(from: invoice.dueDate)),
             (localized("Status", comment: "PDF status label"), localized(invoice.status.rawValue, comment: "Localized invoice status"))
         ]
+
+        // Add invoice type for VeriFACTU invoices
+        if invoice.verifactuRecord != nil {
+            detailRows.append((
+                localized("Type", comment: "PDF invoice type label"),
+                invoice.invoiceType.rawValue
+            ))
+        }
 
         var detailContentHeight: CGFloat = 12
         for row in detailRows {
@@ -369,12 +389,24 @@ final class PDFGeneratorService {
         pageRect: CGRect,
         startY: CGFloat
     ) -> CGFloat {
-        let summaryWidth: CGFloat = 250
+        let summaryWidth: CGFloat = 280
         let xOrigin = pageRect.width - summaryWidth - 50
         let rowSpacing: CGFloat = 22
         let topPadding: CGFloat = 12
         let dividerSpacing: CGFloat = 12
-        let containerHeight = topPadding + (rowSpacing * 3) + dividerSpacing + rowSpacing + topPadding
+
+        let breakdowns = invoice.taxBreakdowns ?? []
+        let useMultiRate = !breakdowns.isEmpty
+
+        // Calculate dynamic height based on number of IVA rows
+        let ivaRowCount = useMultiRate ? breakdowns.count : 1
+        let hasIrpf = invoice.irpfPercentage > 0
+        let hasSurcharge = useMultiRate && breakdowns.contains { $0.surchargeRate > 0 }
+        let surchargeRowCount = hasSurcharge ? breakdowns.filter { $0.surchargeRate > 0 }.count : 0
+        let extraRows = (hasIrpf ? 1 : 0) + surchargeRowCount
+        let totalRows = 1 + ivaRowCount + extraRows // subtotal + IVA rows + extras
+        let containerHeight = topPadding + (rowSpacing * CGFloat(totalRows)) + dividerSpacing + rowSpacing + topPadding
+
         let container = CGRect(x: xOrigin, y: startY, width: summaryWidth, height: containerHeight)
         context.setFillColor(palette.panelBackground)
         context.fill(container)
@@ -384,26 +416,57 @@ final class PDFGeneratorService {
         let totalStyle = PDFTextStyle(font: PDFFont.bold(14), color: palette.accent)
 
         var yPosition = container.origin.y + topPadding
+
+        // Subtotal
         drawText(localized("Subtotal", comment: "PDF subtotal label"), style: labelStyle, at: CGPoint(x: xOrigin + 16, y: yPosition), in: context)
-        drawText(currencyString(for: invoice.itemsSubtotal), style: valueStyle, at: CGPoint(x: xOrigin + 150, y: yPosition), in: context)
+        drawText(currencyString(for: invoice.itemsSubtotal), style: valueStyle, at: CGPoint(x: xOrigin + 180, y: yPosition), in: context)
         yPosition += rowSpacing
 
-        let ivaLabel = String(
-            format: localized("IVA (%@)", comment: "PDF IVA label with percentage"),
-            invoice.ivaPercentage.formattedAsPercent
-        )
-        drawText(ivaLabel, style: labelStyle, at: CGPoint(x: xOrigin + 16, y: yPosition), in: context)
-        drawText(currencyString(for: invoice.ivaAmount), style: valueStyle, at: CGPoint(x: xOrigin + 150, y: yPosition), in: context)
-        yPosition += rowSpacing
+        if useMultiRate {
+            // Multi-rate IVA breakdown
+            for breakdown in breakdowns.sorted(by: { $0.taxRate > $1.taxRate }) {
+                let ivaLabel = String(
+                    format: localized("IVA (%@)", comment: "PDF IVA label with percentage"),
+                    breakdown.taxRate.formattedAsPercent
+                )
+                drawText(ivaLabel, style: labelStyle, at: CGPoint(x: xOrigin + 16, y: yPosition), in: context)
+                drawText(currencyString(for: breakdown.taxAmount), style: valueStyle, at: CGPoint(x: xOrigin + 180, y: yPosition), in: context)
+                yPosition += rowSpacing
 
-        let irpfLabel = String(
-            format: localized("IRPF (%@)", comment: "PDF IRPF label with percentage"),
-            invoice.irpfPercentage.formattedAsPercent
-        )
-        drawText(irpfLabel, style: labelStyle, at: CGPoint(x: xOrigin + 16, y: yPosition), in: context)
-        drawText(currencyString(for: -invoice.irpfAmount), style: valueStyle, at: CGPoint(x: xOrigin + 150, y: yPosition), in: context)
-        yPosition += rowSpacing
+                // Surcharge if applicable
+                if breakdown.surchargeRate > 0 {
+                    let surchargeLabel = String(
+                        format: localized("R.E. (%@)", comment: "PDF equivalence surcharge label"),
+                        breakdown.surchargeRate.formattedAsPercent
+                    )
+                    drawText(surchargeLabel, style: labelStyle, at: CGPoint(x: xOrigin + 16, y: yPosition), in: context)
+                    drawText(currencyString(for: breakdown.surchargeAmount), style: valueStyle, at: CGPoint(x: xOrigin + 180, y: yPosition), in: context)
+                    yPosition += rowSpacing
+                }
+            }
+        } else {
+            // Single-rate IVA
+            let ivaLabel = String(
+                format: localized("IVA (%@)", comment: "PDF IVA label with percentage"),
+                invoice.ivaPercentage.formattedAsPercent
+            )
+            drawText(ivaLabel, style: labelStyle, at: CGPoint(x: xOrigin + 16, y: yPosition), in: context)
+            drawText(currencyString(for: invoice.ivaAmount), style: valueStyle, at: CGPoint(x: xOrigin + 180, y: yPosition), in: context)
+            yPosition += rowSpacing
+        }
 
+        // IRPF (withholding)
+        if hasIrpf {
+            let irpfLabel = String(
+                format: localized("IRPF (%@)", comment: "PDF IRPF label with percentage"),
+                invoice.irpfPercentage.formattedAsPercent
+            )
+            drawText(irpfLabel, style: labelStyle, at: CGPoint(x: xOrigin + 16, y: yPosition), in: context)
+            drawText(currencyString(for: -invoice.irpfAmount), style: valueStyle, at: CGPoint(x: xOrigin + 180, y: yPosition), in: context)
+            yPosition += rowSpacing
+        }
+
+        // Divider
         context.setStrokeColor(palette.divider)
         context.setLineWidth(0.5)
         context.move(to: CGPoint(x: xOrigin + 12, y: yPosition))
@@ -412,8 +475,9 @@ final class PDFGeneratorService {
 
         yPosition += dividerSpacing
 
+        // Total
         drawText(localized("TOTAL", comment: "PDF total label"), style: totalStyle, at: CGPoint(x: xOrigin + 16, y: yPosition), in: context)
-        drawText(currencyString(for: invoice.totalAmount), style: totalStyle, at: CGPoint(x: xOrigin + 150, y: yPosition), in: context)
+        drawText(currencyString(for: invoice.totalAmount), style: totalStyle, at: CGPoint(x: xOrigin + 180, y: yPosition), in: context)
 
         return container.maxY
     }
@@ -443,6 +507,84 @@ final class PDFGeneratorService {
         _ = drawMultilineText(invoice.notes, style: bodyStyle, in: notesRect, context: context)
 
         return container.maxY
+    }
+
+    // MARK: - VeriFACTU Footer
+
+    private static func drawVerifactuFooter(
+        record: VerifactuRecord,
+        palette: PDFPalette,
+        in context: CGContext,
+        pageRect: CGRect,
+        startY: CGFloat
+    ) -> CGFloat {
+        var yPosition = startY
+        let qrSize: CGFloat = 100
+        let margin: CGFloat = 50
+        let qrX = pageRect.width - margin - qrSize
+
+        // Draw QR code
+        if let qrImage = VerifactuQRService.generateQRImage(for: record.qrCodeUrl, size: qrSize) {
+            let qrRect = CGRect(x: qrX, y: yPosition, width: qrSize, height: qrSize)
+
+            context.saveGState()
+            // Flip for image drawing (already in flipped coordinate system)
+            context.translateBy(x: qrRect.origin.x, y: qrRect.origin.y + qrRect.height)
+            context.scaleBy(x: 1, y: -1)
+            context.draw(qrImage, in: CGRect(origin: .zero, size: qrRect.size))
+            context.restoreGState()
+        }
+
+        // VeriFACTU legend text (left of QR)
+        let legendWidth = qrX - margin - 20
+        let legendStyle = PDFTextStyle(font: PDFFont.regular(8), color: palette.textSecondary)
+        let boldLegendStyle = PDFTextStyle(font: PDFFont.bold(9), color: palette.textPrimary)
+
+        drawText(
+            localized("VeriFactu", comment: "PDF VeriFACTU label"),
+            style: boldLegendStyle,
+            at: CGPoint(x: margin, y: yPosition),
+            in: context
+        )
+        yPosition += 14
+
+        let legendText = localized(
+            "Invoice verifiable at the AEAT electronic office",
+            comment: "PDF VeriFACTU verification legend"
+        )
+        _ = drawMultilineText(
+            legendText,
+            style: legendStyle,
+            in: CGRect(x: margin, y: yPosition, width: legendWidth, height: 30),
+            context: context
+        )
+        yPosition += 16
+
+        let hashLabel = String(
+            format: localized("Hash: %@", comment: "PDF hash label"),
+            String(record.recordHash.prefix(16)) + "..."
+        )
+        _ = drawMultilineText(
+            hashLabel,
+            style: legendStyle,
+            in: CGRect(x: margin, y: yPosition, width: legendWidth, height: 14),
+            context: context
+        )
+        yPosition += 14
+
+        let typeLabel = String(
+            format: localized("Type: %@ | Regime: %@", comment: "PDF invoice type and regime"),
+            record.invoiceType.rawValue,
+            record.taxRegimeKey.rawValue
+        )
+        _ = drawMultilineText(
+            typeLabel,
+            style: legendStyle,
+            in: CGRect(x: margin, y: yPosition, width: legendWidth, height: 14),
+            context: context
+        )
+
+        return max(yPosition + 14, startY + qrSize)
     }
 
     /// Save PDF to file

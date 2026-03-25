@@ -117,6 +117,12 @@ struct IssuerListView: View {
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
                     }
+
+                    if issuer.verifactuEnabled {
+                        Label(String(localized: "VeriFactu", comment: "Verifactu badge"), systemImage: "checkmark.shield")
+                            .font(.caption)
+                            .foregroundStyle(.blue)
+                    }
                 }
                 .contentShape(Rectangle())
                 .onTapGesture {
@@ -202,6 +208,7 @@ private struct IssuerEditorView: View {
     @State private var address = ""
     @State private var taxId = ""
     @State private var defaultNotes = ""
+    @State private var verifactuEnabled = false
     @State private var errorMessage: String?
 
     var body: some View {
@@ -231,6 +238,25 @@ private struct IssuerEditorView: View {
                 Section("Invoice Defaults") {
                     TextField("Default Notes", text: $defaultNotes, axis: .vertical)
                         .lineLimit(3...5)
+                }
+
+                Section(String(localized: "VeriFACTU Compliance", comment: "Issuer verifactu section")) {
+                    Toggle(String(localized: "Enable VeriFACTU", comment: "Toggle to enable verifactu"), isOn: $verifactuEnabled)
+
+                    if verifactuEnabled && taxId.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                        Label(
+                            String(localized: "Tax ID (NIF/CIF) is required for VeriFACTU", comment: "Verifactu NIF warning"),
+                            systemImage: "exclamationmark.triangle"
+                        )
+                        .font(.footnote)
+                        .foregroundStyle(.orange)
+                    }
+
+                    if verifactuEnabled {
+                        Text(String(localized: "Invoices from this emitter will generate hash-chained records and QR codes for AEAT verification.", comment: "Verifactu description"))
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                    }
                 }
 
                 if let errorMessage {
@@ -279,6 +305,7 @@ private struct IssuerEditorView: View {
         address = issuer.address
         taxId = issuer.taxId
         defaultNotes = issuer.defaultNotes
+        verifactuEnabled = issuer.verifactuEnabled
     }
 
     private func persist() {
@@ -292,7 +319,8 @@ private struct IssuerEditorView: View {
                 phone: phone,
                 address: address,
                 taxId: taxId,
-                defaultNotes: defaultNotes
+                defaultNotes: defaultNotes,
+                verifactuEnabled: verifactuEnabled
             ) else {
                 errorMessage = viewModel.errorMessage
                 return
@@ -311,7 +339,8 @@ private struct IssuerEditorView: View {
                 address: address,
                 taxId: taxId,
                 logoData: issuer.logoData,
-                defaultNotes: defaultNotes
+                defaultNotes: defaultNotes,
+                verifactuEnabled: verifactuEnabled
             )
             guard success else {
                 errorMessage = viewModel.errorMessage

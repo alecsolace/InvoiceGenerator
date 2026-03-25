@@ -83,6 +83,12 @@ final class InvoiceViewModel {
         notes: String = "",
         ivaPercentage: Decimal = 0,
         irpfPercentage: Decimal = 0,
+        invoiceType: InvoiceType = .f1,
+        taxRegimeKey: TaxRegimeKey = .general,
+        rectifiedInvoiceNumber: String = "",
+        rectifiedInvoiceDate: Date? = nil,
+        correctionMethod: CorrectionMethod? = nil,
+        operationDescription: String = "",
         items: [InvoiceLineItemInput] = []
     ) -> Invoice? {
         let invoice = Invoice(
@@ -97,7 +103,13 @@ final class InvoiceViewModel {
             dueDate: dueDate,
             notes: notes,
             ivaPercentage: ivaPercentage,
-            irpfPercentage: irpfPercentage
+            irpfPercentage: irpfPercentage,
+            invoiceType: invoiceType,
+            taxRegimeKey: taxRegimeKey,
+            rectifiedInvoiceNumber: rectifiedInvoiceNumber,
+            rectifiedInvoiceDate: rectifiedInvoiceDate,
+            correctionMethod: correctionMethod,
+            operationDescription: operationDescription
         )
 
         invoice.captureIssuerSnapshot(from: issuer)
@@ -107,11 +119,18 @@ final class InvoiceViewModel {
             let invoiceItem = InvoiceItem(
                 description: item.description,
                 quantity: item.quantity,
-                unitPrice: item.unitPrice
+                unitPrice: item.unitPrice,
+                vatRate: item.vatRate
             )
             invoiceItem.invoice = invoice
             invoice.items?.append(invoiceItem)
             modelContext.insert(invoiceItem)
+        }
+
+        // Build multi-rate tax breakdowns from items when different VAT rates are present
+        let vatRates = Set(items.map { $0.vatRate })
+        if vatRates.count > 1 || (vatRates.count == 1 && issuer.verifactuEnabled) {
+            invoice.rebuildTaxBreakdowns()
         }
 
         if let client {
@@ -120,6 +139,12 @@ final class InvoiceViewModel {
             InvoiceNumberingService.registerUsedInvoiceNumber(invoiceNumber, for: issuer)
         }
         invoice.calculateTotal()
+
+        // Generate VeriFACTU record if issuer has compliance enabled
+        if issuer.verifactuEnabled {
+            VerifactuHashService.createRecord(for: invoice, issuer: issuer, context: modelContext)
+        }
+
         guard saveContext() else { return nil }
         fetchInvoices()
 
@@ -293,11 +318,12 @@ final class InvoiceViewModel {
     }
 
     /// Add item to invoice
-    func addItem(to invoice: Invoice, description: String, quantity: Int, unitPrice: Decimal) {
+    func addItem(to invoice: Invoice, description: String, quantity: Int, unitPrice: Decimal, vatRate: Decimal = 21) {
         let item = InvoiceItem(
             description: description,
             quantity: quantity,
-            unitPrice: unitPrice
+            unitPrice: unitPrice,
+            vatRate: vatRate
         )
         item.invoice = invoice
         invoice.items?.append(item)
@@ -446,7 +472,8 @@ final class InvoiceViewModel {
             let invoiceItem = InvoiceItem(
                 description: item.description,
                 quantity: item.quantity,
-                unitPrice: item.unitPrice
+                unitPrice: item.unitPrice,
+                vatRate: item.vatRate
             )
             invoiceItem.invoice = invoice
             invoice.items?.append(invoiceItem)
@@ -481,6 +508,7 @@ struct InvoiceLineItemInput {
     let description: String
     let quantity: Int
     let unitPrice: Decimal
+    var vatRate: Decimal = 21
 }
 
 struct InvoiceSyncResult {
