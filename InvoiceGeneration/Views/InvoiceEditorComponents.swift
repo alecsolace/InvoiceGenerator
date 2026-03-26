@@ -6,12 +6,14 @@ struct DraftInvoiceItem: Identifiable, Equatable {
     var description: String
     var quantity: Int
     var unitPrice: Decimal
+    var vatRate: Decimal
 
-    init(id: UUID = UUID(), description: String, quantity: Int, unitPrice: Decimal) {
+    init(id: UUID = UUID(), description: String, quantity: Int, unitPrice: Decimal, vatRate: Decimal = 21) {
         self.id = id
         self.description = description
         self.quantity = quantity
         self.unitPrice = unitPrice
+        self.vatRate = vatRate
     }
 
     var total: Decimal { Decimal(quantity) * unitPrice }
@@ -133,7 +135,7 @@ struct InvoiceEditorSections: View {
                                 .font(.headline)
                         }
 
-                        Text("\(item.quantity) x \(item.unitPrice.formattedAsCurrency)")
+                        Text("\(item.quantity) x \(item.unitPrice.formattedAsCurrency) · IVA \(item.vatRate.formattedAsPercent)")
                             .font(.caption)
                             .foregroundStyle(.secondary)
 
@@ -243,6 +245,7 @@ struct InvoiceDraftItemEditor: View {
     @State private var descriptionText: String
     @State private var quantity: Int
     @State private var unitPrice: String
+    @State private var vatRate: Decimal
 
     init(mode: Mode, onSave: @escaping (DraftInvoiceItem) -> Void) {
         self.mode = mode
@@ -253,10 +256,12 @@ struct InvoiceDraftItemEditor: View {
             _descriptionText = State(initialValue: "")
             _quantity = State(initialValue: 1)
             _unitPrice = State(initialValue: "")
+            _vatRate = State(initialValue: 21)
         case .edit(let item):
             _descriptionText = State(initialValue: item.description)
             _quantity = State(initialValue: item.quantity)
             _unitPrice = State(initialValue: NSDecimalNumber(decimal: item.unitPrice).stringValue)
+            _vatRate = State(initialValue: item.vatRate)
         }
     }
 
@@ -273,6 +278,12 @@ struct InvoiceDraftItemEditor: View {
 #if os(iOS)
                         .keyboardType(.decimalPad)
 #endif
+
+                    Picker(String(localized: "IVA Rate", comment: "VAT rate picker label"), selection: $vatRate) {
+                        ForEach(StandardVATRate.allCases) { rate in
+                            Text(rate.localizedTitle).tag(rate.rawValue)
+                        }
+                    }
                 }
 
                 if let price = Decimal(string: unitPrice), price > 0 {
@@ -328,7 +339,8 @@ struct InvoiceDraftItemEditor: View {
                 id: identifier,
                 description: descriptionText,
                 quantity: quantity,
-                unitPrice: price
+                unitPrice: price,
+                vatRate: vatRate
             )
         )
         dismiss()

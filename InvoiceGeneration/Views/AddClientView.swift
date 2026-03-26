@@ -35,6 +35,8 @@ struct AddClientView: View {
     @State private var defaultNotes = ""
     @State private var invoiceCode = ""
     @State private var preferredTemplateID: UUID?
+    @State private var countryCode = "ES"
+    @State private var locationType: ClientLocationType = .national
     @State private var hasHydrated = false
 
     init(
@@ -67,6 +69,18 @@ struct AddClientView: View {
                         .lineLimit(3...6)
 
                     ColorPicker("Color", selection: $accentColor, supportsOpacity: false)
+
+                    TextField(String(localized: "Country Code (ISO)", comment: "Country code field"), text: $countryCode)
+#if os(iOS)
+                        .textInputAutocapitalization(.characters)
+                        .autocorrectionDisabled(true)
+#endif
+
+                    Picker(String(localized: "Location Type", comment: "Client location type"), selection: $locationType) {
+                        ForEach(ClientLocationType.allCases) { type in
+                            Text(type.localizedTitle).tag(type)
+                        }
+                    }
                 }
 
                 Section("Defaults de facturacion") {
@@ -153,6 +167,8 @@ struct AddClientView: View {
         defaultNotes = client.defaultNotes
         invoiceCode = client.invoiceCode
         preferredTemplateID = client.preferredTemplateID
+        countryCode = client.countryCode
+        locationType = client.locationType
     }
 
     private func persist() {
@@ -174,7 +190,9 @@ struct AddClientView: View {
                 defaultIRPFPercentage: irpfValue,
                 defaultNotes: defaultNotes,
                 invoiceCode: invoiceCode,
-                preferredTemplateID: preferredTemplateID
+                preferredTemplateID: preferredTemplateID,
+                countryCode: countryCode,
+                locationType: locationType
             ) else {
                 return
             }
@@ -193,7 +211,9 @@ struct AddClientView: View {
                 defaultIRPFPercentage: irpfValue,
                 defaultNotes: defaultNotes,
                 invoiceCode: invoiceCode,
-                preferredTemplateID: preferredTemplateID
+                preferredTemplateID: preferredTemplateID,
+                countryCode: countryCode,
+                locationType: locationType
             ) else {
                 return
             }

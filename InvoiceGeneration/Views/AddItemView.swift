@@ -131,7 +131,8 @@ struct EditInvoiceView: View {
                     id: $0.id,
                     description: $0.itemDescription,
                     quantity: $0.quantity,
-                    unitPrice: $0.unitPrice
+                    unitPrice: $0.unitPrice,
+                    vatRate: $0.vatRate
                 )
             }
         )
@@ -258,7 +259,8 @@ struct EditInvoiceView: View {
             InvoiceLineItemInput(
                 description: $0.description,
                 quantity: $0.quantity,
-                unitPrice: $0.unitPrice
+                unitPrice: $0.unitPrice,
+                vatRate: $0.vatRate
             )
         }
 

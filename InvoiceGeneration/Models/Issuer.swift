@@ -19,11 +19,28 @@ final class Issuer {
     /// Next sequence to be used when generating invoice numbers.
     var nextInvoiceSequence: Int = 1
 
+    // MARK: - VeriFACTU Compliance
+
+    /// Whether VeriFACTU compliance is enabled for this issuer.
+    /// When enabled, invoices generate hash-chained records and QR codes.
+    var verifactuEnabled: Bool = false
+
+    /// SHA-256 hash of the last VeriFACTU record in this issuer's chain.
+    /// Empty string means no records yet (first record uses sentinel value).
+    var lastVerifactuHash: String = ""
+
+    /// Next sequence number for this issuer's VeriFACTU chain (1-based).
+    var verifactuSequence: Int = 1
+
     @Relationship(deleteRule: .nullify)
     var invoices: [Invoice]?
 
     @Relationship(deleteRule: .nullify)
     var templates: [InvoiceTemplate]?
+
+    /// VeriFACTU registry records belonging to this issuer's hash chain.
+    @Relationship(deleteRule: .cascade)
+    var verifactuRecords: [VerifactuRecord]?
 
     var createdAt: Date = Date()
     var updatedAt: Date = Date()
@@ -39,7 +56,8 @@ final class Issuer {
         taxId: String = "",
         logoData: Data? = nil,
         defaultNotes: String = "",
-        nextInvoiceSequence: Int = 1
+        nextInvoiceSequence: Int = 1,
+        verifactuEnabled: Bool = false
     ) {
         self.id = id
         self.name = name
@@ -52,6 +70,9 @@ final class Issuer {
         self.logoData = logoData
         self.defaultNotes = defaultNotes
         self.nextInvoiceSequence = max(nextInvoiceSequence, 1)
+        self.verifactuEnabled = verifactuEnabled
+        self.lastVerifactuHash = ""
+        self.verifactuSequence = 1
         self.createdAt = Date()
         self.updatedAt = Date()
     }

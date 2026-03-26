@@ -53,7 +53,9 @@ final class ClientViewModel {
         defaultIRPFPercentage: Decimal? = nil,
         defaultNotes: String = "",
         invoiceCode: String = "",
-        preferredTemplateID: UUID? = nil
+        preferredTemplateID: UUID? = nil,
+        countryCode: String = "ES",
+        locationType: ClientLocationType = .national
     ) -> Client? {
         let client = Client(
             name: name,
@@ -66,7 +68,9 @@ final class ClientViewModel {
             defaultIRPFPercentage: defaultIRPFPercentage,
             defaultNotes: defaultNotes,
             invoiceCode: invoiceCode,
-            preferredTemplateID: preferredTemplateID
+            preferredTemplateID: preferredTemplateID,
+            countryCode: countryCode,
+            locationType: locationType
         )
         modelContext.insert(client)
 
@@ -102,7 +106,9 @@ final class ClientViewModel {
         defaultIRPFPercentage: Decimal?,
         defaultNotes: String,
         invoiceCode: String = "",
-        preferredTemplateID: UUID?
+        preferredTemplateID: UUID?,
+        countryCode: String = "ES",
+        locationType: ClientLocationType = .national
     ) -> Bool {
         client.name = name
         client.email = email
@@ -115,6 +121,8 @@ final class ClientViewModel {
         client.defaultNotes = defaultNotes
         client.invoiceCode = invoiceCode
         client.preferredTemplateID = preferredTemplateID
+        client.countryCode = countryCode
+        client.locationType = locationType
         client.updateTimestamp()
 
         let saved = saveContext()

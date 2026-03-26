@@ -44,6 +44,12 @@ struct AddInvoiceView: View {
     @State private var ivaPercentage = "0"
     @State private var irpfPercentage = "0"
     @State private var notes = ""
+    @State private var invoiceType: InvoiceType = .f1
+    @State private var taxRegimeKey: TaxRegimeKey = .general
+    @State private var rectifiedInvoiceNumber = ""
+    @State private var rectifiedInvoiceDate: Date?
+    @State private var correctionMethod: CorrectionMethod = .differences
+    @State private var operationDescription = ""
     @State private var draftItems: [DraftInvoiceItem] = []
     @State private var showingAddItem = false
     @State private var editingDraftItem: DraftInvoiceItem?
@@ -357,28 +363,71 @@ struct AddInvoiceView: View {
 
     @ViewBuilder
     private var advancedSections: some View {
-        InvoiceEditorSections(
-            issuers: issuerViewModel?.issuers ?? [],
-            clients: clientViewModel?.clients ?? [],
-            selectedIssuerID: $selectedIssuerID,
-            selectedClientID: $selectedClientID,
-            invoiceNumber: $invoiceNumber,
-            clientName: $clientName,
-            clientEmail: $clientEmail,
-            clientIdentificationNumber: $clientIdentificationNumber,
-            clientAddress: $clientAddress,
-            issueDate: $issueDate,
-            dueDate: $dueDate,
-            ivaPercentage: $ivaPercentage,
-            irpfPercentage: $irpfPercentage,
-            notes: $notes,
-            draftItems: $draftItems,
-            showingAddItem: $showingAddItem,
-            editingDraftItem: $editingDraftItem,
-            onAddClient: handleAddClientTap,
-            onUseNextInvoiceNumber: incrementSuggestedInvoiceNumber,
-            onRemoveDraftItem: removeDraftItem
-        )
+        Group {
+            InvoiceEditorSections(
+                issuers: issuerViewModel?.issuers ?? [],
+                clients: clientViewModel?.clients ?? [],
+                selectedIssuerID: $selectedIssuerID,
+                selectedClientID: $selectedClientID,
+                invoiceNumber: $invoiceNumber,
+                clientName: $clientName,
+                clientEmail: $clientEmail,
+                clientIdentificationNumber: $clientIdentificationNumber,
+                clientAddress: $clientAddress,
+                issueDate: $issueDate,
+                dueDate: $dueDate,
+                ivaPercentage: $ivaPercentage,
+                irpfPercentage: $irpfPercentage,
+                notes: $notes,
+                draftItems: $draftItems,
+                showingAddItem: $showingAddItem,
+                editingDraftItem: $editingDraftItem,
+                onAddClient: handleAddClientTap,
+                onUseNextInvoiceNumber: incrementSuggestedInvoiceNumber,
+                onRemoveDraftItem: removeDraftItem
+            )
+
+            if currentIssuer?.verifactuEnabled == true {
+                verifactuSection
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var verifactuSection: some View {
+        Section(String(localized: "VeriFACTU Compliance", comment: "VeriFACTU section header")) {
+            Picker(String(localized: "Invoice Type", comment: "Invoice type picker"), selection: $invoiceType) {
+                ForEach(InvoiceType.allCases) { type in
+                    Text(type.localizedTitle).tag(type)
+                }
+            }
+
+            Picker(String(localized: "Tax Regime", comment: "Tax regime picker"), selection: $taxRegimeKey) {
+                ForEach(TaxRegimeKey.allCases) { key in
+                    Text(key.localizedTitle).tag(key)
+                }
+            }
+
+            TextField(
+                String(localized: "Operation Description", comment: "Operation description field"),
+                text: $operationDescription,
+                axis: .vertical
+            )
+            .lineLimit(2...4)
+
+            if invoiceType.isRectificativa {
+                TextField(
+                    String(localized: "Rectified Invoice Number", comment: "Rectified invoice number field"),
+                    text: $rectifiedInvoiceNumber
+                )
+
+                Picker(String(localized: "Correction Method", comment: "Correction method picker"), selection: $correctionMethod) {
+                    ForEach(CorrectionMethod.allCases) { method in
+                        Text(method.localizedTitle).tag(method)
+                    }
+                }
+            }
+        }
     }
 
     private var itemsSection: some View {
@@ -669,7 +718,8 @@ struct AddInvoiceView: View {
             DraftInvoiceItem(
                 description: $0.itemDescription,
                 quantity: $0.quantity,
-                unitPrice: $0.unitPrice
+                unitPrice: $0.unitPrice,
+                vatRate: $0.vatRate
             )
         }
         applySuggestedInvoiceNumber(force: true)
@@ -739,7 +789,8 @@ struct AddInvoiceView: View {
             InvoiceLineItemInput(
                 description: $0.description,
                 quantity: $0.quantity,
-                unitPrice: $0.unitPrice
+                unitPrice: $0.unitPrice,
+                vatRate: $0.vatRate
             )
         }
 
@@ -756,6 +807,12 @@ struct AddInvoiceView: View {
             notes: notes,
             ivaPercentage: ivaPercentageValue,
             irpfPercentage: irpfPercentageValue,
+            invoiceType: issuer.verifactuEnabled ? invoiceType : .f1,
+            taxRegimeKey: issuer.verifactuEnabled ? taxRegimeKey : .general,
+            rectifiedInvoiceNumber: rectifiedInvoiceNumber,
+            rectifiedInvoiceDate: rectifiedInvoiceDate,
+            correctionMethod: invoiceType.isRectificativa ? correctionMethod : nil,
+            operationDescription: operationDescription,
             items: preparedItems
         )
 

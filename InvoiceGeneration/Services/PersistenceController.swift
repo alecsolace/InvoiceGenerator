@@ -25,6 +25,8 @@ enum PersistenceController {
                 Issuer.self,
                 InvoiceTemplate.self,
                 InvoiceTemplateItem.self,
+                TaxBreakdown.self,
+                VerifactuRecord.self,
                 configurations: configuration
             )
         }
@@ -40,6 +42,8 @@ enum PersistenceController {
                 Issuer.self,
                 InvoiceTemplate.self,
                 InvoiceTemplateItem.self,
+                TaxBreakdown.self,
+                VerifactuRecord.self,
                 configurations: configuration
             )
         } catch {
