@@ -96,9 +96,9 @@ final class PDFGeneratorService {
 
         // Calculate the maximum Y the content can occupy before the footer
         let hasVerifactu = invoice.verifactuRecord != nil && !(invoice.verifactuRecord?.qrCodeUrl.isEmpty ?? true)
-        let verifactuFooterHeight: CGFloat = 100 + 16 + 10  // qrSize + padding + separator gap
+        let verifactuFooterHeight: CGFloat = 80 + 12 + 8  // qrSize + padding + separator gap
         let contentMaxY = hasVerifactu
-            ? pageRect.height - 50 - verifactuFooterHeight - 10
+            ? pageRect.height - 50 - verifactuFooterHeight - 16
             : pageRect.height - 50
 
         if !invoice.notes.isEmpty {
@@ -502,7 +502,7 @@ final class PDFGeneratorService {
         let bodyHeight = height(for: invoice.notes, style: bodyStyle, width: pageRect.width - 124)
         let desiredHeight = max(110, bodyHeight + 52)
         let availableHeight = maxY - startY
-        let clampedHeight = min(desiredHeight, max(52, availableHeight))
+        let clampedHeight = min(desiredHeight, max(60, availableHeight))
         let container = CGRect(x: 50, y: startY, width: pageRect.width - 100, height: clampedHeight)
         context.setFillColor(palette.sectionBackground)
         context.fill(container)
@@ -529,9 +529,9 @@ final class PDFGeneratorService {
         pageRect: CGRect,
         startY: CGFloat
     ) -> CGFloat {
-        let qrSize: CGFloat = 100
+        let qrSize: CGFloat = 80
         let margin: CGFloat = 50
-        let footerHeight: CGFloat = qrSize + 16  // QR + top padding
+        let footerHeight: CGFloat = qrSize + 12  // QR + top padding
         // Always anchor footer to the bottom of the page so QR is never clipped
         let footerY = pageRect.height - margin - footerHeight
 
@@ -539,8 +539,8 @@ final class PDFGeneratorService {
         context.saveGState()
         context.setStrokeColor(palette.separator)
         context.setLineWidth(0.5)
-        context.move(to: CGPoint(x: margin, y: footerY - 10))
-        context.addLine(to: CGPoint(x: pageRect.width - margin, y: footerY - 10))
+        context.move(to: CGPoint(x: margin, y: footerY - 8))
+        context.addLine(to: CGPoint(x: pageRect.width - margin, y: footerY - 8))
         context.strokePath()
         context.restoreGState()
 
@@ -571,16 +571,16 @@ final class PDFGeneratorService {
             at: CGPoint(x: margin, y: yPosition),
             in: context
         )
-        yPosition += 14
+        yPosition += 12
 
-        // Verification legend (up to 2 lines at 8pt ≈ 22pt total)
+        // Verification legend (up to 2 lines at 8pt ≈ 20pt total)
         let legendText = localized(
             "Invoice verifiable at the AEAT electronic office",
             comment: "PDF VeriFACTU verification legend"
         )
-        let legendRect = CGRect(x: margin, y: yPosition, width: legendWidth, height: 22)
+        let legendRect = CGRect(x: margin, y: yPosition, width: legendWidth, height: 20)
         _ = drawMultilineText(legendText, style: legendStyle, in: legendRect, context: context)
-        yPosition += 24
+        yPosition += 22
 
         // Truncated hash
         let hashLabel = String(
@@ -593,7 +593,7 @@ final class PDFGeneratorService {
             in: CGRect(x: margin, y: yPosition, width: legendWidth, height: 12),
             context: context
         )
-        yPosition += 14
+        yPosition += 12
 
         // Invoice type and regime
         let typeLabel = String(
