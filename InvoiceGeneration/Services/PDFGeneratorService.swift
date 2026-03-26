@@ -537,7 +537,7 @@ final class PDFGeneratorService {
 
         // Separator line above footer
         context.saveGState()
-        context.setStrokeColor(palette.separator)
+        context.setStrokeColor(palette.divider)
         context.setLineWidth(0.5)
         context.move(to: CGPoint(x: margin, y: footerY - 8))
         context.addLine(to: CGPoint(x: pageRect.width - margin, y: footerY - 8))
