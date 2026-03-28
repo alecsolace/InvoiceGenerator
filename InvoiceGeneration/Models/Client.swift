@@ -23,6 +23,12 @@ final class Client {
     var nextInvoiceSequence: Int = 1
     var preferredTemplateID: UUID?
 
+    /// ISO 3166-1 alpha-2 country code (e.g. "ES", "FR", "US"). Defaults to Spain.
+    var countryCode: String = "ES"
+
+    /// Client location classification for tax purposes (national, intra-EU, extra-EU)
+    var locationType: ClientLocationType = ClientLocationType.national
+
     @Relationship(deleteRule: .nullify)
     var invoices: [Invoice]?
 
@@ -47,7 +53,9 @@ final class Client {
         defaultNotes: String = "",
         invoiceCode: String = "",
         nextInvoiceSequence: Int = 1,
-        preferredTemplateID: UUID? = nil
+        preferredTemplateID: UUID? = nil,
+        countryCode: String = "ES",
+        locationType: ClientLocationType = .national
     ) {
         self.id = id
         self.name = name
@@ -62,6 +70,8 @@ final class Client {
         self.invoiceCode = invoiceCode
         self.nextInvoiceSequence = max(nextInvoiceSequence, 1)
         self.preferredTemplateID = preferredTemplateID
+        self.countryCode = countryCode
+        self.locationType = locationType
         self.createdAt = Date()
         self.updatedAt = Date()
     }

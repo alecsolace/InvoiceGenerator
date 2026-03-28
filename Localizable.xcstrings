@@ -7058,6 +7058,958 @@
     },
     "Your purchase is pending approval. Access will unlock automatically once Apple confirms it." : {
       "comment" : "Pending purchase helper"
+    },
+    "01 - General Regime" : {
+      "comment" : "Tax regime general",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "01 - General Regime"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "01 - Régimen general"
+          }
+        }
+      }
+    },
+    "02 - Export" : {
+      "comment" : "Tax regime export",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "02 - Export"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "02 - Exportación"
+          }
+        }
+      }
+    },
+    "03 - Used Goods" : {
+      "comment" : "Tax regime used goods",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "03 - Used Goods"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "03 - Bienes usados"
+          }
+        }
+      }
+    },
+    "04 - Reverse Charge" : {
+      "comment" : "Tax regime reverse charge",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "04 - Reverse Charge"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "04 - Inversión sujeto pasivo"
+          }
+        }
+      }
+    },
+    "05 - Travel Agencies" : {
+      "comment" : "Tax regime travel agencies",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "05 - Travel Agencies"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "05 - Agencias de viaje"
+          }
+        }
+      }
+    },
+    "06 - Entity Group" : {
+      "comment" : "Tax regime entity group",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "06 - Entity Group"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "06 - Grupo de entidades"
+          }
+        }
+      }
+    },
+    "07 - Cash Basis" : {
+      "comment" : "Tax regime cash basis",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "07 - Cash Basis"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "07 - Criterio de caja (RECC)"
+          }
+        }
+      }
+    },
+    "08 - IPSI/IGIC" : {
+      "comment" : "Tax regime IPSI/IGIC",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "08 - IPSI/IGIC"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "08 - IPSI/IGIC (Ceuta/Melilla/Canarias)"
+          }
+        }
+      }
+    },
+    "09 - Intra-EU Acquisitions" : {
+      "comment" : "Tax regime intra-EU acquisitions",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "09 - Intra-EU Acquisitions"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "09 - Adquisiciones intracomunitarias"
+          }
+        }
+      }
+    },
+    "10 - Intra-EU Services" : {
+      "comment" : "Tax regime intra-EU services",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "10 - Intra-EU Services"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "10 - Servicios intracomunitarios"
+          }
+        }
+      }
+    },
+    "11 - Third Party Collections" : {
+      "comment" : "Tax regime third party",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "11 - Third Party Collections"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "11 - Cobros por cuenta de terceros"
+          }
+        }
+      }
+    },
+    "12 - Business Rental" : {
+      "comment" : "Tax regime business rental",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "12 - Business Rental"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "12 - Arrendamiento de local de negocio"
+          }
+        }
+      }
+    },
+    "14 - Multiple Recipients" : {
+      "comment" : "Tax regime multiple recipients",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "14 - Multiple Recipients"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "14 - Factura con varios destinatarios"
+          }
+        }
+      }
+    },
+    "15 - Public Subsidies" : {
+      "comment" : "Tax regime public subsidies",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "15 - Public Subsidies"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "15 - Subvenciones y subvenciones públicas"
+          }
+        }
+      }
+    },
+    "Accepted" : {
+      "comment" : "Verifactu status accepted",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Accepted"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aceptada"
+          }
+        }
+      }
+    },
+    "By Differences" : {
+      "comment" : "Correction method differences",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "By Differences"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Por diferencias"
+          }
+        }
+      }
+    },
+    "By Substitution" : {
+      "comment" : "Correction method substitution",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "By Substitution"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Por sustitución"
+          }
+        }
+      }
+    },
+    "Cancelled" : {
+      "comment" : "Verifactu status cancelled",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cancelled"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Anulada"
+          }
+        }
+      }
+    },
+    "Chain Position" : {
+      "comment" : "Detail chain position",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Chain Position"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Posición en cadena"
+          }
+        }
+      }
+    },
+    "Correction Method" : {
+      "comment" : "Correction method picker",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Correction Method"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Método de rectificación"
+          }
+        }
+      }
+    },
+    "Country Code (ISO)" : {
+      "comment" : "Country code field",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Country Code (ISO)"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Código de país (ISO)"
+          }
+        }
+      }
+    },
+    "Enable VeriFACTU" : {
+      "comment" : "Toggle to enable verifactu",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Enable VeriFACTU"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Activar VeriFACTU"
+          }
+        }
+      }
+    },
+    "Exempt (0%)" : {
+      "comment" : "VAT rate exempt",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Exempt (0%)"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Exento (0%)"
+          }
+        }
+      }
+    },
+    "Export XML" : {
+      "comment" : "Export XML button",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Export XML"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Exportar XML"
+          }
+        }
+      }
+    },
+    "Extra-EU" : {
+      "comment" : "Client location extra-EU",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Extra-EU"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Extracomunitario"
+          }
+        }
+      }
+    },
+    "F1 - Full Invoice" : {
+      "comment" : "Invoice type F1",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "F1 - Full Invoice"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "F1 - Factura completa"
+          }
+        }
+      }
+    },
+    "F2 - Simplified Invoice" : {
+      "comment" : "Invoice type F2",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "F2 - Simplified Invoice"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "F2 - Factura simplificada"
+          }
+        }
+      }
+    },
+    "F3 - Replacement for Simplified" : {
+      "comment" : "Invoice type F3",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "F3 - Replacement for Simplified"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "F3 - Sustitutiva de simplificada"
+          }
+        }
+      }
+    },
+    "General (21%)" : {
+      "comment" : "VAT rate general",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "General (21%)"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "General (21%)"
+          }
+        }
+      }
+    },
+    "Hash: %@" : {
+      "comment" : "Detail hash truncated",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hash: %@"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Huella: %@"
+          }
+        }
+      }
+    },
+    "Intra-EU" : {
+      "comment" : "Client location intra-EU",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Intra-EU"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Intracomunitario"
+          }
+        }
+      }
+    },
+    "Invoice Type" : {
+      "comment" : "Invoice type picker",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Invoice Type"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tipo de factura"
+          }
+        }
+      }
+    },
+    "Invoice services" : {
+      "comment" : "Default operation description for XML",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Invoice services"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Prestación de servicios"
+          }
+        }
+      }
+    },
+    "Invoice verifiable at the AEAT electronic office" : {
+      "comment" : "PDF VeriFACTU verification legend",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Invoice verifiable at the AEAT electronic office"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Factura verificable en la sede electrónica de la AEAT"
+          }
+        }
+      }
+    },
+    "Invoices from this emitter will generate hash-chained records and QR codes for AEAT verification." : {
+      "comment" : "Verifactu description",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Invoices from this emitter will generate hash-chained records and QR codes for AEAT verification."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Las facturas de este emisor generarán registros encadenados con hash y códigos QR para verificación en la AEAT."
+          }
+        }
+      }
+    },
+    "IVA Rate" : {
+      "comment" : "VAT rate picker label",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "IVA Rate"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tipo de IVA"
+          }
+        }
+      }
+    },
+    "Location Type" : {
+      "comment" : "Client location type",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Location Type"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tipo de ubicación"
+          }
+        }
+      }
+    },
+    "National (Spain)" : {
+      "comment" : "Client location national",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "National (Spain)"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nacional (España)"
+          }
+        }
+      }
+    },
+    "Operation Description" : {
+      "comment" : "Operation description field",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Operation Description"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Descripción de la operación"
+          }
+        }
+      }
+    },
+    "Pending" : {
+      "comment" : "Verifactu status pending",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pending"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pendiente"
+          }
+        }
+      }
+    },
+    "R.E. (%@)" : {
+      "comment" : "PDF equivalence surcharge label",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "R.E. (%@)"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "R.E. (%@)"
+          }
+        }
+      }
+    },
+    "R1 - Corrective (Differences)" : {
+      "comment" : "Invoice type R1",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "R1 - Corrective (Differences)"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "R1 - Rectificativa (diferencias)"
+          }
+        }
+      }
+    },
+    "R2 - Corrective (Art. 80.3)" : {
+      "comment" : "Invoice type R2",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "R2 - Corrective (Art. 80.3)"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "R2 - Rectificativa (art. 80.3)"
+          }
+        }
+      }
+    },
+    "R3 - Corrective (Insolvency)" : {
+      "comment" : "Invoice type R3",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "R3 - Corrective (Insolvency)"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "R3 - Rectificativa (concurso acreedores)"
+          }
+        }
+      }
+    },
+    "R4 - Corrective (Other)" : {
+      "comment" : "Invoice type R4",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "R4 - Corrective (Other)"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "R4 - Rectificativa (otros)"
+          }
+        }
+      }
+    },
+    "R5 - Corrective (Simplified)" : {
+      "comment" : "Invoice type R5",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "R5 - Corrective (Simplified)"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "R5 - Rectificativa simplificada"
+          }
+        }
+      }
+    },
+    "Rectified Invoice Number" : {
+      "comment" : "Rectified invoice number field",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rectified Invoice Number"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Número de factura rectificada"
+          }
+        }
+      }
+    },
+    "Reduced (10%)" : {
+      "comment" : "VAT rate reduced",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reduced (10%)"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reducido (10%)"
+          }
+        }
+      }
+    },
+    "Rejected" : {
+      "comment" : "Verifactu status rejected",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rejected"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rechazada"
+          }
+        }
+      }
+    },
+    "Submitted" : {
+      "comment" : "Verifactu status submitted",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Submitted"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Enviada"
+          }
+        }
+      }
+    },
+    "Super-reduced (4%)" : {
+      "comment" : "VAT rate super-reduced",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Super-reduced (4%)"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Superreducido (4%)"
+          }
+        }
+      }
+    },
+    "Tax ID (NIF/CIF) is required for VeriFACTU" : {
+      "comment" : "Verifactu NIF warning",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tax ID (NIF/CIF) is required for VeriFACTU"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "El NIF/CIF es obligatorio para VeriFACTU"
+          }
+        }
+      }
+    },
+    "Tax Regime" : {
+      "comment" : "Tax regime picker",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tax Regime"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Régimen fiscal"
+          }
+        }
+      }
+    },
+    "Type: %@ | Regime: %@" : {
+      "comment" : "PDF invoice type and regime",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Type: %1$@ | Regime: %2$@"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tipo: %1$@ | Régimen: %2$@"
+          }
+        }
+      }
+    },
+    "VeriFACTU Compliance" : {
+      "comment" : "VeriFACTU section header",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "VeriFACTU Compliance"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cumplimiento VeriFACTU"
+          }
+        }
+      }
+    },
+    "VeriFactu" : {
+      "comment" : "Verifactu badge",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "VeriFactu"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "VeriFactu"
+          }
+        }
+      }
     }
   },
   "version" : "1.1"

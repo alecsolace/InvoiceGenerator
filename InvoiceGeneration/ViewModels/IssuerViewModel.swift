@@ -40,7 +40,8 @@ final class IssuerViewModel {
         address: String = "",
         taxId: String = "",
         logoData: Data? = nil,
-        defaultNotes: String = ""
+        defaultNotes: String = "",
+        verifactuEnabled: Bool = false
     ) -> Issuer? {
         let normalizedCode = InvoiceNumberingService.sanitizeCode(code)
 
@@ -63,7 +64,8 @@ final class IssuerViewModel {
             address: address,
             taxId: taxId,
             logoData: logoData,
-            defaultNotes: defaultNotes
+            defaultNotes: defaultNotes,
+            verifactuEnabled: verifactuEnabled
         )
 
         modelContext.insert(issuer)
@@ -92,7 +94,8 @@ final class IssuerViewModel {
         address: String,
         taxId: String,
         logoData: Data?,
-        defaultNotes: String = ""
+        defaultNotes: String = "",
+        verifactuEnabled: Bool = false
     ) -> Bool {
         let normalizedCode = InvoiceNumberingService.sanitizeCode(code)
 
@@ -115,6 +118,7 @@ final class IssuerViewModel {
         issuer.taxId = taxId
         issuer.logoData = logoData
         issuer.defaultNotes = defaultNotes
+        issuer.verifactuEnabled = verifactuEnabled
         issuer.updateTimestamp()
 
         let success = saveContext()

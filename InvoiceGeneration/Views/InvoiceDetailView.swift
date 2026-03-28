@@ -51,6 +51,9 @@ struct InvoiceDetailView: View {
                     if !invoice.notes.isEmpty {
                         notesCard
                     }
+                    if invoice.verifactuRecord != nil {
+                        verifactuCard
+                    }
                     pdfPreviewCard
                 }
                 .padding(.horizontal, 16)
@@ -348,6 +351,63 @@ struct InvoiceDetailView: View {
         }
         .padding(20)
         .cardStyle(cornerRadius: 16)
+    }
+
+    @ViewBuilder
+    private var verifactuCard: some View {
+        if let record = invoice.verifactuRecord {
+            VStack(alignment: .leading, spacing: 12) {
+                HStack {
+                    Label(String(localized: "VeriFactu", comment: "Verifactu card title"), systemImage: "checkmark.shield")
+                        .font(.title2)
+                        .fontWeight(.semibold)
+                    Spacer()
+                    Text(record.submissionStatus.localizedTitle)
+                        .font(.caption)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background(verifactuStatusColor(record.submissionStatus).opacity(0.15))
+                        .foregroundStyle(verifactuStatusColor(record.submissionStatus))
+                        .clipShape(Capsule())
+                }
+
+                LabeledContent(String(localized: "Invoice Type", comment: "Detail invoice type"), value: record.invoiceType.localizedTitle)
+                LabeledContent(String(localized: "Tax Regime", comment: "Detail tax regime"), value: record.taxRegimeKey.localizedTitle)
+                LabeledContent(String(localized: "Chain Position", comment: "Detail chain position"), value: "#\(record.sequenceNumber)")
+
+                Text(String(localized: "Hash: %@", comment: "Detail hash truncated").replacingOccurrences(of: "%@", with: String(record.recordHash.prefix(24)) + "..."))
+                    .font(.caption)
+                    .monospaced()
+                    .foregroundStyle(.secondary)
+
+                if !record.qrCodeUrl.isEmpty {
+                    Button(String(localized: "Export XML", comment: "Export XML button")) {
+                        exportVerifactuXML(record: record)
+                    }
+                    .buttonStyle(.bordered)
+                }
+            }
+            .padding(20)
+            .cardStyle(cornerRadius: 16)
+        }
+    }
+
+    private func verifactuStatusColor(_ status: VerifactuRecordStatus) -> Color {
+        switch status {
+        case .pending: return .orange
+        case .submitted: return .blue
+        case .accepted: return .green
+        case .rejected: return .red
+        case .cancelled: return .gray
+        }
+    }
+
+    private func exportVerifactuXML(record: VerifactuRecord) {
+        guard let issuer = invoice.issuer else { return }
+        if let url = VerifactuSubmissionService.exportAltaXML(record: record, invoice: invoice, issuer: issuer) {
+            pdfURL = url
+            showingShareSheet = true
+        }
     }
 
     private var pdfPreviewCard: some View {
