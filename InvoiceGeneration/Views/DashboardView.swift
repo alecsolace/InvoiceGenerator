@@ -7,8 +7,7 @@ import SwiftData
 struct DashboardView: View {
     @Environment(\.modelContext) private var modelContext
     @Query(sort: [SortDescriptor(\Issuer.name)]) private var issuers: [Issuer]
-    @AppStorage(IssuerSelectionStore.appStorageKey) private var selectedIssuerStorage = IssuerSelectionStore.allIssuersToken
-
+    @State private var selectedIssuerID: UUID?
     @State private var viewModel: DashboardViewModel?
 
     var body: some View {
@@ -17,6 +16,7 @@ struct DashboardView: View {
                 if let viewModel = viewModel {
                     ScrollView {
                         VStack(alignment: .leading, spacing: 20) {
+                            dashboardSummaryCards(viewModel: viewModel)
                             statusSection(viewModel: viewModel)
                             revenueSection(viewModel: viewModel)
                         }
@@ -37,12 +37,26 @@ struct DashboardView: View {
             loadViewModelIfNeeded()
             applyIssuerFilter()
         }
-        .onChange(of: selectedIssuerStorage) { _, _ in
+        .onChange(of: selectedIssuerID) { _, _ in
             applyIssuerFilter()
         }
         .onChange(of: issuers.count) { _, _ in
             applyIssuerFilter()
         }
+    }
+
+    private func dashboardSummaryCards(viewModel: DashboardViewModel) -> some View {
+        let totalInvoices = viewModel.statusSummaries.reduce(0) { $0 + $1.count }
+        let paidCount = viewModel.statusSummaries.first(where: { $0.status == .paid })?.count ?? 0
+        let overdueCount = viewModel.statusSummaries.first(where: { $0.status == .overdue })?.count ?? 0
+        let totalRevenue = Decimal(viewModel.monthlyRevenue.reduce(0.0) { $0 + $1.total })
+
+        return SummaryCardRow(cards: [
+            SummaryCardData(title: String(localized: "Total facturas"), value: "\(totalInvoices)", tint: .blue),
+            SummaryCardData(title: String(localized: "Cobradas"), value: "\(paidCount)", tint: .green),
+            SummaryCardData(title: String(localized: "Vencidas"), value: "\(overdueCount)", tint: .red),
+            SummaryCardData(title: String(localized: "Ingresos"), value: totalRevenue.formattedAsCurrency, tint: .blue),
+        ])
     }
 
     private func statusSection(viewModel: DashboardViewModel) -> some View {
@@ -139,13 +153,13 @@ struct DashboardView: View {
     private var issuerFilterMenu: some ToolbarContent {
         ToolbarItem(placement: .automatic) {
             Menu {
-                Button("All Emitters") {
-                    selectedIssuerStorage = IssuerSelectionStore.allIssuersToken
+                Button(String(localized: "Todos los emisores")) {
+                    selectedIssuerID = nil
                 }
 
                 ForEach(issuers) { issuer in
                     Button(issuer.name) {
-                        selectedIssuerStorage = issuer.id.uuidString
+                        selectedIssuerID = issuer.id
                     }
                 }
             } label: {
@@ -155,10 +169,10 @@ struct DashboardView: View {
     }
 
     private var issuerFilterLabel: String {
-        guard let selectedID = IssuerSelectionStore.issuerID(from: selectedIssuerStorage),
-              let issuer = issuers.first(where: { $0.id == selectedID })
+        guard let selectedIssuerID,
+              let issuer = issuers.first(where: { $0.id == selectedIssuerID })
         else {
-            return "All Emitters"
+            return String(localized: "Todos los emisores")
         }
 
         return issuer.name
@@ -179,8 +193,7 @@ struct DashboardView: View {
 
     private func applyIssuerFilter() {
         guard let viewModel else { return }
-        let selectedID = IssuerSelectionStore.issuerID(from: selectedIssuerStorage)
-        if let selectedID, let issuer = issuers.first(where: { $0.id == selectedID }) {
+        if let selectedIssuerID, let issuer = issuers.first(where: { $0.id == selectedIssuerID }) {
             viewModel.filterByIssuer(issuer)
         } else {
             viewModel.filterByIssuer(nil)
@@ -205,11 +218,11 @@ struct DashboardView: View {
 
     private var statusColorScale: KeyValuePairs<String, Color> {
         [
-            InvoiceStatus.draft.localizedTitle: .gray,
-            InvoiceStatus.sent.localizedTitle: .blue,
-            InvoiceStatus.paid.localizedTitle: .green,
-            InvoiceStatus.overdue.localizedTitle: .red,
-            InvoiceStatus.cancelled.localizedTitle: .orange
+            InvoiceStatus.draft.localizedTitle: InvoiceStatus.draft.color,
+            InvoiceStatus.sent.localizedTitle: InvoiceStatus.sent.color,
+            InvoiceStatus.paid.localizedTitle: InvoiceStatus.paid.color,
+            InvoiceStatus.overdue.localizedTitle: InvoiceStatus.overdue.color,
+            InvoiceStatus.cancelled.localizedTitle: InvoiceStatus.cancelled.color
         ]
     }
 }

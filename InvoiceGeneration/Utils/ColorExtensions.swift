@@ -142,6 +142,19 @@ extension View {
     }
 }
 
+// MARK: - Prominent Card Style
+
+extension View {
+    func prominentCardStyle(cornerRadius: CGFloat = 16) -> some View {
+        self
+            .background(
+                RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                    .fill(Color.cardBackground)
+                    .shadow(color: .black.opacity(0.10), radius: 12, y: 4)
+            )
+    }
+}
+
 extension CGColor {
     static func fromHex(_ hex: String, defaultColor: CGColor) -> CGColor {
         Color(hex: hex)?.cgColorRepresentation ?? defaultColor

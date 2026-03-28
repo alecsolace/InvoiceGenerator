@@ -3,53 +3,43 @@ import SwiftData
 
 struct IssuerListView: View {
     @Environment(\.modelContext) private var modelContext
-    @AppStorage(IssuerSelectionStore.appStorageKey) private var selectedIssuerStorage = IssuerSelectionStore.allIssuersToken
 
     @State private var viewModel: IssuerViewModel?
     @State private var editorState: IssuerEditorState?
-    @State private var showDeleteBlockedAlert = false
-    @State private var deleteBlockedMessage = ""
 
     var body: some View {
-        NavigationStack {
-            Group {
-                if let viewModel {
-                    if viewModel.isLoading {
-                        ProgressView("Loading emitters...")
-                    } else if viewModel.issuers.isEmpty {
-                        emptyState
-                    } else {
-                        issuerList(viewModel)
-                    }
-                } else {
-                    ProgressView()
-                }
-            }
-            .navigationTitle("Emitters")
-            .toolbar {
-                ToolbarItem(placement: .primaryAction) {
-                    Button {
-                        editorState = .create
-                    } label: {
-                        Label("Add Emitter", systemImage: "plus")
-                    }
-                }
-            }
-            .sheet(item: $editorState) { state in
-                if let viewModel {
-                    IssuerEditorView(
-                        mode: state,
-                        viewModel: viewModel,
-                        onSaved: { issuer in
-                            selectedIssuerStorage = IssuerSelectionStore.storageValue(from: issuer.id)
-                        }
+        Group {
+            if let viewModel {
+                if viewModel.isLoading {
+                    ProgressView("Loading emitters...")
+                } else if viewModel.issuers.isEmpty {
+                    EmptyStateView(
+                        icon: "building.2.crop.circle",
+                        title: String(localized: "Sin emisores"),
+                        message: String(localized: "Crea un emisor para emitir facturas y llevar el historial por remitente."),
+                        buttonTitle: String(localized: "Crear emisor"),
+                        action: { editorState = .create }
                     )
+                } else {
+                    issuerList(viewModel)
+                }
+            } else {
+                ProgressView()
+            }
+        }
+        .navigationTitle(String(localized: "Emisores"))
+        .toolbar {
+            ToolbarItem(placement: .primaryAction) {
+                Button {
+                    editorState = .create
+                } label: {
+                    Label(String(localized: "Añadir emisor"), systemImage: "plus")
                 }
             }
-            .alert("Cannot Delete Emitter", isPresented: $showDeleteBlockedAlert) {
-                Button("OK", role: .cancel) {}
-            } message: {
-                Text(deleteBlockedMessage)
+        }
+        .sheet(item: $editorState) { state in
+            if let viewModel {
+                IssuerEditorView(mode: state, viewModel: viewModel)
             }
         }
         .onAppear {
@@ -61,123 +51,58 @@ struct IssuerListView: View {
         }
     }
 
-    private var emptyState: some View {
-        VStack(spacing: 16) {
-            Image(systemName: "building.2.crop.circle")
-                .font(.system(size: 58))
-                .foregroundStyle(.secondary)
-
-            Text("No Emitters")
-                .font(.title2)
-                .fontWeight(.semibold)
-
-            Text("Create an emitter to issue invoices and track history by sender.")
-                .foregroundStyle(.secondary)
-                .multilineTextAlignment(.center)
-
-            Button {
-                editorState = .create
-            } label: {
-                Label("Create Emitter", systemImage: "plus.circle.fill")
-            }
-            .buttonStyle(.borderedProminent)
-        }
-        .padding()
-    }
+    // MARK: - Issuer List
 
     private func issuerList(_ viewModel: IssuerViewModel) -> some View {
         List {
-            activeContextBanner(viewModel)
-
             ForEach(viewModel.issuers) { issuer in
-                VStack(alignment: .leading, spacing: 6) {
-                    HStack {
-                        Text(issuer.name)
-                            .font(.headline)
-                        Spacer()
-                        if isActive(issuer) {
-                            Label("Active", systemImage: "checkmark.circle.fill")
-                                .font(.caption)
-                                .foregroundStyle(.green)
-                        }
-                    }
-
-                    Text("Code: \(issuer.code)")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-
-                    if !issuer.email.isEmpty {
-                        Label(issuer.email, systemImage: "envelope")
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
-                    }
-
-                    if !issuer.taxId.isEmpty {
-                        Label(issuer.taxId, systemImage: "number")
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
-                    }
-
-                    if issuer.verifactuEnabled {
-                        Label(String(localized: "VeriFactu", comment: "Verifactu badge"), systemImage: "checkmark.shield")
-                            .font(.caption)
-                            .foregroundStyle(.blue)
-                    }
-                }
-                .contentShape(Rectangle())
-                .onTapGesture {
-                    selectedIssuerStorage = IssuerSelectionStore.storageValue(from: issuer.id)
-                }
-                .platformRowActions(
-                    onSetActive: {
-                        selectedIssuerStorage = IssuerSelectionStore.storageValue(from: issuer.id)
-                    },
-                    onEdit: {
-                        editorState = .edit(issuer)
-                    },
-                    onDelete: {
-                        if !viewModel.deleteIssuer(issuer), let error = viewModel.errorMessage {
-                            deleteBlockedMessage = error
-                            showDeleteBlockedAlert = true
-                        }
-
-                        if selectedIssuerStorage == issuer.id.uuidString {
-                            selectedIssuerStorage = IssuerSelectionStore.allIssuersToken
-                        }
-                    }
-                )
+                issuerRow(issuer, viewModel: viewModel)
             }
         }
     }
 
-    private func activeContextBanner(_ viewModel: IssuerViewModel) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("Active emitter context")
-                .font(.headline)
+    private func issuerRow(_ issuer: Issuer, viewModel: IssuerViewModel) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack {
+                Text(issuer.name)
+                    .font(.headline)
+                Spacer()
+                Text(issuer.code)
+                    .font(.caption)
+                    .fontWeight(.semibold)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 3)
+                    .background(Color.blue.opacity(0.1), in: Capsule())
+                    .foregroundStyle(.blue)
+            }
 
-            if let selectedID = IssuerSelectionStore.issuerID(from: selectedIssuerStorage),
-               let issuer = viewModel.issuers.first(where: { $0.id == selectedID }) {
-                Text("\(issuer.name) (\(issuer.code)) is selected globally for dashboards and invoice creation.")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-            } else {
-                Text("All emitters are selected in global context.")
+            if !issuer.email.isEmpty {
+                Label(issuer.email, systemImage: "envelope")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
             }
 
-            Button("Use All Emitters") {
-                selectedIssuerStorage = IssuerSelectionStore.allIssuersToken
+            if !issuer.taxId.isEmpty {
+                Label(issuer.taxId, systemImage: "number")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
             }
-            .buttonStyle(.bordered)
+
+            if issuer.verifactuEnabled {
+                Label(String(localized: "VeriFactu", comment: "Verifactu badge"), systemImage: "checkmark.shield")
+                    .font(.caption)
+                    .foregroundStyle(.blue)
+            }
         }
-        .padding(.vertical, 6)
-    }
-
-    private func isActive(_ issuer: Issuer) -> Bool {
-        IssuerSelectionStore.issuerID(from: selectedIssuerStorage) == issuer.id
+        .contentShape(Rectangle())
+        .platformRowActions(
+            onEdit: { editorState = .edit(issuer) },
+            onDelete: { _ = viewModel.deleteIssuer(issuer) }
+        )
     }
 }
+
+// MARK: - Editor State
 
 private enum IssuerEditorState: Identifiable {
     case create
@@ -193,12 +118,13 @@ private enum IssuerEditorState: Identifiable {
     }
 }
 
+// MARK: - Issuer Editor
+
 private struct IssuerEditorView: View {
     @Environment(\.dismiss) private var dismiss
 
     let mode: IssuerEditorState
     @Bindable var viewModel: IssuerViewModel
-    let onSaved: (Issuer) -> Void
 
     @State private var name = ""
     @State private var code = ""
@@ -214,29 +140,29 @@ private struct IssuerEditorView: View {
     var body: some View {
         NavigationStack {
             Form {
-                Section("Emitter") {
-                    TextField("Name", text: $name)
-                    TextField("Code", text: $code)
+                Section(String(localized: "Emisor")) {
+                    TextField(String(localized: "Nombre"), text: $name)
+                    TextField(String(localized: "Código"), text: $code)
 #if os(iOS)
                         .textInputAutocapitalization(.characters)
                         .autocorrectionDisabled(true)
 #endif
                 }
 
-                Section("Contact") {
-                    TextField("Owner Name", text: $ownerName)
-                    TextField("Email", text: $email)
+                Section(String(localized: "Contacto")) {
+                    TextField(String(localized: "Propietario"), text: $ownerName)
+                    TextField(String(localized: "Email"), text: $email)
 #if os(iOS)
                         .keyboardType(.emailAddress)
 #endif
-                    TextField("Phone", text: $phone)
-                    TextField("Tax ID", text: $taxId)
-                    TextField("Address", text: $address, axis: .vertical)
+                    TextField(String(localized: "Teléfono"), text: $phone)
+                    TextField(String(localized: "NIF/CIF"), text: $taxId)
+                    TextField(String(localized: "Dirección"), text: $address, axis: .vertical)
                         .lineLimit(3...6)
                 }
 
-                Section("Invoice Defaults") {
-                    TextField("Default Notes", text: $defaultNotes, axis: .vertical)
+                Section(String(localized: "Configuración de facturas")) {
+                    TextField(String(localized: "Notas por defecto"), text: $defaultNotes, axis: .vertical)
                         .lineLimit(3...5)
                 }
 
@@ -273,10 +199,10 @@ private struct IssuerEditorView: View {
             #endif
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") { dismiss() }
+                    Button(String(localized: "Cancelar")) { dismiss() }
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Save") {
+                    Button(String(localized: "Guardar")) {
                         persist()
                     }
                     .disabled(name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || code.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
@@ -289,9 +215,9 @@ private struct IssuerEditorView: View {
     private var title: String {
         switch mode {
         case .create:
-            return "New Emitter"
+            return String(localized: "Nuevo emisor")
         case .edit:
-            return "Edit Emitter"
+            return String(localized: "Editar emisor")
         }
     }
 
@@ -311,7 +237,7 @@ private struct IssuerEditorView: View {
     private func persist() {
         switch mode {
         case .create:
-            guard let issuer = viewModel.createIssuer(
+            guard viewModel.createIssuer(
                 name: name,
                 code: code,
                 ownerName: ownerName,
@@ -321,11 +247,10 @@ private struct IssuerEditorView: View {
                 taxId: taxId,
                 defaultNotes: defaultNotes,
                 verifactuEnabled: verifactuEnabled
-            ) else {
+            ) != nil else {
                 errorMessage = viewModel.errorMessage
                 return
             }
-            onSaved(issuer)
             dismiss()
 
         case .edit(let issuer):
@@ -346,44 +271,36 @@ private struct IssuerEditorView: View {
                 errorMessage = viewModel.errorMessage
                 return
             }
-            onSaved(issuer)
             dismiss()
         }
     }
 }
 
+// MARK: - Platform Row Actions
+
 private extension View {
     @ViewBuilder
     func platformRowActions(
-        onSetActive: @escaping () -> Void,
         onEdit: @escaping () -> Void,
         onDelete: @escaping () -> Void
     ) -> some View {
         #if os(iOS)
         self.swipeActions(edge: .trailing, allowsFullSwipe: false) {
-            Button(action: onSetActive) {
-                Label("Set Active", systemImage: "checkmark.circle")
-            }
-            .tint(.green)
-
             Button(action: onEdit) {
-                Label("Edit", systemImage: "pencil")
+                Label(String(localized: "Editar"), systemImage: "pencil")
             }
 
             Button(role: .destructive, action: onDelete) {
-                Label("Delete", systemImage: "trash")
+                Label(String(localized: "Eliminar"), systemImage: "trash")
             }
         }
         #else
         self.contextMenu {
-            Button(action: onSetActive) {
-                Label("Set Active", systemImage: "checkmark.circle")
-            }
             Button(action: onEdit) {
-                Label("Edit", systemImage: "pencil")
+                Label(String(localized: "Editar"), systemImage: "pencil")
             }
             Button(role: .destructive, action: onDelete) {
-                Label("Delete", systemImage: "trash")
+                Label(String(localized: "Eliminar"), systemImage: "trash")
             }
         }
         #endif
@@ -391,6 +308,8 @@ private extension View {
 }
 
 #Preview {
-    IssuerListView()
-        .modelContainer(for: [Invoice.self, InvoiceItem.self, CompanyProfile.self, Client.self, Issuer.self])
+    NavigationStack {
+        IssuerListView()
+    }
+    .modelContainer(for: [Invoice.self, InvoiceItem.self, CompanyProfile.self, Client.self, Issuer.self])
 }

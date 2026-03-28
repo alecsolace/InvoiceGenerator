@@ -65,27 +65,37 @@ struct HomeView: View {
     // MARK: - Hero Card
 
     private var heroCard: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("Tu facturacion del mes")
-                .font(.title2)
-                .fontWeight(.bold)
+        VStack(spacing: 16) {
+            Image(systemName: "doc.text.fill")
+                .font(.system(size: 36))
+                .foregroundStyle(.tint)
 
-            Text("Crea la factura de este mes, reutiliza plantillas y sigue los cobros pendientes sin salir de Inicio.")
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
+            VStack(spacing: 6) {
+                Text("Tu facturación del mes")
+                    .font(.title3)
+                    .fontWeight(.bold)
+
+                Text("Crea facturas, reutiliza plantillas y sigue los cobros pendientes.")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+            }
 
             Button {
                 composerSeed = .quick
             } label: {
-                Label("Crear factura rapida", systemImage: "bolt.fill")
+                Label("Crear factura", systemImage: "plus.circle.fill")
+                    .font(.subheadline)
+                    .fontWeight(.semibold)
                     .frame(maxWidth: .infinity)
             }
             .buttonStyle(.borderedProminent)
             .controlSize(.large)
             .accessibilityIdentifier("home-quick-create")
         }
-        .padding(16)
-        .materialCardStyle(cornerRadius: 16)
+        .padding(20)
+        .frame(maxWidth: .infinity)
+        .prominentCardStyle(cornerRadius: 16)
     }
 
     // MARK: - Stats
@@ -95,11 +105,11 @@ struct HomeView: View {
             Text("Resumen")
                 .font(.headline)
 
-            HStack(spacing: 12) {
-                HomeStatCard(title: "Emitido", value: viewModel.thisMonthIssued.formattedAsCurrency, tint: .blue)
-                HomeStatCard(title: "Cobrado", value: viewModel.thisMonthPaid.formattedAsCurrency, tint: .green)
-                HomeStatCard(title: "Pendiente", value: viewModel.pendingAmount.formattedAsCurrency, tint: .orange)
-            }
+            SummaryCardRow(cards: [
+                SummaryCardData(title: "Emitido", value: viewModel.thisMonthIssued.formattedAsCurrency, tint: .blue),
+                SummaryCardData(title: "Cobrado", value: viewModel.thisMonthPaid.formattedAsCurrency, tint: .green),
+                SummaryCardData(title: "Pendiente", value: viewModel.pendingAmount.formattedAsCurrency, tint: .orange),
+            ])
         }
     }
 
@@ -281,33 +291,6 @@ struct HomeView: View {
     }
 }
 
-// MARK: - HomeStatCard
-
-private struct HomeStatCard: View {
-    let title: String
-    let value: String
-    let tint: Color
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack(spacing: 6) {
-                Circle()
-                    .fill(tint)
-                    .frame(width: 8, height: 8)
-                Text(title)
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-            }
-            Text(value)
-                .font(.headline)
-                .foregroundStyle(.primary)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(16)
-        .cardStyle(cornerRadius: 16)
-    }
-}
-
 // MARK: - CompactInvoiceCard
 
 private struct CompactInvoiceCard: View {
@@ -324,36 +307,20 @@ private struct CompactInvoiceCard: View {
                     .foregroundStyle(.secondary)
                 Text("Vence \(invoice.dueDate.mediumFormat)")
                     .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(.tertiary)
             }
 
             Spacer()
 
-            VStack(alignment: .trailing, spacing: 4) {
+            VStack(alignment: .trailing, spacing: 6) {
                 Text(invoice.totalAmount.formattedAsCurrency)
                     .font(.headline)
                     .foregroundStyle(.primary)
-                Text(invoice.status.localizedTitle)
-                    .font(.caption)
-                    .fontWeight(.medium)
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 4)
-                    .background(statusColor.opacity(0.12), in: Capsule())
-                    .foregroundStyle(statusColor)
+                StatusBadge(status: invoice.status)
             }
         }
         .padding(16)
-        .cardStyle(cornerRadius: 16)
-    }
-
-    private var statusColor: Color {
-        switch invoice.status {
-        case .draft: return .gray
-        case .sent: return .blue
-        case .paid: return .green
-        case .overdue: return .red
-        case .cancelled: return .orange
-        }
+        .cardStyle(cornerRadius: 14)
     }
 }
 

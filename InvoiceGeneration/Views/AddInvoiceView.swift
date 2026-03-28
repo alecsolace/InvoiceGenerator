@@ -10,7 +10,6 @@ struct AddInvoiceView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
 
-    @AppStorage(IssuerSelectionStore.appStorageKey) private var selectedIssuerStorage = IssuerSelectionStore.allIssuersToken
     @AppStorage(InvoiceFlowPreferences.defaultDueDaysKey) private var appDefaultDueDays = InvoiceFlowPreferences.defaultDueDays
     @AppStorage(InvoiceFlowPreferences.afterSaveActionKey) private var afterSaveActionRaw = InvoiceFlowPreferences.defaultAfterSaveAction
 
@@ -179,8 +178,7 @@ struct AddInvoiceView: View {
             applyTemplateDefaults(from: template)
             reapplyPendingImportedDraftIfNeeded()
         }
-        .onChange(of: selectedIssuerID) { _, newValue in
-            selectedIssuerStorage = IssuerSelectionStore.storageValue(from: newValue)
+        .onChange(of: selectedIssuerID) { _, _ in
             applySuggestedInvoiceNumber(force: false)
             if notes.isEmpty, let issuer = currentIssuer, !issuer.defaultNotes.isEmpty {
                 notes = issuer.defaultNotes
@@ -607,13 +605,7 @@ struct AddInvoiceView: View {
     }
 
     private func seedDefaultIssuerIfNeeded() {
-        let storedIssuerID = IssuerSelectionStore.issuerID(from: selectedIssuerStorage)
-        if let storedIssuerID,
-           issuerViewModel?.issuers.contains(where: { $0.id == storedIssuerID }) == true {
-            selectedIssuerID = storedIssuerID
-        } else {
-            selectedIssuerID = issuerViewModel?.issuers.first?.id
-        }
+        selectedIssuerID = issuerViewModel?.issuers.first?.id
 
         applySuggestedInvoiceNumber(force: true)
         if notes.isEmpty, let issuer = currentIssuer, !issuer.defaultNotes.isEmpty {
@@ -817,7 +809,6 @@ struct AddInvoiceView: View {
         )
 
         guard let createdInvoice else { return }
-        selectedIssuerStorage = IssuerSelectionStore.storageValue(from: issuer.id)
         handlePostSave(for: createdInvoice)
     }
 
