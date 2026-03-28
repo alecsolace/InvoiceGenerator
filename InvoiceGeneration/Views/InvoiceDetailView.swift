@@ -168,50 +168,57 @@ struct InvoiceDetailView: View {
     // MARK: - Sections
 
     private var headerSection: some View {
-        VStack(alignment: .leading, spacing: 20) {
-            HStack(alignment: .top) {
-                VStack(alignment: .leading, spacing: 6) {
-                    Text(invoice.invoiceNumber)
-                        .font(.system(.largeTitle, design: .rounded))
-                        .fontWeight(.bold)
-                    Text(invoice.clientName)
-                        .font(.title3)
-                        .foregroundStyle(.secondary)
-                }
-                Spacer()
+        VStack(spacing: 20) {
+            // Invoice number
+            Text(invoice.invoiceNumber)
+                .font(.subheadline)
+                .fontWeight(.medium)
+                .foregroundStyle(.secondary)
+
+            // Total amount — prominent center
+            Text(invoice.totalAmount.formattedAsCurrency)
+                .font(.system(size: 44, weight: .bold, design: .rounded))
+
+            // Status badges row
+            HStack(spacing: 8) {
+                StatusBadge(status: invoice.status)
                 pdfStateChip
             }
 
-            HStack(alignment: .lastTextBaseline, spacing: 16) {
-                Text(invoice.totalAmount.formattedAsCurrency)
-                    .font(.system(size: 40, weight: .bold, design: .rounded))
-                Spacer()
-                statusPicker
-            }
-
+            // Quick action buttons
             HStack(spacing: 12) {
                 if invoice.status != .sent {
-                    Button("Marcar enviada") {
+                    Button {
                         viewModel.markSent(invoice)
+                    } label: {
+                        Label("Marcar enviada", systemImage: "paperplane")
+                            .font(.subheadline)
+                            .fontWeight(.medium)
                     }
                     .buttonStyle(.bordered)
                 }
 
                 if invoice.status != .paid {
-                    Button("Marcar cobrada") {
+                    Button {
                         viewModel.markPaid(invoice)
+                    } label: {
+                        Label("Marcar cobrada", systemImage: "checkmark.circle")
+                            .font(.subheadline)
+                            .fontWeight(.medium)
                     }
                     .buttonStyle(.borderedProminent)
                 }
             }
 
+            // Date capsules
             HStack(spacing: 12) {
-                infoCapsule(icon: "calendar.badge.clock", title: "Emitida", value: invoice.issueDate.mediumFormat)
+                infoCapsule(icon: "calendar", title: "Emitida", value: invoice.issueDate.mediumFormat)
                 infoCapsule(icon: "calendar.badge.exclamationmark", title: "Vence", value: invoice.dueDate.mediumFormat)
             }
         }
-        .padding(20)
-        .materialCardStyle(cornerRadius: 16)
+        .frame(maxWidth: .infinity)
+        .padding(24)
+        .prominentCardStyle(cornerRadius: 16)
     }
 
     private var invoiceInformationCard: some View {
@@ -246,86 +253,100 @@ struct InvoiceDetailView: View {
                 Spacer()
                 Button(action: { showingEditInvoice = true }) {
                     Label("Editar", systemImage: "pencil")
+                        .font(.subheadline)
                 }
                 .buttonStyle(.bordered)
+                .controlSize(.small)
             }
 
-            infoRow(title: "Nombre", value: invoice.clientName)
-            if !clientIdentificationNumber.isEmpty {
-                infoRow(
-                    title: "NIF/CIF",
-                    value: clientIdentificationNumber
-                )
+            HStack(spacing: 14) {
+                clientInitialsAvatar
+
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(invoice.clientName)
+                        .font(.headline)
+                    if !clientIdentificationNumber.isEmpty {
+                        Text(clientIdentificationNumber)
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                    }
+                }
             }
+
             if !invoice.clientEmail.isEmpty {
-                infoRow(title: "Email", value: invoice.clientEmail)
+                Label(invoice.clientEmail, systemImage: "envelope")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
             }
             if !invoice.clientAddress.isEmpty {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Direccion")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                    Text(invoice.clientAddress)
-                        .font(.body)
-                }
+                Label(invoice.clientAddress, systemImage: "mappin.and.ellipse")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
             }
         }
         .padding(20)
         .cardStyle(cornerRadius: 16)
     }
 
+    private var clientInitialsAvatar: some View {
+        let initials = invoice.clientName
+            .split(separator: " ")
+            .prefix(2)
+            .compactMap(\.first)
+            .map(String.init)
+            .joined()
+
+        return Text(initials.isEmpty ? "?" : initials)
+            .font(.headline)
+            .fontWeight(.semibold)
+            .foregroundStyle(.white)
+            .frame(width: 44, height: 44)
+            .background(
+                Circle().fill(invoice.status.color.opacity(0.8))
+            )
+    }
+
     private var itemsCard: some View {
         VStack(alignment: .leading, spacing: 16) {
             HStack {
-                Text("Conceptos")
+                Text("\(sortedItems.count) \(sortedItems.count == 1 ? "concepto" : "conceptos")")
                     .font(.title2)
                     .fontWeight(.semibold)
                 Spacer()
                 Button(action: { showingAddItem = true }) {
-                    Label("Anadir concepto", systemImage: "plus.circle.fill")
+                    Label("Añadir", systemImage: "plus.circle.fill")
+                        .font(.subheadline)
                 }
                 .buttonStyle(.borderedProminent)
+                .controlSize(.small)
             }
 
-            if (invoice.items ?? []).isEmpty {
-                Text("Aun no hay conceptos. Anadelos para calcular los totales.")
+            if sortedItems.isEmpty {
+                Text("Añade conceptos para calcular los totales.")
                     .foregroundStyle(.secondary)
+                    .font(.subheadline)
             } else {
-                VStack(spacing: 12) {
-                    ForEach(invoice.items ?? []) { item in
-                        itemCard(for: item)
+                VStack(spacing: 0) {
+                    ForEach(Array(sortedItems.enumerated()), id: \.element.id) { index, item in
+                        itemRow(for: item)
+                        if index < sortedItems.count - 1 {
+                            Divider()
+                                .padding(.vertical, 8)
+                        }
                     }
                 }
             }
 
             Divider()
+                .padding(.vertical, 4)
 
-            VStack(spacing: 8) {
-                HStack {
-                    Text("Subtotal")
-                        .foregroundStyle(.secondary)
-                    Spacer()
-                    Text(invoice.itemsSubtotal.formattedAsCurrency)
-                }
-                .font(.subheadline)
-
-                HStack {
-                    Text("IVA (\(invoice.ivaPercentage.formattedAsPercent))")
-                        .foregroundStyle(.secondary)
-                    Spacer()
-                    Text(invoice.ivaAmount.formattedAsCurrency)
-                }
-                .font(.subheadline)
-
-                HStack {
-                    Text("IRPF (\(invoice.irpfPercentage.formattedAsPercent))")
-                        .foregroundStyle(.secondary)
-                    Spacer()
-                    Text((-invoice.irpfAmount).formattedAsCurrency)
-                }
-                .font(.subheadline)
+            VStack(spacing: 6) {
+                totalsRow(label: "Subtotal", value: invoice.itemsSubtotal.formattedAsCurrency)
+                totalsRow(label: "IVA (\(invoice.ivaPercentage.formattedAsPercent))", value: invoice.ivaAmount.formattedAsCurrency)
+                totalsRow(label: "IRPF (\(invoice.irpfPercentage.formattedAsPercent))", value: (-invoice.irpfAmount).formattedAsCurrency)
 
                 Divider()
+                    .padding(.vertical, 4)
 
                 HStack {
                     Text("Total")
@@ -339,6 +360,21 @@ struct InvoiceDetailView: View {
         }
         .padding(20)
         .cardStyle(cornerRadius: 16)
+    }
+
+    private var sortedItems: [InvoiceItem] {
+        invoice.items ?? []
+    }
+
+    private func totalsRow(label: String, value: String) -> some View {
+        HStack {
+            Text(label)
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+            Spacer()
+            Text(value)
+                .font(.subheadline)
+        }
     }
 
     private var notesCard: some View {
@@ -582,19 +618,19 @@ struct InvoiceDetailView: View {
     }
 
     private var pdfStateChip: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Label(
-                invoice.hasGeneratedPDF ? "PDF listo" : "Sin PDF",
-                systemImage: invoice.hasGeneratedPDF ? "doc.richtext.fill" : "doc.badge.arrow.trianglebadge.exclamationmark"
-            )
-            .font(.subheadline.weight(.semibold))
-            Text(pdfStateSubtitle)
-                .font(.caption)
-        }
-        .padding(.horizontal, 14)
-        .padding(.vertical, 10)
+        Label(
+            invoice.hasGeneratedPDF ? "PDF listo" : "Sin PDF",
+            systemImage: invoice.hasGeneratedPDF ? "doc.richtext.fill" : "doc.badge.ellipsis"
+        )
+        .font(.caption)
+        .fontWeight(.semibold)
+        .padding(.horizontal, 10)
+        .padding(.vertical, 5)
+        .background(
+            (invoice.hasGeneratedPDF ? Color.teal : Color.gray).opacity(0.12),
+            in: Capsule()
+        )
         .foregroundStyle(invoice.hasGeneratedPDF ? .teal : .secondary)
-        .materialCardStyle(cornerRadius: 12)
     }
 
     private var pdfStateSubtitle: String {
@@ -661,37 +697,40 @@ struct InvoiceDetailView: View {
         )
     }
 
-    private func itemCard(for item: InvoiceItem) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack(alignment: .firstTextBaseline) {
+    private func itemRow(for item: InvoiceItem) -> some View {
+        HStack(alignment: .top) {
+            VStack(alignment: .leading, spacing: 4) {
                 Text(item.itemDescription)
-                    .font(.headline)
-                Spacer()
-                Text(item.total.formattedAsCurrency)
-                    .font(.headline)
+                    .font(.body)
+                    .fontWeight(.medium)
+                Text("\(item.quantity) × \(item.unitPrice.formattedAsCurrency)")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
             }
-            Text("\(item.quantity) × \(item.unitPrice.formattedAsCurrency)")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-            HStack(spacing: 12) {
-                Button(action: { editingItem = item }) {
-                    Label("Editar", systemImage: "slider.horizontal.3")
-                        .labelStyle(.iconOnly)
-                }
-                .buttonStyle(.plain)
 
-                Button(role: .destructive, action: { viewModel.removeItem(item, from: invoice) }) {
-                    Label("Eliminar", systemImage: "trash")
-                        .labelStyle(.iconOnly)
+            Spacer()
+
+            VStack(alignment: .trailing, spacing: 6) {
+                Text(item.total.formattedAsCurrency)
+                    .font(.body)
+                    .fontWeight(.semibold)
+
+                HStack(spacing: 8) {
+                    Button(action: { editingItem = item }) {
+                        Image(systemName: "pencil")
+                            .font(.caption)
+                    }
+                    .buttonStyle(.plain)
+                    .foregroundStyle(.secondary)
+
+                    Button(role: .destructive, action: { viewModel.removeItem(item, from: invoice) }) {
+                        Image(systemName: "trash")
+                            .font(.caption)
+                    }
+                    .buttonStyle(.plain)
                 }
-                .buttonStyle(.plain)
             }
         }
-        .padding(14)
-        .background(
-            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .fill(Color.cardBackground)
-        )
     }
 
     private func formattedDate(_ date: Date) -> String {
@@ -702,13 +741,7 @@ struct InvoiceDetailView: View {
     }
 
     private var statusColor: Color {
-        switch invoice.status {
-        case .draft: return .gray
-        case .sent: return .blue
-        case .paid: return .green
-        case .overdue: return .red
-        case .cancelled: return .orange
-        }
+        invoice.status.color
     }
 
     private var pdfFileName: String {

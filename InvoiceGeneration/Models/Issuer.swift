@@ -42,6 +42,9 @@ final class Issuer {
     @Relationship(deleteRule: .cascade)
     var verifactuRecords: [VerifactuRecord]?
 
+    /// Soft delete flag. When true, the issuer is hidden from normal lists but data is preserved.
+    var isDeleted: Bool = false
+
     var createdAt: Date = Date()
     var updatedAt: Date = Date()
 

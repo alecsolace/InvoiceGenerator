@@ -4,8 +4,6 @@ import SwiftUI
 struct InvoiceListView: View {
     @Environment(\.modelContext) private var modelContext
 
-    @AppStorage(IssuerSelectionStore.appStorageKey) private var selectedIssuerStorage = IssuerSelectionStore.allIssuersToken
-
     @State private var viewModel: InvoiceViewModel?
     @State private var searchText = ""
     @State private var selectedStatus: InvoiceStatus?
@@ -71,21 +69,12 @@ struct InvoiceListView: View {
                 viewModel = InvoiceViewModel(modelContext: modelContext)
             }
 
-            selectedIssuerID = IssuerSelectionStore.issuerID(from: selectedIssuerStorage)
             applyFilters()
         }
         .onChange(of: searchText) { _, _ in applyFilters() }
         .onChange(of: selectedStatus) { _, _ in applyFilters() }
         .onChange(of: selectedClientID) { _, _ in applyFilters() }
         .onChange(of: selectedIssuerID) { _, _ in
-            selectedIssuerStorage = IssuerSelectionStore.storageValue(from: selectedIssuerID)
-            applyFilters()
-        }
-        .onChange(of: selectedIssuerStorage) { _, _ in
-            let storageID = IssuerSelectionStore.issuerID(from: selectedIssuerStorage)
-            if selectedIssuerID != storageID {
-                selectedIssuerID = storageID
-            }
             applyFilters()
         }
         .onChange(of: issuers.count) { _, _ in applyFilters() }
@@ -105,6 +94,8 @@ struct InvoiceListView: View {
                 emptyState
             } else {
                 ScrollView {
+                    invoiceSummaryCards(viewModel)
+
                     LazyVStack(alignment: .leading, spacing: 0, pinnedViews: .sectionHeaders) {
                         ForEach(groupedInvoices(from: viewModel.invoices), id: \.key) { group in
                             Section {
@@ -139,6 +130,29 @@ struct InvoiceListView: View {
             ProgressView()
             Spacer()
         }
+    }
+
+    // MARK: - Summary Cards
+
+    private func invoiceSummaryCards(_ viewModel: InvoiceViewModel) -> some View {
+        let allInvoices = viewModel.invoices
+        let overdueTotal = allInvoices
+            .filter { $0.status == .overdue }
+            .reduce(Decimal(0)) { $0 + $1.totalAmount }
+        let dueWithin30 = allInvoices
+            .filter { $0.status == .sent && $0.dueDate <= Calendar.current.date(byAdding: .day, value: 30, to: Date())! }
+            .reduce(Decimal(0)) { $0 + $1.totalAmount }
+        let paidThisMonth = allInvoices
+            .filter { $0.status == .paid && Calendar.current.isDate($0.issueDate, equalTo: Date(), toGranularity: .month) }
+            .reduce(Decimal(0)) { $0 + $1.totalAmount }
+
+        return SummaryCardRow(cards: [
+            SummaryCardData(title: String(localized: "Vencido"), value: overdueTotal.formattedAsCurrency, tint: .red),
+            SummaryCardData(title: String(localized: "Próx. 30 días"), value: dueWithin30.formattedAsCurrency, tint: .orange),
+            SummaryCardData(title: String(localized: "Cobrado este mes"), value: paidThisMonth.formattedAsCurrency, tint: .green),
+        ])
+        .padding(.horizontal, 16)
+        .padding(.top, 12)
     }
 
     // MARK: - Grouping
@@ -341,75 +355,47 @@ private struct InvoiceCard: View {
     let invoice: Invoice
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            // Top: client + status badge
-            HStack(alignment: .top) {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(invoice.clientName)
-                        .font(.headline)
-                        .foregroundStyle(.primary)
+        HStack(spacing: 14) {
+            // Left: invoice info
+            VStack(alignment: .leading, spacing: 6) {
+                HStack {
                     Text(invoice.invoiceNumber)
                         .font(.subheadline)
+                        .fontWeight(.medium)
                         .foregroundStyle(.secondary)
+                    StatusBadge(status: invoice.status)
                 }
-                Spacer()
-                statusBadge
-            }
 
-            // Amount
-            Text(invoice.totalAmount.formattedAsCurrency)
-                .font(.system(.title2, design: .rounded))
-                .fontWeight(.bold)
-                .foregroundStyle(.primary)
+                Text(invoice.clientName)
+                    .font(.headline)
+                    .foregroundStyle(.primary)
 
-            // Dates + PDF badge
-            HStack(alignment: .center) {
                 Label(
-                    "\(invoice.issueDate.shortFormat)  →  \(invoice.dueDate.shortFormat)",
+                    "\(invoice.issueDate.shortFormat) → \(invoice.dueDate.shortFormat)",
                     systemImage: "calendar"
                 )
                 .font(.caption)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(.tertiary)
+            }
 
-                Spacer()
+            Spacer()
 
-                pdfBadge
+            // Right: amount
+            VStack(alignment: .trailing, spacing: 6) {
+                Text(invoice.totalAmount.formattedAsCurrency)
+                    .font(.system(.title3, design: .rounded))
+                    .fontWeight(.bold)
+                    .foregroundStyle(.primary)
+
+                if invoice.hasGeneratedPDF {
+                    Label("PDF", systemImage: "doc.richtext.fill")
+                        .font(.caption2)
+                        .foregroundStyle(.teal)
+                }
             }
         }
         .padding(16)
-        .cardStyle(cornerRadius: 16)
-    }
-
-    private var statusBadge: some View {
-        Text(invoice.status.localizedTitle)
-            .font(.caption)
-            .fontWeight(.medium)
-            .padding(.horizontal, 8)
-            .padding(.vertical, 4)
-            .background(statusColor.opacity(0.12), in: Capsule())
-            .foregroundStyle(statusColor)
-    }
-
-    private var pdfBadge: some View {
-        Label(
-            invoice.hasGeneratedPDF ? "PDF" : "Sin PDF",
-            systemImage: invoice.hasGeneratedPDF ? "doc.richtext.fill" : "doc.badge.gearshape"
-        )
-        .font(.caption2)
-        .padding(.horizontal, 8)
-        .padding(.vertical, 4)
-        .background(Color.cardBackground, in: Capsule())
-        .foregroundStyle(invoice.hasGeneratedPDF ? .teal : .secondary)
-    }
-
-    private var statusColor: Color {
-        switch invoice.status {
-        case .draft: return .gray
-        case .sent: return .blue
-        case .paid: return .green
-        case .overdue: return .red
-        case .cancelled: return .orange
-        }
+        .cardStyle(cornerRadius: 14)
     }
 }
 
@@ -565,13 +551,7 @@ private struct InvoiceFiltersSheet: View {
     }
 
     private func statusColor(for status: InvoiceStatus) -> Color {
-        switch status {
-        case .draft: return .gray
-        case .sent: return .blue
-        case .paid: return .green
-        case .overdue: return .red
-        case .cancelled: return .orange
-        }
+        status.color
     }
 }
 

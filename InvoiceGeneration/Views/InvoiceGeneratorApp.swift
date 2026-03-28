@@ -212,59 +212,30 @@ struct ContentView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.scenePhase) private var scenePhase
     @AppStorage("hasCompletedOnboarding") private var hasCompletedOnboarding = false
-    @State private var selectedTab = 0
     @State private var showingOnboarding = false
     @State private var hasRunIssuerMigration = false
     @State private var hasPreparedUITestState = false
 
     var body: some View {
-        TabView(selection: $selectedTab) {
-            HomeView()
-                .tabItem {
-                    Label("Inicio", systemImage: "house")
+        AdaptiveRootView()
+            .onAppear {
+                if !hasRunIssuerMigration {
+                    IssuerMigrationService.runIfNeeded(modelContext: modelContext)
+                    hasRunIssuerMigration = true
                 }
-                .tag(0)
-
-            InvoiceListView()
-                .tabItem {
-                    Label("Facturas", systemImage: "doc.text")
-                }
-                .tag(1)
-
-            ClientListView()
-                .tabItem {
-                    Label("Clientes", systemImage: "person.3")
-                }
-                .tag(2)
-
-            SettingsView()
-                .tabItem {
-                    Label("Ajustes", systemImage: "gearshape")
-                }
-                .tag(3)
-        }
-        .onAppear {
-            if !hasRunIssuerMigration {
-                IssuerMigrationService.runIfNeeded(modelContext: modelContext)
-                hasRunIssuerMigration = true
+                prepareUITestStateIfNeeded()
+                showingOnboarding = !hasCompletedOnboarding
             }
-            prepareUITestStateIfNeeded()
-            showingOnboarding = !hasCompletedOnboarding
-        }
-        .sheet(isPresented: $showingOnboarding) {
-            OnboardingView(isPresented: $showingOnboarding) {
-                hasCompletedOnboarding = true
+            .sheet(isPresented: $showingOnboarding) {
+                OnboardingView(isPresented: $showingOnboarding) {
+                    hasCompletedOnboarding = true
+                }
+                #if os(iOS)
+                .presentationDetents([.large])
+                #endif
+                .presentationDragIndicator(.visible)
+                .interactiveDismissDisabled()
             }
-            #if os(iOS)
-            .presentationDetents([.large])
-            #endif
-            .presentationDragIndicator(.visible)
-            .interactiveDismissDisabled()
-        }
-        .onChange(of: scenePhase) { _, newValue in
-            guard newValue == .active, SharedImageImportStore.hasPendingImport else { return }
-            selectedTab = 0
-        }
     }
 
     private func prepareUITestStateIfNeeded() {

@@ -21,7 +21,8 @@ final class IssuerViewModel {
         errorMessage = nil
 
         do {
-            let descriptor = FetchDescriptor<Issuer>(sortBy: [SortDescriptor(\.name)])
+            var descriptor = FetchDescriptor<Issuer>(sortBy: [SortDescriptor(\.name)])
+            descriptor.predicate = #Predicate<Issuer> { !$0.isDeleted }
             issuers = try modelContext.fetch(descriptor)
         } catch {
             errorMessage = "Failed to fetch issuers: \(error.localizedDescription)"
@@ -137,20 +138,16 @@ final class IssuerViewModel {
 
     @discardableResult
     func deleteIssuer(_ issuer: Issuer) -> Bool {
-        if !(issuer.invoices ?? []).isEmpty {
-            errorMessage = "You cannot delete an issuer with associated invoices."
-            return false
-        }
+        issuer.isDeleted = true
+        issuer.updateTimestamp()
 
-        let issuerID = issuer.id
-        modelContext.delete(issuer)
         let success = saveContext()
         if success {
             fetchIssuers()
             if SubscriptionService.shared.syncEnabled {
                 Task {
-                    do { try await CloudKitService.shared.deleteIssuer(with: issuerID) }
-                    catch { PersistenceController.logger.error("CloudKit issuer delete failed: \(error.localizedDescription)") }
+                    do { try await CloudKitService.shared.syncIssuers([issuer]) }
+                    catch { PersistenceController.logger.error("CloudKit issuer sync failed: \(error.localizedDescription)") }
                 }
             }
         }

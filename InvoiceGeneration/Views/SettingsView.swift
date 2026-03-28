@@ -44,16 +44,6 @@ private struct SettingsContent: View {
 
             Section("Datos maestros") {
                 NavigationLink {
-                    IssuerListView()
-                } label: {
-                    settingsRow(
-                        title: "Emisores",
-                        subtitle: "Gestiona los emisores y su numeracion",
-                        systemImage: "building.2"
-                    )
-                }
-
-                NavigationLink {
                     TemplateListView()
                 } label: {
                     settingsRow(
