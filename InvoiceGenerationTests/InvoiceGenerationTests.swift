@@ -17,7 +17,8 @@ struct InvoiceGenerationTests {
             defaults: defaults,
             storeConfiguration: .testing,
             iCloudAvailabilityProvider: { iCloudAvailability },
-            startTasks: false
+            startTasks: false,
+            bypassPaywall: false
         )
     }
 
@@ -100,7 +101,8 @@ struct InvoiceGenerationTests {
             defaults: UserDefaults(suiteName: suiteName)!,
             storeConfiguration: .testing,
             iCloudAvailabilityProvider: { .available },
-            startTasks: false
+            startTasks: false,
+            bypassPaywall: false
         )
         #expect(reloadedService.syncPreferred == true)
     }

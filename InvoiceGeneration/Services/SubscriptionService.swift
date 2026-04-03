@@ -59,6 +59,17 @@ final class SubscriptionService: ObservableObject {
 
     private static let logger = Logger(subsystem: "InvoiceGeneration", category: "StoreKit")
 
+    private static var isSandboxOrPreview: Bool {
+        if ProcessInfo.processInfo.environment["XCODE_RUNNING_FOR_PREVIEWS"] == "1" {
+            return true
+        }
+        if let receiptURL = Bundle.main.appStoreReceiptURL,
+           receiptURL.lastPathComponent == "sandboxReceipt" {
+            return true
+        }
+        return false
+    }
+
     static let shared: SubscriptionService = {
         do {
             return try SubscriptionService(storeConfiguration: StoreConfiguration.load())
@@ -81,11 +92,11 @@ final class SubscriptionService: ObservableObject {
     }
 
     var isPro: Bool {
-        entitlementStatus == .active
+        paywallBypassed || entitlementStatus == .active
     }
 
     var syncStatus: SyncStatus {
-        guard entitlementStatus == .active else { return .lockedByPaywall }
+        guard paywallBypassed || entitlementStatus == .active else { return .lockedByPaywall }
         guard syncPreferred else { return .disabledByUser }
         guard iCloudAvailability == .available else { return .pausedNoICloud }
         return .ready
@@ -101,6 +112,7 @@ final class SubscriptionService: ObservableObject {
 
     let freeClientLimit = 2
 
+    private let paywallBypassed: Bool
     private let configuration: StoreConfiguration
     private var productsByID: [String: Product] = [:]
     private var updatesTask: Task<Void, Never>?
@@ -123,8 +135,10 @@ final class SubscriptionService: ObservableObject {
         iCloudAvailabilityProvider: @escaping @Sendable () async -> ICloudAvailability = {
             await CloudKitService.shared.fetchAccountAvailability()
         },
-        startTasks: Bool = true
+        startTasks: Bool = true,
+        bypassPaywall: Bool? = nil
     ) throws {
+        self.paywallBypassed = bypassPaywall ?? Self.isSandboxOrPreview
         self.defaults = defaults
         self.configuration = try storeConfiguration.validated()
         self.iCloudAvailabilityProvider = iCloudAvailabilityProvider
@@ -150,7 +164,7 @@ final class SubscriptionService: ObservableObject {
     }
 
     func canAddClient(currentCount: Int) -> Bool {
-        entitlementStatus == .active || currentCount < freeClientLimit
+        paywallBypassed || entitlementStatus == .active || currentCount < freeClientLimit
     }
 
     func refreshEntitlements() async {
