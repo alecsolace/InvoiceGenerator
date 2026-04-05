@@ -28,7 +28,7 @@ struct AddItemView: View {
 #endif
                 }
                 
-                if let price = Decimal(string: unitPrice), price > 0 {
+                if let price = Decimal(string: unitPrice, locale: Locale.current), price > 0 {
                     Section {
                         LabeledContent("Total", value: (price * Decimal(quantity)).formattedAsCurrency)
                     }
@@ -56,11 +56,11 @@ struct AddItemView: View {
     }
     
     private var isValid: Bool {
-        !itemDescription.isEmpty && quantity > 0 && Decimal(string: unitPrice) != nil
+        !itemDescription.isEmpty && quantity > 0 && Decimal(string: unitPrice, locale: Locale.current) != nil
     }
-    
+
     private func addItem() {
-        guard let price = Decimal(string: unitPrice) else { return }
+        guard let price = Decimal(string: unitPrice, locale: Locale.current) else { return }
         
         viewModel.addItem(
             to: invoice,
@@ -284,11 +284,11 @@ struct EditInvoiceView: View {
     }
 
     private var ivaPercentageValue: Decimal {
-        Decimal(string: ivaPercentage) ?? 0
+        Decimal(string: ivaPercentage, locale: Locale.current) ?? 0
     }
 
     private var irpfPercentageValue: Decimal {
-        Decimal(string: irpfPercentage) ?? 0
+        Decimal(string: irpfPercentage, locale: Locale.current) ?? 0
     }
 
     private func handleAddClientTap() {

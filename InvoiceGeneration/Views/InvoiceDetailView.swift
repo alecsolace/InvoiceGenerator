@@ -1016,7 +1016,13 @@ struct InvoiceItemEditorView: View {
         self.item = item
         _descriptionText = State(initialValue: item.itemDescription)
         _quantity = State(initialValue: item.quantity)
-        _unitPrice = State(initialValue: NSDecimalNumber(decimal: item.unitPrice).stringValue)
+        let formatter = NumberFormatter()
+        formatter.numberStyle = .decimal
+        formatter.locale = Locale.current
+        formatter.maximumFractionDigits = 2
+        formatter.minimumFractionDigits = 0
+        formatter.groupingSeparator = ""
+        _unitPrice = State(initialValue: formatter.string(from: NSDecimalNumber(decimal: item.unitPrice)) ?? "0")
     }
 
     var body: some View {
@@ -1031,7 +1037,7 @@ struct InvoiceItemEditorView: View {
                         .keyboardType(.decimalPad)
     #endif
                 }
-                if let price = Decimal(string: unitPrice), price > 0 {
+                if let price = Decimal(string: unitPrice, locale: Locale.current), price > 0 {
                     Section {
                         LabeledContent("Total", value: (price * Decimal(quantity)).formattedAsCurrency)
                     }
@@ -1054,11 +1060,11 @@ struct InvoiceItemEditorView: View {
     }
 
     private var isValid: Bool {
-        !descriptionText.isEmpty && Decimal(string: unitPrice) != nil
+        !descriptionText.isEmpty && Decimal(string: unitPrice, locale: Locale.current) != nil
     }
 
     private func saveChanges() {
-        guard let price = Decimal(string: unitPrice) else { return }
+        guard let price = Decimal(string: unitPrice, locale: Locale.current) else { return }
         viewModel.updateItem(
             item,
             from: invoice,
