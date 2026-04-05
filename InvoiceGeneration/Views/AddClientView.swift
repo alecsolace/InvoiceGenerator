@@ -174,8 +174,8 @@ struct AddClientView: View {
     private func persist() {
         let accentHex = accentColor.hexString ?? Client.defaultAccentHex
         let dueDaysValue = Int(defaultDueDays) ?? InvoiceFlowPreferences.defaultDueDays
-        let ivaValue = Decimal(string: defaultIVAPercentage)
-        let irpfValue = Decimal(string: defaultIRPFPercentage)
+        let ivaValue = Decimal(string: defaultIVAPercentage, locale: Locale.current)
+        let irpfValue = Decimal(string: defaultIRPFPercentage, locale: Locale.current)
 
         switch mode {
         case .create:

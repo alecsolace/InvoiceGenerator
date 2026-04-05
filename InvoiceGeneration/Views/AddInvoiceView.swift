@@ -544,11 +544,11 @@ struct AddInvoiceView: View {
     }
 
     private var ivaPercentageValue: Decimal {
-        Decimal(string: ivaPercentage) ?? 0
+        Decimal(string: ivaPercentage, locale: Locale.current) ?? 0
     }
 
     private var irpfPercentageValue: Decimal {
-        Decimal(string: irpfPercentage) ?? 0
+        Decimal(string: irpfPercentage, locale: Locale.current) ?? 0
     }
 
     private var ivaAmount: Decimal {
