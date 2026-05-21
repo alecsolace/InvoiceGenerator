@@ -45,6 +45,7 @@ struct InvoiceGenerationTests {
     @Test func example() async throws {
         // Write your test here and use APIs like `#expect(...)` to check expected conditions.
     }
+    @MainActor
     @Test func freePlanCapsClientsAtTwo() async throws {
         let service = makeSubscriptionService()
 
@@ -267,7 +268,7 @@ struct InvoiceGenerationTests {
         )
         let templateItem = InvoiceTemplateItem(description: "Retainer", quantity: 1, unitPrice: 1200, sortOrder: 0)
         templateItem.template = template
-        template.items.append(templateItem)
+        template.items = (template.items ?? []) + [templateItem]
 
         context.insert(issuer)
         context.insert(client)
@@ -283,7 +284,7 @@ struct InvoiceGenerationTests {
         #expect(created != nil)
         #expect(created?.clientName == "Cliente")
         #expect(created?.invoiceNumber == "ACM-0001")
-        #expect(created?.items.count == 1)
+        #expect(created?.items?.count == 1)
         #expect(created?.ivaPercentage == 21)
         #expect(created?.irpfPercentage == 15)
         #expect(created?.notes == "Retainer mensual")
@@ -310,7 +311,7 @@ struct InvoiceGenerationTests {
         original.captureIssuerSnapshot(from: issuer)
         let item = InvoiceItem(description: "Retainer", quantity: 1, unitPrice: 1000)
         item.invoice = original
-        original.items.append(item)
+        original.items = (original.items ?? []) + [item]
         original.calculateTotal()
 
         context.insert(issuer)
@@ -326,7 +327,7 @@ struct InvoiceGenerationTests {
         #expect(copy?.invoiceNumber == "ACM-0002")
         #expect(copy?.issueDate == original.issueDate.addingMonths(1))
         #expect(copy?.dueDate == original.issueDate.addingMonths(1).addingDays(15))
-        #expect(copy?.items.count == 1)
+        #expect(copy?.items?.count == 1)
         #expect(copy?.totalAmount == original.totalAmount)
     }
 
@@ -348,7 +349,7 @@ struct InvoiceGenerationTests {
         invoice.captureIssuerSnapshot(from: issuer)
         let item = InvoiceItem(description: "Retainer", quantity: 1, unitPrice: 1000)
         item.invoice = invoice
-        invoice.items.append(item)
+        invoice.items = (invoice.items ?? []) + [item]
         invoice.calculateTotal()
 
         context.insert(issuer)
@@ -362,7 +363,7 @@ struct InvoiceGenerationTests {
 
         #expect(template != nil)
         #expect(client.preferredTemplateID == template?.id)
-        #expect(template?.items.count == 1)
+        #expect(template?.items?.count == 1)
     }
 
     @MainActor
@@ -437,7 +438,7 @@ struct InvoiceGenerationTests {
         invoice.captureIssuerSnapshot(from: issuer)
         let item = InvoiceItem(description: "Servicio mensual", quantity: 1, unitPrice: 1000)
         item.invoice = invoice
-        invoice.items.append(item)
+        invoice.items = (invoice.items ?? []) + [item]
         invoice.calculateTotal()
 
         let document = PDFGeneratorService.generateInvoicePDF(invoice: invoice)
