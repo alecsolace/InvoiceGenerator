@@ -9,43 +9,37 @@ enum PersistenceController {
     // swiftlint:disable:next force_try
     static let preview: ModelContainer = try! makeContainer(inMemory: true)
 
+    /// The complete schema. Every `ModelContainer` (in-memory, primary disk, and
+    /// recovery) must be built from this single list so the schemas can never drift.
+    static let schemaModels: [any PersistentModel.Type] = [
+        Invoice.self,
+        InvoiceItem.self,
+        CompanyProfile.self,
+        Client.self,
+        Issuer.self,
+        InvoiceTemplate.self,
+        InvoiceTemplateItem.self,
+        TaxBreakdown.self,
+        VerifactuRecord.self
+    ]
+
     // MARK: - Public
 
     /// Creates the shared ModelContainer. Throws if even the in-memory fallback cannot be created.
     static func makeContainer(inMemory: Bool = false) throws -> ModelContainer {
         let shouldUseInMemory = inMemory || ProcessInfo.processInfo.arguments.contains("UITEST_USE_IN_MEMORY_STORE")
 
+        let schema = Schema(schemaModels)
+
         if shouldUseInMemory {
             let configuration = ModelConfiguration(isStoredInMemoryOnly: true)
-            return try ModelContainer(
-                for: Invoice.self,
-                InvoiceItem.self,
-                CompanyProfile.self,
-                Client.self,
-                Issuer.self,
-                InvoiceTemplate.self,
-                InvoiceTemplateItem.self,
-                TaxBreakdown.self,
-                VerifactuRecord.self,
-                configurations: configuration
-            )
+            return try ModelContainer(for: schema, configurations: configuration)
         }
 
         // Primary disk-backed container
         do {
             let configuration = try diskConfiguration()
-            return try ModelContainer(
-                for: Invoice.self,
-                InvoiceItem.self,
-                CompanyProfile.self,
-                Client.self,
-                Issuer.self,
-                InvoiceTemplate.self,
-                InvoiceTemplateItem.self,
-                TaxBreakdown.self,
-                VerifactuRecord.self,
-                configurations: configuration
-            )
+            return try ModelContainer(for: schema, configurations: configuration)
         } catch {
             logger.error("Disk-backed SwiftData container failed: \(error.localizedDescription). Attempting to reset store.")
             // Try deleting the existing store and recreating once.
@@ -60,16 +54,7 @@ enum PersistenceController {
 
             do {
                 let configuration = try diskConfiguration()
-                return try ModelContainer(
-                    for: Invoice.self,
-                    InvoiceItem.self,
-                    CompanyProfile.self,
-                    Client.self,
-                    Issuer.self,
-                    InvoiceTemplate.self,
-                    InvoiceTemplateItem.self,
-                    configurations: configuration
-                )
+                return try ModelContainer(for: schema, configurations: configuration)
             } catch {
                 logger.critical("Disk-backed SwiftData container failed after reset (\(error.localizedDescription)); falling back to in-memory store.")
                 return try makeContainer(inMemory: true)
