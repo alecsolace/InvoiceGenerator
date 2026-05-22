@@ -162,6 +162,14 @@ final class ClientViewModel {
         fetchClients()
     }
 
+    /// Sum of paid invoice totals for a given client.
+    func totalRevenue(for client: Client) -> Decimal {
+        guard let invoices = client.invoices else { return 0 }
+        return invoices
+            .filter { $0.status == .paid }
+            .reduce(Decimal(0)) { $0 + $1.totalAmount }
+    }
+
     // MARK: - Private Methods
 
     private func saveContext() -> Bool {

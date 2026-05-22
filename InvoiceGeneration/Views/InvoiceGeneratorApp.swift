@@ -226,16 +226,17 @@ struct ContentView: View {
                 prepareUITestStateIfNeeded()
                 showingOnboarding = !hasCompletedOnboarding
             }
+            #if os(iOS)
+            .fullScreenCover(isPresented: $showingOnboarding) {
+                iOSOnboardingView()
+            }
+            #else
             .sheet(isPresented: $showingOnboarding) {
                 OnboardingView(isPresented: $showingOnboarding) {
-                    hasCompletedOnboarding = true
+                    showingOnboarding = false
                 }
-                #if os(iOS)
-                .presentationDetents([.large])
-                #endif
-                .presentationDragIndicator(.visible)
-                .interactiveDismissDisabled()
             }
+            #endif
     }
 
     private func prepareUITestStateIfNeeded() {

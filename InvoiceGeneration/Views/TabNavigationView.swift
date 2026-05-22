@@ -7,19 +7,19 @@ struct TabNavigationView: View {
 
     var body: some View {
         TabView(selection: $selectedTab) {
-            HomeView()
+            iOSDashboardView()
                 .tabItem {
                     Label(String(localized: "Inicio"), systemImage: "house")
                 }
                 .tag(0)
 
-            InvoiceListView()
+            iOSInvoiceListView()
                 .tabItem {
                     Label(String(localized: "Facturas"), systemImage: "doc.text")
                 }
                 .tag(1)
 
-            ClientListView()
+            iOSClientListView()
                 .tabItem {
                     Label(String(localized: "Clientes"), systemImage: "person.3")
                 }
@@ -28,7 +28,7 @@ struct TabNavigationView: View {
             emitterOrMyDataTab
                 .tag(3)
 
-            SettingsView()
+            iOSSettingsView()
                 .tabItem {
                     Label(String(localized: "Ajustes"), systemImage: "gearshape")
                 }
@@ -46,12 +46,10 @@ struct TabNavigationView: View {
                 Label(String(localized: "Emisores"), systemImage: "building.2")
             }
         } else {
-            NavigationStack {
-                MyDataView()
-            }
-            .tabItem {
-                Label(String(localized: "Mis datos"), systemImage: "person.crop.rectangle")
-            }
+            iOSIssuerProfileView()
+                .tabItem {
+                    Label(String(localized: "Mis datos"), systemImage: "person.crop.rectangle")
+                }
         }
     }
 }

@@ -13,6 +13,8 @@ final class HomeViewModel {
     var thisMonthIssued: Decimal = 0
     var thisMonthPaid: Decimal = 0
     var pendingAmount: Decimal = 0
+    var yearToDateBilling: Decimal = 0
+    var yearOverYearGrowth: Decimal = 0
     var errorMessage: String?
 
     init(modelContext: ModelContext) {
@@ -48,6 +50,7 @@ final class HomeViewModel {
 
             frequentClients = frequentClientSummaries(clients: clients, invoices: invoices)
 
+            let calendar = Calendar.current
             let currentMonth = Date().startOfMonth
             let nextMonth = currentMonth.addingMonths(1)
             thisMonthIssued = invoices
@@ -57,6 +60,24 @@ final class HomeViewModel {
                 .filter { $0.status == .paid && $0.updatedAt >= currentMonth && $0.updatedAt < nextMonth }
                 .reduce(0) { $0 + $1.totalAmount }
             pendingAmount = pendingInvoices.reduce(0) { $0 + $1.totalAmount }
+
+            // Year-to-date billing & year-over-year growth
+            let startOfYear = calendar.date(from: calendar.dateComponents([.year], from: Date()))!
+            let paidThisYear = invoices
+                .filter { $0.status == .paid && $0.issueDate >= startOfYear }
+                .reduce(Decimal(0)) { $0 + $1.totalAmount }
+            yearToDateBilling = paidThisYear
+
+            let lastYearStart = calendar.date(byAdding: .year, value: -1, to: startOfYear)!
+            let lastYearSamePoint = calendar.date(byAdding: .year, value: -1, to: Date())!
+            let paidLastYearSamePeriod = invoices
+                .filter { $0.status == .paid && $0.issueDate >= lastYearStart && $0.issueDate < lastYearSamePoint }
+                .reduce(Decimal(0)) { $0 + $1.totalAmount }
+            if paidLastYearSamePeriod > 0 {
+                yearOverYearGrowth = ((paidThisYear - paidLastYearSamePeriod) / paidLastYearSamePeriod) * 100
+            } else {
+                yearOverYearGrowth = paidThisYear > 0 ? 100 : 0
+            }
         } catch {
             errorMessage = "No se pudo cargar Inicio: \(error.localizedDescription)"
         }
