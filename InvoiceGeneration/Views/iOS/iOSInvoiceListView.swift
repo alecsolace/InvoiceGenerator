@@ -36,14 +36,6 @@ struct iOSInvoiceListView: View {
                         .font(.title3)
                         .foregroundStyle(.secondary)
                 }
-                ToolbarItem(placement: .primaryAction) {
-                    Button {
-                        // Notifications placeholder
-                    } label: {
-                        Image(systemName: "bell")
-                            .foregroundStyle(.secondary)
-                    }
-                }
             }
             .navigationDestination(item: $selectedInvoice) { invoice in
                 if let viewModel {
