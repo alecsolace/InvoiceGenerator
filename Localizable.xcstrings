@@ -4,6 +4,108 @@
     "#%lld" : {
 
     },
+    "We couldn't complete your purchase. Please try again." : {
+      "comment" : "Generic user-facing error when a purchase fails.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "We couldn't complete your purchase. Please try again."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No se pudo completar la compra. Inténtalo de nuevo."
+          }
+        }
+      }
+    },
+    "We couldn't delete this item. Please try again." : {
+      "comment" : "Generic user-facing error when a delete fails.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "We couldn't delete this item. Please try again."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No se pudo eliminar este elemento. Inténtalo de nuevo."
+          }
+        }
+      }
+    },
+    "We couldn't load your data. Please try again." : {
+      "comment" : "Generic user-facing error when a data load fails.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "We couldn't load your data. Please try again."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No se pudieron cargar los datos. Inténtalo de nuevo."
+          }
+        }
+      }
+    },
+    "We couldn't read the selected image. Please try a clearer photo." : {
+      "comment" : "User-facing error when an imported invoice image cannot be read.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "We couldn't read the selected image. Please try a clearer photo."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No se pudo leer la imagen seleccionada. Prueba con una foto más nítida."
+          }
+        }
+      }
+    },
+    "We couldn't save your changes. Please try again." : {
+      "comment" : "Generic user-facing error when a save fails.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "We couldn't save your changes. Please try again."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No se pudieron guardar los cambios. Inténtalo de nuevo."
+          }
+        }
+      }
+    },
+    "We couldn't sync with iCloud. Your changes are saved on this device." : {
+      "comment" : "User-facing error when iCloud sync fails.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "We couldn't sync with iCloud. Your changes are saved on this device."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No se pudo sincronizar con iCloud. Tus cambios están guardados en este dispositivo."
+          }
+        }
+      }
+    },
     "%@ (%@)" : {
       "localizations" : {
         "en" : {

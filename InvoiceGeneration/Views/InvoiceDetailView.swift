@@ -734,10 +734,7 @@ struct InvoiceDetailView: View {
     }
 
     private func formattedDate(_ date: Date) -> String {
-        let formatter = DateFormatter()
-        formatter.dateStyle = .medium
-        formatter.timeStyle = .short
-        return formatter.string(from: date)
+        Formatters.mediumDateShortTime.string(from: date)
     }
 
     private var statusColor: Color {
@@ -1016,13 +1013,7 @@ struct InvoiceItemEditorView: View {
         self.item = item
         _descriptionText = State(initialValue: item.itemDescription)
         _quantity = State(initialValue: item.quantity)
-        let formatter = NumberFormatter()
-        formatter.numberStyle = .decimal
-        formatter.locale = Locale.current
-        formatter.maximumFractionDigits = 2
-        formatter.minimumFractionDigits = 0
-        formatter.groupingSeparator = ""
-        _unitPrice = State(initialValue: formatter.string(from: NSDecimalNumber(decimal: item.unitPrice)) ?? "0")
+        _unitPrice = State(initialValue: Formatters.editablePrice.string(from: NSDecimalNumber(decimal: item.unitPrice)) ?? "0")
     }
 
     var body: some View {

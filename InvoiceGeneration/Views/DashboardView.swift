@@ -179,10 +179,7 @@ struct DashboardView: View {
     }
 
     private func monthLabel(for date: Date) -> String {
-        let formatter = DateFormatter()
-        formatter.locale = Locale.current
-        formatter.dateFormat = "MMM yyyy"
-        return formatter.string(from: date)
+        Formatters.abbreviatedMonthYear.string(from: date)
     }
 
     private func loadViewModelIfNeeded() {

@@ -27,7 +27,7 @@ final class CompanyProfileViewModel {
             let profiles = try modelContext.fetch(descriptor)
             profile = profiles.first
         } catch {
-            errorMessage = "Failed to fetch profile: \(error.localizedDescription)"
+            errorMessage = UserFacingError.message(for: .load, error: error)
         }
         
         isLoading = false
@@ -88,7 +88,7 @@ final class CompanyProfileViewModel {
             try modelContext.save()
         } catch {
             PersistenceController.logger.error("Failed to save profile: \(error.localizedDescription)")
-            errorMessage = "Failed to save profile: \(error.localizedDescription)"
+            errorMessage = UserFacingError.message(for: .save, error: error)
         }
     }
 }

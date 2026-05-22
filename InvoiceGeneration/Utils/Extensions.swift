@@ -3,42 +3,27 @@ import Foundation
 /// Extension for decimal formatting
 extension Decimal {
     var formattedAsCurrency: String {
-        let formatter = NumberFormatter()
-        formatter.numberStyle = .currency
-        formatter.locale = Locale.current
-        return formatter.string(from: self as NSDecimalNumber) ?? "$0.00"
+        Formatters.currency.string(from: self as NSDecimalNumber) ?? "$0.00"
     }
 
     var formattedAsPercent: String {
-        let formatter = NumberFormatter()
-        formatter.numberStyle = .percent
-        formatter.maximumFractionDigits = 2
-        formatter.minimumFractionDigits = 0
-        formatter.locale = Locale.current
         let percentValue = self / Decimal(100)
-        return formatter.string(from: percentValue as NSDecimalNumber) ?? "\(self)%"
+        return Formatters.percent.string(from: percentValue as NSDecimalNumber) ?? "\(self)%"
     }
 }
 
 /// Extension for date formatting
 extension Date {
     var shortFormat: String {
-        let formatter = DateFormatter()
-        formatter.dateStyle = .short
-        return formatter.string(from: self)
+        Formatters.shortDate.string(from: self)
     }
-    
+
     var mediumFormat: String {
-        let formatter = DateFormatter()
-        formatter.dateStyle = .medium
-        return formatter.string(from: self)
+        Formatters.mediumDate.string(from: self)
     }
 
     var monthYearFormat: String {
-        let formatter = DateFormatter()
-        formatter.locale = Locale.current
-        formatter.dateFormat = "LLLL yyyy"
-        return formatter.string(from: self)
+        Formatters.monthYear.string(from: self)
     }
 
     var startOfMonth: Date {

@@ -861,7 +861,7 @@ struct AddInvoiceView: View {
 
             await importImageData(imageData)
         } catch {
-            importErrorMessage = "La seleccion de imagen fallo: \(error.localizedDescription)"
+            importErrorMessage = UserFacingError.message(for: .imageImport, error: error)
         }
     }
 #endif
@@ -877,7 +877,7 @@ struct AddInvoiceView: View {
             let importedDraft = try await service.extractDraft(from: imageData)
             applyImportedDraft(importedDraft)
         } catch {
-            importErrorMessage = error.localizedDescription
+            importErrorMessage = UserFacingError.message(for: .imageImport, error: error)
         }
 
         isImportingDraft = false

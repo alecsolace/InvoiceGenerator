@@ -25,7 +25,7 @@ final class IssuerViewModel {
             descriptor.predicate = #Predicate<Issuer> { !$0.isDeleted }
             issuers = try modelContext.fetch(descriptor)
         } catch {
-            errorMessage = "Failed to fetch issuers: \(error.localizedDescription)"
+            errorMessage = UserFacingError.message(for: .load, error: error)
         }
 
         isLoading = false
@@ -175,7 +175,7 @@ final class IssuerViewModel {
             try modelContext.save()
             return true
         } catch {
-            errorMessage = "Failed to save issuer: \(error.localizedDescription)"
+            errorMessage = UserFacingError.message(for: .save, error: error)
             PersistenceController.logger.error("Failed to save issuer: \(error.localizedDescription)")
             return false
         }

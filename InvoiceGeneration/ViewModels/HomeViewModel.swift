@@ -79,7 +79,7 @@ final class HomeViewModel {
                 yearOverYearGrowth = paidThisYear > 0 ? 100 : 0
             }
         } catch {
-            errorMessage = "No se pudo cargar Inicio: \(error.localizedDescription)"
+            errorMessage = UserFacingError.message(for: .load, error: error)
         }
     }
 
