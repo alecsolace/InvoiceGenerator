@@ -162,6 +162,49 @@ struct InvoiceGenerationTests {
         #expect(configuration.subscriptionGroupID == "group.invoicegeneration.pro")
     }
 
+    @Test func verifactuHashValidatorAcceptsCanonicalDigest() throws {
+        let hash = VerifactuHashService.generateHash(
+            issuerTaxId: "B12345678",
+            invoiceNumber: "FAM-0001",
+            issueDate: Date(timeIntervalSince1970: 0),
+            invoiceType: .f1,
+            totalTax: Decimal(21),
+            totalAmount: Decimal(121),
+            previousHash: VerifactuHashService.chainSentinel,
+            recordTimestamp: Date(timeIntervalSince1970: 0)
+        )
+
+        #expect(hash.count == VerifactuHashService.expectedHashLength)
+        #expect(VerifactuHashService.isValidHash(hash))
+        try VerifactuHashService.validateHash(hash)
+    }
+
+    @Test func verifactuHashValidatorAcceptsSentinel() async throws {
+        #expect(VerifactuHashService.isValidHash(VerifactuHashService.chainSentinel))
+    }
+
+    @Test func verifactuHashValidatorRejectsWrongLength() async throws {
+        let short = String(repeating: "a", count: 63)
+        #expect(!VerifactuHashService.isValidHash(short))
+        #expect(throws: VerifactuHashService.HashValidationError.invalidLength(actual: 63)) {
+            try VerifactuHashService.validateHash(short)
+        }
+    }
+
+    @Test func verifactuHashValidatorRejectsUppercaseAndNonHex() async throws {
+        let uppercase = String(repeating: "A", count: 64)
+        let nonHex = String(repeating: "g", count: 64)
+
+        #expect(!VerifactuHashService.isValidHash(uppercase))
+        #expect(!VerifactuHashService.isValidHash(nonHex))
+        #expect(throws: VerifactuHashService.HashValidationError.invalidCharacters) {
+            try VerifactuHashService.validateHash(uppercase)
+        }
+        #expect(throws: VerifactuHashService.HashValidationError.invalidCharacters) {
+            try VerifactuHashService.validateHash(nonHex)
+        }
+    }
+
     @MainActor
     @Test func issuerNumberingIncrementsSequence() async throws {
         let issuer = Issuer(name: "Family", code: "FAM")

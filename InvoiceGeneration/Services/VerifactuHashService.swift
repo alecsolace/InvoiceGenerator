@@ -9,7 +9,39 @@ import SwiftData
 /// `SHA-256(NIF + NumFactura + FechaExpedicion + TipoFactura + CuotaTotal + ImporteTotal + HuellaAnterior + FechaHoraRegistro)`
 enum VerifactuHashService {
 
+    // MARK: - Errors
+
+    /// Errors raised when a VeriFACTU hash fails AEAT format validation.
+    enum HashValidationError: Error, Equatable, LocalizedError {
+        /// The hash did not have the required SHA-256 length.
+        case invalidLength(actual: Int)
+        /// The hash contained characters outside the expected hexadecimal range/casing.
+        case invalidCharacters
+
+        var errorDescription: String? {
+            switch self {
+            case .invalidLength(let actual):
+                return String(
+                    format: String(
+                        localized: "VeriFACTU hash must be %d characters but was %d.",
+                        comment: "Verifactu hash invalid length error"
+                    ),
+                    VerifactuHashService.expectedHashLength,
+                    actual
+                )
+            case .invalidCharacters:
+                return String(
+                    localized: "VeriFACTU hash contains characters that are not valid lowercase hexadecimal.",
+                    comment: "Verifactu hash invalid characters error"
+                )
+            }
+        }
+    }
+
     // MARK: - Constants
+
+    /// Required character length of a SHA-256 hash represented as hexadecimal (32 bytes × 2 chars).
+    static let expectedHashLength = 64
 
     /// Sentinel value used as `previousHash` for the first record in an issuer's chain.
     static let chainSentinel = "0000000000000000000000000000000000000000000000000000000000000000"
@@ -54,6 +86,35 @@ enum VerifactuHashService {
         return digest.map { String(format: "%02x", $0) }.joined()
     }
 
+    // MARK: - Hash Validation
+
+    /// Returns `true` when `hash` conforms to the canonical VeriFACTU SHA-256 format used by
+    /// this codebase: a 64-character lowercase hexadecimal string.
+    ///
+    /// AEAT requires the registry footprint (huella) to be a SHA-256 digest. This app emits the
+    /// digest as lowercase hex (see `generateHash`) and recomputes/compares it in the same casing
+    /// during chain verification, so validation enforces that exact convention.
+    static func isValidHash(_ hash: String) -> Bool {
+        (try? validateHash(hash)) != nil
+    }
+
+    /// Validates that `hash` conforms to the canonical VeriFACTU SHA-256 format (64-character
+    /// lowercase hexadecimal) before it is persisted to a `VerifactuRecord`.
+    ///
+    /// - Parameter hash: The hash string to validate.
+    /// - Throws: `HashValidationError` describing why the hash is out of spec.
+    static func validateHash(_ hash: String) throws {
+        guard hash.count == expectedHashLength else {
+            throw HashValidationError.invalidLength(actual: hash.count)
+        }
+        let isValidHex = hash.allSatisfy { character in
+            character.isNumber || ("a"..."f").contains(character)
+        }
+        guard isValidHex else {
+            throw HashValidationError.invalidCharacters
+        }
+    }
+
     // MARK: - Record Creation
 
     /// Creates a VeriFACTU record for an invoice and appends it to the issuer's hash chain.
@@ -63,12 +124,13 @@ enum VerifactuHashService {
     ///   - issuer: The issuer whose chain will be extended
     ///   - context: SwiftData model context for persistence
     /// - Returns: The created `VerifactuRecord`, already inserted into `context`
+    /// - Throws: `HashValidationError` if the generated hash is not a valid SHA-256 hex string.
     @discardableResult
     static func createRecord(
         for invoice: Invoice,
         issuer: Issuer,
         context: ModelContext
-    ) -> VerifactuRecord {
+    ) throws -> VerifactuRecord {
         let previousHash = issuer.lastVerifactuHash.isEmpty
             ? chainSentinel
             : issuer.lastVerifactuHash
@@ -85,6 +147,9 @@ enum VerifactuHashService {
             previousHash: previousHash,
             recordTimestamp: recordTimestamp
         )
+
+        // Reject out-of-spec hashes before they reach `recordHash` and the AEAT payload.
+        try validateHash(hash)
 
         let qrUrl = VerifactuQRService.verificationUrl(
             issuerTaxId: issuer.taxId,
@@ -124,12 +189,13 @@ enum VerifactuHashService {
     }
 
     /// Creates a cancellation (anulación) record for an invoice.
+    /// - Throws: `HashValidationError` if the generated hash is not a valid SHA-256 hex string.
     @discardableResult
     static func createCancellationRecord(
         for invoice: Invoice,
         issuer: Issuer,
         context: ModelContext
-    ) -> VerifactuRecord {
+    ) throws -> VerifactuRecord {
         let previousHash = issuer.lastVerifactuHash.isEmpty
             ? chainSentinel
             : issuer.lastVerifactuHash
@@ -146,6 +212,9 @@ enum VerifactuHashService {
             previousHash: previousHash,
             recordTimestamp: recordTimestamp
         )
+
+        // Reject out-of-spec hashes before they reach `recordHash` and the AEAT payload.
+        try validateHash(hash)
 
         let record = VerifactuRecord(
             issuerTaxId: issuer.taxId,
