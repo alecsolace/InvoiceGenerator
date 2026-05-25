@@ -6,13 +6,15 @@ import SwiftData
 @Observable
 final class IssuerViewModel {
     private let modelContext: ModelContext
+    private let sync: SyncCoordinator
 
     var issuers: [Issuer] = []
     var isLoading = false
     var errorMessage: String?
 
-    init(modelContext: ModelContext) {
+    init(modelContext: ModelContext, syncCoordinator: SyncCoordinator = .shared) {
         self.modelContext = modelContext
+        self.sync = syncCoordinator
         fetchIssuers()
     }
 
@@ -73,14 +75,7 @@ final class IssuerViewModel {
 
         guard saveContext() else { return nil }
         fetchIssuers()
-
-        if SubscriptionService.shared.syncEnabled {
-            Task {
-                do { try await CloudKitService.shared.syncIssuers([issuer]) }
-                catch { PersistenceController.logger.error("CloudKit issuer sync failed: \(error.localizedDescription)") }
-            }
-        }
-
+        sync.syncIssuers([issuer])
         return issuer
     }
 
@@ -125,12 +120,7 @@ final class IssuerViewModel {
         let success = saveContext()
         if success {
             fetchIssuers()
-            if SubscriptionService.shared.syncEnabled {
-                Task {
-                    do { try await CloudKitService.shared.syncIssuers([issuer]) }
-                    catch { PersistenceController.logger.error("CloudKit issuer sync failed: \(error.localizedDescription)") }
-                }
-            }
+            sync.syncIssuers([issuer])
         }
 
         return success
@@ -144,12 +134,7 @@ final class IssuerViewModel {
         let success = saveContext()
         if success {
             fetchIssuers()
-            if SubscriptionService.shared.syncEnabled {
-                Task {
-                    do { try await CloudKitService.shared.syncIssuers([issuer]) }
-                    catch { PersistenceController.logger.error("CloudKit issuer sync failed: \(error.localizedDescription)") }
-                }
-            }
+            sync.syncIssuers([issuer])
         }
         return success
     }
