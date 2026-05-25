@@ -18,17 +18,16 @@ final class DashboardViewModel {
 
     /// Refresh invoices for analytics calculations
     func fetchInvoices() {
+        let currentIssuerID = issuerFilterID
         do {
+            let predicate = #Predicate<Invoice> { invoice in
+                currentIssuerID == nil || invoice.issuer?.id == currentIssuerID
+            }
             let descriptor = FetchDescriptor<Invoice>(
+                predicate: predicate,
                 sortBy: [SortDescriptor(\.issueDate, order: .reverse)]
             )
-            let fetchedInvoices = try modelContext.fetch(descriptor)
-
-            if let issuerFilterID {
-                invoices = fetchedInvoices.filter { $0.issuer?.id == issuerFilterID }
-            } else {
-                invoices = fetchedInvoices
-            }
+            invoices = try modelContext.fetch(descriptor)
         } catch {
             errorMessage = "Failed to load invoices: \(error.localizedDescription)"
         }
