@@ -162,6 +162,49 @@ struct InvoiceGenerationTests {
         #expect(configuration.subscriptionGroupID == "group.invoicegeneration.pro")
     }
 
+    @Test func verifactuHashValidatorAcceptsCanonicalDigest() throws {
+        let hash = VerifactuHashService.generateHash(
+            issuerTaxId: "B12345678",
+            invoiceNumber: "FAM-0001",
+            issueDate: Date(timeIntervalSince1970: 0),
+            invoiceType: .f1,
+            totalTax: Decimal(21),
+            totalAmount: Decimal(121),
+            previousHash: VerifactuHashService.chainSentinel,
+            recordTimestamp: Date(timeIntervalSince1970: 0)
+        )
+
+        #expect(hash.count == VerifactuHashService.expectedHashLength)
+        #expect(VerifactuHashService.isValidHash(hash))
+        try VerifactuHashService.validateHash(hash)
+    }
+
+    @Test func verifactuHashValidatorAcceptsSentinel() async throws {
+        #expect(VerifactuHashService.isValidHash(VerifactuHashService.chainSentinel))
+    }
+
+    @Test func verifactuHashValidatorRejectsWrongLength() async throws {
+        let short = String(repeating: "a", count: 63)
+        #expect(!VerifactuHashService.isValidHash(short))
+        #expect(throws: VerifactuHashService.HashValidationError.invalidLength(actual: 63)) {
+            try VerifactuHashService.validateHash(short)
+        }
+    }
+
+    @Test func verifactuHashValidatorRejectsUppercaseAndNonHex() async throws {
+        let uppercase = String(repeating: "A", count: 64)
+        let nonHex = String(repeating: "g", count: 64)
+
+        #expect(!VerifactuHashService.isValidHash(uppercase))
+        #expect(!VerifactuHashService.isValidHash(nonHex))
+        #expect(throws: VerifactuHashService.HashValidationError.invalidCharacters) {
+            try VerifactuHashService.validateHash(uppercase)
+        }
+        #expect(throws: VerifactuHashService.HashValidationError.invalidCharacters) {
+            try VerifactuHashService.validateHash(nonHex)
+        }
+    }
+
     @MainActor
     @Test func issuerNumberingIncrementsSequence() async throws {
         let issuer = Issuer(name: "Family", code: "FAM")
@@ -562,7 +605,149 @@ struct InvoiceGenerationTests {
             Issuer.self,
             InvoiceTemplate.self,
             InvoiceTemplateItem.self,
+            TaxBreakdown.self,
+            VerifactuRecord.self,
             configurations: configuration
         )
+    }
+
+    @MainActor
+    private func makeVerifactuInvoice(
+        number: String,
+        issuer: Issuer,
+        context: ModelContext
+    ) -> Invoice {
+        let invoice = Invoice(
+            invoiceNumber: number,
+            clientName: "Cliente",
+            clientIdentificationNumber: "B87654321",
+            issuer: issuer,
+            ivaPercentage: 21
+        )
+        invoice.captureIssuerSnapshot(from: issuer)
+        let item = InvoiceItem(description: "Servicio", quantity: 1, unitPrice: 1000)
+        item.invoice = invoice
+        invoice.items = [item]
+        invoice.calculateTotal()
+        context.insert(invoice)
+        context.insert(item)
+        return invoice
+    }
+
+    // MARK: - VeriFACTU Coverage
+
+    @MainActor
+    @Test func verifactuChainLinksRecordsAndIncrementsSequence() async throws {
+        let container = try makeContainer()
+        let context = container.mainContext
+        let issuer = Issuer(name: "Acme SL", code: "ACM", taxId: "B12345678", verifactuEnabled: true)
+        context.insert(issuer)
+
+        let first = makeVerifactuInvoice(number: "ACM-0001", issuer: issuer, context: context)
+        let firstRecord = try VerifactuHashService.createRecord(for: first, issuer: issuer, context: context)
+
+        #expect(firstRecord.sequenceNumber == 1)
+        #expect(firstRecord.previousHash == VerifactuHashService.chainSentinel)
+        #expect(issuer.verifactuSequence == 2)
+        #expect(issuer.lastVerifactuHash == firstRecord.recordHash)
+
+        let second = makeVerifactuInvoice(number: "ACM-0002", issuer: issuer, context: context)
+        let secondRecord = try VerifactuHashService.createRecord(for: second, issuer: issuer, context: context)
+
+        #expect(secondRecord.sequenceNumber == 2)
+        #expect(secondRecord.previousHash == firstRecord.recordHash)
+        #expect(issuer.verifactuSequence == 3)
+
+        let result = VerifactuHashService.verifyChain(for: issuer, context: context)
+        #expect(result.isValid)
+        #expect(result.brokenAtSequence == nil)
+    }
+
+    @MainActor
+    @Test func verifactuChainDetectsTampering() async throws {
+        let container = try makeContainer()
+        let context = container.mainContext
+        let issuer = Issuer(name: "Acme SL", code: "ACM", taxId: "B12345678", verifactuEnabled: true)
+        context.insert(issuer)
+
+        let inv1 = makeVerifactuInvoice(number: "ACM-0001", issuer: issuer, context: context)
+        let r1 = try VerifactuHashService.createRecord(for: inv1, issuer: issuer, context: context)
+        let inv2 = makeVerifactuInvoice(number: "ACM-0002", issuer: issuer, context: context)
+        _ = try VerifactuHashService.createRecord(for: inv2, issuer: issuer, context: context)
+
+        // Tamper with the first record's amount so its recomputed hash no longer matches.
+        r1.totalAmount += 100
+
+        let result = VerifactuHashService.verifyChain(for: issuer, context: context)
+        #expect(!result.isValid)
+        #expect(result.brokenAtSequence == 1)
+    }
+
+    @MainActor
+    @Test func verifactuSubmissionStatusTransitions() async throws {
+        let container = try makeContainer()
+        let context = container.mainContext
+        let issuer = Issuer(name: "Acme SL", code: "ACM", taxId: "B12345678", verifactuEnabled: true)
+        context.insert(issuer)
+
+        let invoice = makeVerifactuInvoice(number: "ACM-0001", issuer: issuer, context: context)
+        let record = try VerifactuHashService.createRecord(for: invoice, issuer: issuer, context: context)
+
+        #expect(record.submissionStatus == .pending)
+        #expect(record.submissionDate == nil)
+
+        VerifactuSubmissionService.markAsSubmitted(record)
+        #expect(record.submissionStatus == .submitted)
+        #expect(record.submissionDate != nil)
+
+        VerifactuSubmissionService.markAsAccepted(record, response: "CSV-123456")
+        #expect(record.submissionStatus == .accepted)
+        #expect(record.submissionResponse == "CSV-123456")
+
+        let stats = VerifactuSubmissionService.statistics(for: issuer)
+        #expect(stats.total == 1)
+        #expect(stats.accepted == 1)
+        #expect(stats.pending == 0)
+        #expect(stats.hasUnsubmitted == false)
+    }
+
+    @MainActor
+    @Test func verifactuAltaXMLContainsRequiredAEATElements() async throws {
+        let container = try makeContainer()
+        let context = container.mainContext
+        let issuer = Issuer(name: "Acme SL", code: "ACM", taxId: "B12345678", verifactuEnabled: true)
+        context.insert(issuer)
+
+        let invoice = makeVerifactuInvoice(number: "ACM-0001", issuer: issuer, context: context)
+        let record = try VerifactuHashService.createRecord(for: invoice, issuer: issuer, context: context)
+
+        let xml = VerifactuXMLService.generateAltaXML(record: record, invoice: invoice, issuer: issuer)
+
+        #expect(xml.contains("SuministroLRFacturasEmitidas"))
+        #expect(xml.contains("<sif:NumSerieFactura>ACM-0001</sif:NumSerieFactura>"))
+        #expect(xml.contains("<sif:NIF>B12345678</sif:NIF>"))
+        #expect(xml.contains("<sif:TipoFactura>F1</sif:TipoFactura>"))
+        #expect(xml.contains("<sif:Huella>\(record.recordHash)</sif:Huella>"))
+        #expect(xml.contains("<sif:HuellaAnterior>\(record.previousHash)</sif:HuellaAnterior>"))
+        #expect(xml.contains("<sif:NumRegistro>\(record.sequenceNumber)</sif:NumRegistro>"))
+        #expect(xml.contains("<sif:ImporteTotal>1210.00</sif:ImporteTotal>"))
+    }
+
+    @MainActor
+    @Test func verifactuAnulacionXMLUsesBajaStructure() async throws {
+        let container = try makeContainer()
+        let context = container.mainContext
+        let issuer = Issuer(name: "Acme SL", code: "ACM", taxId: "B12345678", verifactuEnabled: true)
+        context.insert(issuer)
+
+        let invoice = makeVerifactuInvoice(number: "ACM-0001", issuer: issuer, context: context)
+        let record = try VerifactuHashService.createCancellationRecord(for: invoice, issuer: issuer, context: context)
+
+        #expect(record.isCancellation)
+
+        let xml = VerifactuXMLService.generateAnulacionXML(record: record, issuer: issuer)
+        #expect(xml.contains("BajaLRFacturasEmitidas"))
+        #expect(xml.contains("RegistroLRBajaExpedidas"))
+        #expect(xml.contains("<sif:NumSerieFactura>ACM-0001</sif:NumSerieFactura>"))
     }
 }

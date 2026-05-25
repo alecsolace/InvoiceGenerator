@@ -140,9 +140,17 @@ final class InvoiceViewModel {
         }
         invoice.calculateTotal()
 
-        // Generate VeriFACTU record if issuer has compliance enabled
+        // Generate VeriFACTU record if issuer has compliance enabled.
+        // A malformed hash must never be persisted, so abort creation if validation fails.
         if issuer.verifactuEnabled {
-            VerifactuHashService.createRecord(for: invoice, issuer: issuer, context: modelContext)
+            do {
+                try VerifactuHashService.createRecord(for: invoice, issuer: issuer, context: modelContext)
+            } catch {
+                PersistenceController.logger.error("VeriFACTU record creation failed: \(error.localizedDescription)")
+                errorMessage = error.localizedDescription
+                modelContext.rollback()
+                return nil
+            }
         }
 
         guard saveContext() else { return nil }
