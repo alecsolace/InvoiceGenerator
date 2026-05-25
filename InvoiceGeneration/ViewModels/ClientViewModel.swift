@@ -7,14 +7,16 @@ import SwiftData
 @Observable
 final class ClientViewModel {
     private var modelContext: ModelContext
+    private let sync: SyncCoordinator
 
     var clients: [Client] = []
     var isLoading = false
     var errorMessage: String?
     var searchQuery = ""
 
-    init(modelContext: ModelContext) {
+    init(modelContext: ModelContext, syncCoordinator: SyncCoordinator = .shared) {
         self.modelContext = modelContext
+        self.sync = syncCoordinator
         fetchClients()
     }
 
@@ -83,13 +85,7 @@ final class ClientViewModel {
             return nil
         }
 
-        if SubscriptionService.shared.syncEnabled {
-            Task {
-                do { try await CloudKitService.shared.syncClients([client]) }
-                catch { PersistenceController.logger.error("CloudKit client sync failed: \(error.localizedDescription)") }
-            }
-        }
-
+        sync.syncClients([client])
         return client
     }
 
@@ -128,12 +124,7 @@ final class ClientViewModel {
         let saved = saveContext()
         if saved {
             fetchClients()
-            if SubscriptionService.shared.syncEnabled {
-                Task {
-                    do { try await CloudKitService.shared.syncClients([client]) }
-                    catch { PersistenceController.logger.error("CloudKit client sync failed: \(error.localizedDescription)") }
-                }
-            }
+            sync.syncClients([client])
         }
         return saved
     }
@@ -149,12 +140,7 @@ final class ClientViewModel {
         _ = saveContext()
         fetchClients()
 
-        if SubscriptionService.shared.syncEnabled {
-            Task {
-                do { try await CloudKitService.shared.deleteClient(with: clientID) }
-                catch { PersistenceController.logger.error("CloudKit client delete failed: \(error.localizedDescription)") }
-            }
-        }
+        sync.deleteClient(with: clientID)
     }
 
     func searchClients(query: String) {

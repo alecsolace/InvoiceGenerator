@@ -7,6 +7,7 @@ import Observation
 @Observable
 final class InvoiceViewModel {
     private var modelContext: ModelContext
+    private let sync: SyncCoordinator
 
     var invoices: [Invoice] = []
     var selectedInvoice: Invoice?
@@ -17,8 +18,9 @@ final class InvoiceViewModel {
     var issuerFilterID: UUID?
     var searchQuery = ""
 
-    init(modelContext: ModelContext) {
+    init(modelContext: ModelContext, syncCoordinator: SyncCoordinator = .shared) {
         self.modelContext = modelContext
+        self.sync = syncCoordinator
         fetchInvoices()
     }
 
@@ -152,14 +154,7 @@ final class InvoiceViewModel {
 
         guard saveContext() else { return nil }
         fetchInvoices()
-
-        if SubscriptionService.shared.syncEnabled {
-            Task {
-                do { try await CloudKitService.shared.syncInvoices([invoice]) }
-                catch { PersistenceController.logger.error("CloudKit invoice sync failed: \(error.localizedDescription)") }
-            }
-        }
-
+        sync.syncInvoices([invoice])
         return invoice
     }
 
@@ -248,13 +243,7 @@ final class InvoiceViewModel {
         invoice.calculateTotal()
         _ = saveContext()
         fetchInvoices()
-
-        if SubscriptionService.shared.syncEnabled {
-            Task {
-                do { try await CloudKitService.shared.syncInvoices([invoice]) }
-                catch { PersistenceController.logger.error("CloudKit invoice sync failed: \(error.localizedDescription)") }
-            }
-        }
+        sync.syncInvoices([invoice])
     }
 
     func updateInvoice(
@@ -313,13 +302,7 @@ final class InvoiceViewModel {
         modelContext.delete(invoice)
         _ = saveContext()
         fetchInvoices()
-
-        if SubscriptionService.shared.syncEnabled {
-            Task {
-                do { try await CloudKitService.shared.deleteInvoice(with: invoiceID) }
-                catch { PersistenceController.logger.error("CloudKit invoice delete failed: \(error.localizedDescription)") }
-            }
-        }
+        sync.deleteInvoice(with: invoiceID)
     }
 
     /// Add item to invoice
@@ -376,13 +359,7 @@ final class InvoiceViewModel {
         invoice.updateTimestamp()
         _ = saveContext()
         fetchInvoices()
-
-        if SubscriptionService.shared.syncEnabled {
-            Task {
-                do { try await CloudKitService.shared.syncInvoices([invoice]) }
-                catch { PersistenceController.logger.error("CloudKit invoice sync failed: \(error.localizedDescription)") }
-            }
-        }
+        sync.syncInvoices([invoice])
     }
 
     func markSent(_ invoice: Invoice) {
