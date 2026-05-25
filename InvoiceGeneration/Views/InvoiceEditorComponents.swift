@@ -260,13 +260,7 @@ struct InvoiceDraftItemEditor: View {
         case .edit(let item):
             _descriptionText = State(initialValue: item.description)
             _quantity = State(initialValue: item.quantity)
-            let priceFormatter = NumberFormatter()
-            priceFormatter.numberStyle = .decimal
-            priceFormatter.locale = Locale.current
-            priceFormatter.maximumFractionDigits = 2
-            priceFormatter.minimumFractionDigits = 0
-            priceFormatter.groupingSeparator = ""
-            _unitPrice = State(initialValue: priceFormatter.string(from: NSDecimalNumber(decimal: item.unitPrice)) ?? "0")
+            _unitPrice = State(initialValue: Formatters.editablePrice.string(from: NSDecimalNumber(decimal: item.unitPrice)) ?? "0")
             _vatRate = State(initialValue: item.vatRate)
         }
     }

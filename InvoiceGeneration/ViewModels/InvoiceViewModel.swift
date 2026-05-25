@@ -69,7 +69,7 @@ final class InvoiceViewModel {
 
             invoices = fetchedInvoices
         } catch {
-            errorMessage = "Failed to fetch invoices: \(error.localizedDescription)"
+            errorMessage = UserFacingError.message(for: .load, error: error)
         }
 
         isLoading = false
@@ -428,7 +428,7 @@ final class InvoiceViewModel {
             return true
         } catch {
             PersistenceController.logger.error("SwiftData save failed: \(error.localizedDescription)")
-            errorMessage = "Failed to save: \(error.localizedDescription)"
+            errorMessage = UserFacingError.message(for: .save, error: error)
             return false
         }
     }
@@ -479,7 +479,7 @@ final class InvoiceViewModel {
                 $0.code.caseInsensitiveCompare(invoice.issuerCode) == .orderedSame
             }
         } catch {
-            errorMessage = "No se pudo localizar el emisor: \(error.localizedDescription)"
+            errorMessage = UserFacingError.message(for: .load, error: error)
             return nil
         }
     }

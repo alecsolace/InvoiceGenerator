@@ -29,7 +29,7 @@ final class DashboardViewModel {
             )
             invoices = try modelContext.fetch(descriptor)
         } catch {
-            errorMessage = "Failed to load invoices: \(error.localizedDescription)"
+            errorMessage = UserFacingError.message(for: .load, error: error)
         }
     }
 

@@ -26,7 +26,7 @@ final class InvoiceTemplateViewModel {
             )
             templates = try modelContext.fetch(descriptor)
         } catch {
-            errorMessage = "No se pudieron cargar las plantillas: \(error.localizedDescription)"
+            errorMessage = UserFacingError.message(for: .load, error: error)
         }
 
         isLoading = false
@@ -155,7 +155,7 @@ final class InvoiceTemplateViewModel {
             try modelContext.save()
             return true
         } catch {
-            errorMessage = "No se pudo guardar la plantilla: \(error.localizedDescription)"
+            errorMessage = UserFacingError.message(for: .save, error: error)
             PersistenceController.logger.error("Failed to save template: \(error.localizedDescription)")
             return false
         }

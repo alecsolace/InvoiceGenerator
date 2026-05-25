@@ -37,7 +37,7 @@ final class ClientViewModel {
             )
             clients = try modelContext.fetch(descriptor)
         } catch {
-            errorMessage = "Failed to fetch clients: \(error.localizedDescription)"
+            errorMessage = UserFacingError.message(for: .load, error: error)
         }
 
         isLoading = false
@@ -81,7 +81,7 @@ final class ClientViewModel {
             fetchClients()
         } catch {
             PersistenceController.logger.error("Failed to save client: \(error.localizedDescription)")
-            errorMessage = "Failed to save client: \(error.localizedDescription)"
+            errorMessage = UserFacingError.message(for: .save, error: error)
             return nil
         }
 
@@ -164,7 +164,7 @@ final class ClientViewModel {
             return true
         } catch {
             PersistenceController.logger.error("SwiftData save failed: \(error.localizedDescription)")
-            errorMessage = "Failed to save: \(error.localizedDescription)"
+            errorMessage = UserFacingError.message(for: .save, error: error)
             return false
         }
     }
