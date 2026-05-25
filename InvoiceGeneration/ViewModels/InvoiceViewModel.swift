@@ -33,21 +33,26 @@ final class InvoiceViewModel {
         let currentQuery = searchQuery
 
         do {
+            // The issuer relationship filter runs in the store via #Predicate so we
+            // don't load other issuers' invoices. Combining multiple optional-relationship
+            // clauses (e.g. client AND issuer) overwhelms the #Predicate type-checker in
+            // Swift 5.9/5.10, so only the issuer clause lives in the store predicate;
+            // client, status, and free-text search filter in-memory over the narrowed set.
+            let predicate = #Predicate<Invoice> { invoice in
+                currentIssuerID == nil || invoice.issuer?.id == currentIssuerID
+            }
             let descriptor = FetchDescriptor<Invoice>(
+                predicate: predicate,
                 sortBy: [SortDescriptor(\.issueDate, order: .reverse)]
             )
             var fetchedInvoices = try modelContext.fetch(descriptor)
-
-            if let currentStatus {
-                fetchedInvoices = fetchedInvoices.filter { $0.status == currentStatus }
-            }
 
             if let currentClientID {
                 fetchedInvoices = fetchedInvoices.filter { $0.client?.id == currentClientID }
             }
 
-            if let currentIssuerID {
-                fetchedInvoices = fetchedInvoices.filter { $0.issuer?.id == currentIssuerID }
+            if let currentStatus {
+                fetchedInvoices = fetchedInvoices.filter { $0.status == currentStatus }
             }
 
             if !currentQuery.isEmpty {
