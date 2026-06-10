@@ -43,8 +43,7 @@ struct MyDataView: View {
             buttonTitle: String(localized: "Configurar"),
             action: {
                 _ = viewModel?.createIssuer(
-                    name: String(localized: "Mi empresa"),
-                    code: "FAC"
+                    name: String(localized: "Mi empresa")
                 )
             }
         )
@@ -58,7 +57,6 @@ private struct MyDataFormView: View {
     @Bindable var viewModel: IssuerViewModel
 
     @State private var name: String = ""
-    @State private var code: String = ""
     @State private var ownerName: String = ""
     @State private var email: String = ""
     @State private var phone: String = ""
@@ -72,11 +70,6 @@ private struct MyDataFormView: View {
         Form {
             Section(String(localized: "Emisor")) {
                 TextField(String(localized: "Nombre"), text: $name)
-                TextField(String(localized: "Código"), text: $code)
-#if os(iOS)
-                    .textInputAutocapitalization(.characters)
-                    .autocorrectionDisabled(true)
-#endif
             }
 
             Section(String(localized: "Contacto")) {
@@ -124,7 +117,7 @@ private struct MyDataFormView: View {
                         Spacer()
                     }
                 }
-                .disabled(name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || code.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                .disabled(name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
             }
         }
         .onAppear { hydrate() }
@@ -132,7 +125,6 @@ private struct MyDataFormView: View {
 
     private func hydrate() {
         name = issuer.name
-        code = issuer.code
         ownerName = issuer.ownerName
         email = issuer.email
         phone = issuer.phone
@@ -146,7 +138,6 @@ private struct MyDataFormView: View {
         let success = viewModel.updateIssuer(
             issuer,
             name: name,
-            code: code,
             ownerName: ownerName,
             email: email,
             phone: phone,

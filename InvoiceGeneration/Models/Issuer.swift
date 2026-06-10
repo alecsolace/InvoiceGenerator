@@ -6,8 +6,6 @@ import SwiftData
 final class Issuer {
     var id: UUID = UUID()
     var name: String = ""
-    /// Unique invoice prefix (for example: FAM, ANA).
-    var code: String = ""
     var ownerName: String = ""
     var email: String = ""
     var phone: String = ""
@@ -16,8 +14,6 @@ final class Issuer {
     var logoData: Data?
     /// Default notes/observations to pre-fill when creating invoices from this issuer.
     var defaultNotes: String = ""
-    /// Next sequence to be used when generating invoice numbers.
-    var nextInvoiceSequence: Int = 1
 
     // MARK: - VeriFACTU Compliance
 
@@ -51,7 +47,6 @@ final class Issuer {
     init(
         id: UUID = UUID(),
         name: String,
-        code: String,
         ownerName: String = "",
         email: String = "",
         phone: String = "",
@@ -59,12 +54,10 @@ final class Issuer {
         taxId: String = "",
         logoData: Data? = nil,
         defaultNotes: String = "",
-        nextInvoiceSequence: Int = 1,
         verifactuEnabled: Bool = false
     ) {
         self.id = id
         self.name = name
-        self.code = code.uppercased()
         self.ownerName = ownerName
         self.email = email
         self.phone = phone
@@ -72,7 +65,6 @@ final class Issuer {
         self.taxId = taxId
         self.logoData = logoData
         self.defaultNotes = defaultNotes
-        self.nextInvoiceSequence = max(nextInvoiceSequence, 1)
         self.verifactuEnabled = verifactuEnabled
         self.lastVerifactuHash = ""
         self.verifactuSequence = 1

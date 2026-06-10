@@ -54,8 +54,6 @@ struct AddInvoiceView: View {
     @State private var editingDraftItem: DraftInvoiceItem?
     @State private var hasManuallyEditedInvoiceNumber = false
     @State private var lastSuggestedInvoiceNumber = ""
-    @State private var pendingInvoiceSequenceByIssuerID: [UUID: Int] = [:]
-    @State private var pendingInvoiceSequenceByClientID: [UUID: Int] = [:]
     @State private var generatedPDFURL: URL?
     @State private var invoicePendingShareCompletion: Invoice?
     @State private var importWarnings: [String] = []
@@ -318,8 +316,14 @@ struct AddInvoiceView: View {
                     Label("Crear cliente", systemImage: "plus")
                 }
 
-                if let currentIssuer {
-                    LabeledContent("Emisor", value: "\(currentIssuer.name) (\(currentIssuer.code))")
+                if let issuers = issuerViewModel?.issuers, !issuers.isEmpty {
+                    Picker("Emisor", selection: $selectedIssuerID) {
+                        ForEach(issuers) { issuer in
+                            Text(issuer.name)
+                                .tag(Optional(issuer.id))
+                        }
+                    }
+                    .accessibilityIdentifier("invoice-issuer-picker")
                 } else {
                     Text("Necesitas crear un emisor antes de facturar.")
                         .foregroundStyle(.secondary)
@@ -730,46 +734,24 @@ struct AddInvoiceView: View {
         guard let issuer = currentIssuer else { return }
         let replacing = force || invoiceNumber.isEmpty || !hasManuallyEditedInvoiceNumber
 
-        if let client = clientViewModel?.client(with: selectedClientID) {
-            let sequence = pendingInvoiceSequenceByClientID[client.id] ?? client.nextInvoiceSequence
-            setSuggestedInvoiceNumber(for: client, issuer: issuer, sequence: max(sequence, 1), replacingCurrentValue: replacing)
-        } else {
-            let sequence = pendingInvoiceSequenceByIssuerID[issuer.id] ?? issuer.nextInvoiceSequence
-            setSuggestedInvoiceNumber(for: issuer, sequence: max(sequence, 1), replacingCurrentValue: replacing)
+        let client = clientViewModel?.client(with: selectedClientID)
+        let suggestion = InvoiceNumberingService.nextInvoiceNumber(issuer: issuer, client: client)
+        lastSuggestedInvoiceNumber = suggestion
+
+        if replacing {
+            invoiceNumber = suggestion
+            hasManuallyEditedInvoiceNumber = false
         }
     }
 
     private func incrementSuggestedInvoiceNumber() {
-        guard let issuer = currentIssuer else { return }
-
-        if let client = clientViewModel?.client(with: selectedClientID) {
-            let current = pendingInvoiceSequenceByClientID[client.id] ?? client.nextInvoiceSequence
-            setSuggestedInvoiceNumber(for: client, issuer: issuer, sequence: max(current, 1) + 1, replacingCurrentValue: true)
+        if let current = InvoiceNumberingService.sequence(from: invoiceNumber) {
+            let next = String(current + 1)
+            lastSuggestedInvoiceNumber = next
+            invoiceNumber = next
+            hasManuallyEditedInvoiceNumber = false
         } else {
-            let current = pendingInvoiceSequenceByIssuerID[issuer.id] ?? issuer.nextInvoiceSequence
-            setSuggestedInvoiceNumber(for: issuer, sequence: max(current, 1) + 1, replacingCurrentValue: true)
-        }
-    }
-
-    private func setSuggestedInvoiceNumber(for client: Client, issuer: Issuer, sequence: Int, replacingCurrentValue: Bool) {
-        let suggestion = InvoiceNumberingService.invoiceNumber(for: client, issuer: issuer, sequence: sequence)
-        pendingInvoiceSequenceByClientID[client.id] = sequence
-        lastSuggestedInvoiceNumber = suggestion
-
-        if replacingCurrentValue {
-            invoiceNumber = suggestion
-            hasManuallyEditedInvoiceNumber = false
-        }
-    }
-
-    private func setSuggestedInvoiceNumber(for issuer: Issuer, sequence: Int, replacingCurrentValue: Bool) {
-        let suggestion = InvoiceNumberingService.invoiceNumber(for: issuer, sequence: sequence)
-        pendingInvoiceSequenceByIssuerID[issuer.id] = sequence
-        lastSuggestedInvoiceNumber = suggestion
-
-        if replacingCurrentValue {
-            invoiceNumber = suggestion
-            hasManuallyEditedInvoiceNumber = false
+            applySuggestedInvoiceNumber(force: true)
         }
     }
 
@@ -990,7 +972,7 @@ private enum QuickInvoiceStep: String, CaseIterable, Identifiable {
         configurations: config
     )
 
-    let issuer = Issuer(name: "Acme Studio", code: "ACM")
+    let issuer = Issuer(name: "Acme Studio")
     let client = Client(name: "Cliente ejemplo", email: "facturacion@cliente.com", defaultDueDays: 15)
     container.mainContext.insert(issuer)
     container.mainContext.insert(client)

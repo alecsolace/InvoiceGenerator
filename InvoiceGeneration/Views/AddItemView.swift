@@ -100,7 +100,6 @@ struct EditInvoiceView: View {
     @State private var ivaPercentage: String
     @State private var irpfPercentage: String
     @State private var draftItems: [DraftInvoiceItem]
-    @State private var pendingInvoiceSequenceByIssuerID: [UUID: Int] = [:]
     private let initialClientName: String
     private let initialClientEmail: String
     private let initialClientIdentificationNumber: String
@@ -190,11 +189,6 @@ struct EditInvoiceView: View {
             if issuerViewModel == nil {
                 issuerViewModel = IssuerViewModel(modelContext: modelContext)
             }
-            if let selectedIssuerID,
-               pendingInvoiceSequenceByIssuerID[selectedIssuerID] == nil,
-               let issuer = issuerViewModel?.issuers.first(where: { $0.id == selectedIssuerID }) {
-                pendingInvoiceSequenceByIssuerID[selectedIssuerID] = max(issuer.nextInvoiceSequence - 1, 0)
-            }
         }
         .onChange(of: selectedClientID) { _, newValue in
             guard
@@ -211,13 +205,6 @@ struct EditInvoiceView: View {
             clientEmail = client.email
             clientIdentificationNumber = client.identificationNumber
             clientAddress = client.address
-        }
-        .onChange(of: selectedIssuerID) { _, newValue in
-            guard let newValue else { return }
-            if pendingInvoiceSequenceByIssuerID[newValue] == nil,
-               let issuer = issuerViewModel?.issuers.first(where: { $0.id == newValue }) {
-                pendingInvoiceSequenceByIssuerID[newValue] = max(issuer.nextInvoiceSequence - 1, 0)
-            }
         }
         .sheet(isPresented: $showingAddClient) {
             if let clientViewModel {
@@ -301,12 +288,17 @@ struct EditInvoiceView: View {
     }
 
     private func incrementSuggestedInvoiceNumber() {
+        if let current = InvoiceNumberingService.sequence(from: invoiceNumber) {
+            invoiceNumber = String(current + 1)
+            return
+        }
+
         guard let selectedIssuerID,
               let issuer = issuerViewModel?.issuers.first(where: { $0.id == selectedIssuerID }) else { return }
-        let currentSequence = pendingInvoiceSequenceByIssuerID[issuer.id] ?? max(issuer.nextInvoiceSequence - 1, 0)
-        let nextSequence = max(currentSequence + 1, 1)
-        pendingInvoiceSequenceByIssuerID[issuer.id] = nextSequence
-        invoiceNumber = InvoiceNumberingService.invoiceNumber(for: issuer, sequence: nextSequence)
+        let client = selectedClientID.flatMap { id in
+            clientViewModel?.clients.first(where: { $0.id == id })
+        }
+        invoiceNumber = InvoiceNumberingService.nextInvoiceNumber(issuer: issuer, client: client)
     }
 
     private func removeDraftItem(_ item: DraftInvoiceItem) {

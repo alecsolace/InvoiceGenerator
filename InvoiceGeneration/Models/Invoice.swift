@@ -13,7 +13,6 @@ final class Invoice {
 
     // Snapshot of issuer information captured at creation time.
     var issuerName: String = ""
-    var issuerCode: String = ""
     var issuerOwnerName: String = ""
     var issuerEmail: String = ""
     var issuerPhone: String = ""
@@ -78,7 +77,6 @@ final class Invoice {
         client: Client? = nil,
         issuer: Issuer? = nil,
         issuerName: String = "",
-        issuerCode: String = "",
         issuerOwnerName: String = "",
         issuerEmail: String = "",
         issuerPhone: String = "",
@@ -108,7 +106,6 @@ final class Invoice {
         self.client = client
         self.issuer = issuer
         self.issuerName = issuerName
-        self.issuerCode = issuerCode
         self.issuerOwnerName = issuerOwnerName
         self.issuerEmail = issuerEmail
         self.issuerPhone = issuerPhone
@@ -182,7 +179,6 @@ final class Invoice {
 
     func captureIssuerSnapshot(from issuer: Issuer) {
         issuerName = issuer.name
-        issuerCode = issuer.code
         issuerOwnerName = issuer.ownerName
         issuerEmail = issuer.email
         issuerPhone = issuer.phone

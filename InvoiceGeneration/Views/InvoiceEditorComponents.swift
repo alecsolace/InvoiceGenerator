@@ -73,7 +73,7 @@ struct InvoiceEditorSections: View {
             if !issuers.isEmpty {
                 Picker("Emisor", selection: $selectedIssuerID) {
                     ForEach(issuers) { issuer in
-                        Text("\(issuer.name) (\(issuer.code))")
+                        Text(issuer.name)
                             .tag(Optional(issuer.id))
                     }
                 }

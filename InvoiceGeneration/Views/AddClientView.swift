@@ -33,7 +33,6 @@ struct AddClientView: View {
     @State private var defaultIVAPercentage = ""
     @State private var defaultIRPFPercentage = ""
     @State private var defaultNotes = ""
-    @State private var invoiceCode = ""
     @State private var preferredTemplateID: UUID?
     @State private var countryCode = "ES"
     @State private var locationType: ClientLocationType = .national
@@ -101,12 +100,6 @@ struct AddClientView: View {
 
                     TextField("Notas por defecto", text: $defaultNotes, axis: .vertical)
                         .lineLimit(3...5)
-
-                    TextField("Codigo de factura", text: $invoiceCode)
-#if os(iOS)
-                        .textInputAutocapitalization(.characters)
-                        .autocorrectionDisabled(true)
-#endif
                 }
 
                 Section("Plantilla preferida") {
@@ -165,7 +158,6 @@ struct AddClientView: View {
         }
 
         defaultNotes = client.defaultNotes
-        invoiceCode = client.invoiceCode
         preferredTemplateID = client.preferredTemplateID
         countryCode = client.countryCode
         locationType = client.locationType
@@ -189,7 +181,6 @@ struct AddClientView: View {
                 defaultIVAPercentage: ivaValue,
                 defaultIRPFPercentage: irpfValue,
                 defaultNotes: defaultNotes,
-                invoiceCode: invoiceCode,
                 preferredTemplateID: preferredTemplateID,
                 countryCode: countryCode,
                 locationType: locationType
@@ -210,7 +201,6 @@ struct AddClientView: View {
                 defaultIVAPercentage: ivaValue,
                 defaultIRPFPercentage: irpfValue,
                 defaultNotes: defaultNotes,
-                invoiceCode: invoiceCode,
                 preferredTemplateID: preferredTemplateID,
                 countryCode: countryCode,
                 locationType: locationType

@@ -231,9 +231,6 @@ struct InvoiceDetailView: View {
             if !invoice.issuerName.isEmpty {
                 infoRow(title: "Emisor", value: invoice.issuerName)
             }
-            if !invoice.issuerCode.isEmpty {
-                infoRow(title: "Codigo emisor", value: invoice.issuerCode)
-            }
             infoRow(title: "Fecha de emision", value: invoice.issueDate.mediumFormat)
             infoRow(title: "Fecha de vencimiento", value: invoice.dueDate.mediumFormat)
             if let updated = invoice.pdfLastGeneratedAt {

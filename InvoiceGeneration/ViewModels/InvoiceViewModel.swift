@@ -62,8 +62,7 @@ final class InvoiceViewModel {
                     invoice.clientName.localizedStandardContains(currentQuery) ||
                     invoice.clientIdentificationNumber.localizedStandardContains(currentQuery) ||
                     invoice.invoiceNumber.localizedStandardContains(currentQuery) ||
-                    invoice.issuerName.localizedStandardContains(currentQuery) ||
-                    invoice.issuerCode.localizedStandardContains(currentQuery)
+                    invoice.issuerName.localizedStandardContains(currentQuery)
                 }
             }
 
@@ -140,11 +139,6 @@ final class InvoiceViewModel {
             invoice.rebuildTaxBreakdowns()
         }
 
-        if let client {
-            InvoiceNumberingService.registerUsedInvoiceNumber(invoiceNumber, for: client, issuer: issuer)
-        } else {
-            InvoiceNumberingService.registerUsedInvoiceNumber(invoiceNumber, for: issuer)
-        }
         invoice.calculateTotal()
 
         // Generate VeriFACTU record if issuer has compliance enabled
@@ -178,9 +172,7 @@ final class InvoiceViewModel {
                 )
             }
 
-        let invoiceNum = template.client.map {
-            InvoiceNumberingService.nextInvoiceNumber(for: $0, issuer: issuer)
-        } ?? InvoiceNumberingService.nextInvoiceNumber(for: issuer)
+        let invoiceNum = InvoiceNumberingService.nextInvoiceNumber(issuer: issuer, client: template.client)
 
         return createInvoice(
             invoiceNumber: invoiceNum,
@@ -216,9 +208,7 @@ final class InvoiceViewModel {
             )
         }
 
-        let invoiceNum = invoice.client.map {
-            InvoiceNumberingService.nextInvoiceNumber(for: $0, issuer: issuer)
-        } ?? InvoiceNumberingService.nextInvoiceNumber(for: issuer)
+        let invoiceNum = InvoiceNumberingService.nextInvoiceNumber(issuer: issuer, client: invoice.client)
 
         return createInvoice(
             invoiceNumber: invoiceNum,
@@ -277,14 +267,8 @@ final class InvoiceViewModel {
 
         if let issuer {
             invoice.captureIssuerSnapshot(from: issuer)
-            if let client {
-                InvoiceNumberingService.registerUsedInvoiceNumber(invoice.invoiceNumber, for: client, issuer: issuer)
-            } else {
-                InvoiceNumberingService.registerUsedInvoiceNumber(invoice.invoiceNumber, for: issuer)
-            }
         } else {
             invoice.issuerName = ""
-            invoice.issuerCode = ""
             invoice.issuerOwnerName = ""
             invoice.issuerEmail = ""
             invoice.issuerPhone = ""
@@ -468,7 +452,7 @@ final class InvoiceViewModel {
             return issuer
         }
 
-        guard !invoice.issuerCode.isEmpty else { return nil }
+        guard !invoice.issuerName.isEmpty else { return nil }
 
         do {
             let descriptor = FetchDescriptor<Issuer>(
@@ -476,7 +460,7 @@ final class InvoiceViewModel {
             )
             let issuers = try modelContext.fetch(descriptor)
             return issuers.first {
-                $0.code.caseInsensitiveCompare(invoice.issuerCode) == .orderedSame
+                $0.name.caseInsensitiveCompare(invoice.issuerName) == .orderedSame
             }
         } catch {
             errorMessage = UserFacingError.message(for: .load, error: error)

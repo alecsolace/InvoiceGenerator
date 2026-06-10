@@ -36,7 +36,6 @@ final class IssuerViewModel {
     @discardableResult
     func createIssuer(
         name: String,
-        code: String,
         ownerName: String = "",
         email: String = "",
         phone: String = "",
@@ -46,21 +45,13 @@ final class IssuerViewModel {
         defaultNotes: String = "",
         verifactuEnabled: Bool = false
     ) -> Issuer? {
-        let normalizedCode = InvoiceNumberingService.sanitizeCode(code)
-
         guard !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
             errorMessage = "Issuer name is required."
             return nil
         }
 
-        guard !isCodeTaken(normalizedCode) else {
-            errorMessage = "Issuer code already exists."
-            return nil
-        }
-
         let issuer = Issuer(
             name: name,
-            code: normalizedCode,
             ownerName: ownerName,
             email: email,
             phone: phone,
@@ -83,7 +74,6 @@ final class IssuerViewModel {
     func updateIssuer(
         _ issuer: Issuer,
         name: String,
-        code: String,
         ownerName: String,
         email: String,
         phone: String,
@@ -93,20 +83,12 @@ final class IssuerViewModel {
         defaultNotes: String = "",
         verifactuEnabled: Bool = false
     ) -> Bool {
-        let normalizedCode = InvoiceNumberingService.sanitizeCode(code)
-
         guard !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
             errorMessage = "Issuer name is required."
             return false
         }
 
-        guard !isCodeTaken(normalizedCode, excluding: issuer.id) else {
-            errorMessage = "Issuer code already exists."
-            return false
-        }
-
         issuer.name = name
-        issuer.code = normalizedCode
         issuer.ownerName = ownerName
         issuer.email = email
         issuer.phone = phone
@@ -145,15 +127,6 @@ final class IssuerViewModel {
     }
 
     // MARK: - Private
-
-    private func isCodeTaken(_ code: String, excluding issuerID: UUID? = nil) -> Bool {
-        issuers.contains { issuer in
-            if let issuerID, issuer.id == issuerID {
-                return false
-            }
-            return issuer.code.caseInsensitiveCompare(code) == .orderedSame
-        }
-    }
 
     private func saveContext() -> Bool {
         do {

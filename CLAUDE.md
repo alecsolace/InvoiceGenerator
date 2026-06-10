@@ -35,7 +35,7 @@ There is no SPM package, Makefile, or linter CLI configured — Xcode is the pri
 |---|---|
 | `PersistenceController` | Shared `ModelContainer`; handles store corruption recovery |
 | `PDFGeneratorService` | A4 PDF layout using PDFKit; outputs `PDFDocument` |
-| `InvoiceNumberingService` | Auto-numbering scheme: `{IssuerCode}-{Sequence}` (e.g. `FAM-0042`) |
+| `InvoiceNumberingService` | Recommends the next invoice number per issuer–client pair: plain natural numbers, derived as last used number + 1 (no prefixes, no stored counters) |
 | `SubscriptionService` | StoreKit entitlements; free tier = max 2 clients |
 | `CloudKitService` | Private iCloud database sync; requires Pro subscription |
 

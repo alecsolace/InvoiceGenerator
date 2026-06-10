@@ -38,7 +38,7 @@ final class InvoiceGenerationUITests: XCTestCase {
         primary.tap()
 
         app.tabBars.buttons["Facturas"].tap()
-        XCTAssertTrue(app.staticTexts["ACM-0003"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["1043"].waitForExistence(timeout: 5))
     }
 
     @MainActor
@@ -55,7 +55,7 @@ final class InvoiceGenerationUITests: XCTestCase {
         primary.tap()
 
         app.tabBars.buttons["Facturas"].tap()
-        XCTAssertTrue(app.staticTexts["ACM-0003"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["1043"].waitForExistence(timeout: 5))
     }
 
     @MainActor
@@ -63,8 +63,8 @@ final class InvoiceGenerationUITests: XCTestCase {
         let app = launchSeededApp()
 
         app.tabBars.buttons["Facturas"].tap()
-        XCTAssertTrue(app.staticTexts["ACM-0002"].waitForExistence(timeout: 5))
-        app.staticTexts["ACM-0002"].tap()
+        XCTAssertTrue(app.staticTexts["1042"].waitForExistence(timeout: 5))
+        app.staticTexts["1042"].tap()
 
         let moreButton = app.buttons["Mas"]
         XCTAssertTrue(moreButton.waitForExistence(timeout: 5))
@@ -76,7 +76,7 @@ final class InvoiceGenerationUITests: XCTestCase {
         primary.tap()
 
         app.navigationBars.buttons.element(boundBy: 0).tap()
-        XCTAssertTrue(app.staticTexts["ACM-0003"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["1043"].waitForExistence(timeout: 5))
     }
 
     private func launchSeededApp() -> XCUIApplication {
