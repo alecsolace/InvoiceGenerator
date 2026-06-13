@@ -2,12 +2,23 @@ import CloudKit
 import OSLog
 import SwiftData
 import SwiftUI
+#if DEBUG
+import DebugBridgeCore
+import DebugBridgeUI
+#endif
 
 /// Main app entry point with SwiftData configuration
 @main
 struct InvoiceGeneratorApp: App {
     @Environment(\.scenePhase) private var scenePhase
     @StateObject private var subscriptionService = SubscriptionService.shared
+
+    init() {
+        #if DEBUG
+        DebugBridgeUIWiring.installAll()
+        StateServer.shared.start()
+        #endif
+    }
 
     private static let containerResult: Result<ModelContainer, Error> = {
         do {

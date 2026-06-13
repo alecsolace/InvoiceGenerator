@@ -22,6 +22,8 @@ struct iOSInvoiceDetailView: View {
     @State private var templateViewModel: InvoiceTemplateViewModel?
     @State private var syncResultMessage: String?
     @State private var showingSyncResult = false
+    @State private var previewDocument: PDFDocument?
+    @State private var showingPreview = false
 
     var body: some View {
         ScrollView {
@@ -49,6 +51,16 @@ struct iOSInvoiceDetailView: View {
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 Menu {
+                    Button {
+                        viewPDF()
+                    } label: {
+                        Label(String(localized: "Ver PDF"), systemImage: "doc.richtext")
+                    }
+                    Button {
+                        sharePDF()
+                    } label: {
+                        Label(String(localized: "Compartir PDF"), systemImage: "square.and.arrow.up")
+                    }
                     Button {
                         showingEditInvoice = true
                     } label: {
@@ -87,6 +99,31 @@ struct iOSInvoiceDetailView: View {
                 duplicatedInvoice = created
             }
         }
+        #if canImport(UIKit)
+        .fullScreenCover(isPresented: $showingPreview) {
+            if let previewDocument {
+                NavigationStack {
+                    iOSPDFPreview(document: previewDocument)
+                        .ignoresSafeArea()
+                        .navigationTitle(invoice.invoiceNumber)
+                        .navigationBarTitleDisplayMode(.inline)
+                        .toolbar {
+                            ToolbarItem(placement: .cancellationAction) {
+                                Button(String(localized: "Cerrar")) { showingPreview = false }
+                            }
+                            ToolbarItem(placement: .primaryAction) {
+                                Button {
+                                    showingPreview = false
+                                    sharePDF()
+                                } label: {
+                                    Image(systemName: "square.and.arrow.up")
+                                }
+                            }
+                        }
+                }
+            }
+        }
+        #endif
         // Email compose uses the shared InvoiceDetailView flow
         .onAppear {
             if templateViewModel == nil {
@@ -362,6 +399,17 @@ struct iOSInvoiceDetailView: View {
             }
 
             Button {
+                viewPDF()
+            } label: {
+                Label(String(localized: "Ver PDF"), systemImage: "doc.richtext")
+                    .font(.headline)
+                    .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.borderedProminent)
+            .tint(.accentColor)
+            .controlSize(.large)
+
+            Button {
                 sharePDF()
             } label: {
                 Label(String(localized: "Compartir PDF"), systemImage: "square.and.arrow.up")
@@ -421,6 +469,41 @@ struct iOSInvoiceDetailView: View {
             showingShareSheet = true
         }
     }
+
+    private func viewPDF() {
+        let fileName = "Factura_\(invoice.invoiceNumber)"
+        if let url = PDFStorageManager.targetURL(for: fileName),
+           FileManager.default.fileExists(atPath: url.path),
+           let document = PDFDocument(url: url) {
+            previewDocument = document
+            showingPreview = true
+            return
+        }
+        guard let document = PDFGeneratorService.generateInvoicePDF(invoice: invoice) else { return }
+        previewDocument = document
+        showingPreview = true
+    }
 }
+
+// MARK: - PDF Preview
+
+#if canImport(UIKit)
+private struct iOSPDFPreview: UIViewRepresentable {
+    let document: PDFDocument
+
+    func makeUIView(context: Context) -> PDFView {
+        let view = PDFView()
+        view.autoScales = true
+        view.displayDirection = .vertical
+        view.displayMode = .singlePageContinuous
+        view.document = document
+        return view
+    }
+
+    func updateUIView(_ uiView: PDFView, context: Context) {
+        uiView.document = document
+    }
+}
+#endif
 
 // Preview requires a managed Invoice — use the app's PersistenceController.preview container.
