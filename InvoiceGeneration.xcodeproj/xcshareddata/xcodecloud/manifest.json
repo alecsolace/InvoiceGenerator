@@ -1,0 +1,9 @@
+{
+  "id" : "58d8e5df-a7a8-43c4-8d34-ef7166357113",
+  "targets" : [
+    {
+      "id" : "867b5799-dea3-4af9-8b18-69ef9e0b6f05",
+      "name" : "InvoiceGeneration"
+    }
+  ]
+}

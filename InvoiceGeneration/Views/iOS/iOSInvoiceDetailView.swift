@@ -66,11 +66,6 @@ struct iOSInvoiceDetailView: View {
                     } label: {
                         Label(String(localized: "Editar"), systemImage: "pencil")
                     }
-                    Button {
-                        composerSeed = .duplicate(invoice)
-                    } label: {
-                        Label(String(localized: "Duplicar"), systemImage: "plus.square.on.square")
-                    }
                     if let templateViewModel {
                         Button {
                             templateViewModel.createTemplate(from: invoice)
@@ -104,6 +99,7 @@ struct iOSInvoiceDetailView: View {
             if let previewDocument {
                 NavigationStack {
                     iOSPDFPreview(document: previewDocument)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
                         .ignoresSafeArea()
                         .navigationTitle(invoice.invoiceNumber)
                         .navigationBarTitleDisplayMode(.inline)
@@ -423,7 +419,7 @@ struct iOSInvoiceDetailView: View {
             Button {
                 composerSeed = .duplicate(invoice)
             } label: {
-                Label(String(localized: "Duplicar factura"), systemImage: "plus.square.on.square")
+                Label(String(localized: "invoice.detail.create_similar"), systemImage: "plus.square.on.square")
                     .font(.subheadline)
                     .fontWeight(.semibold)
                     .frame(maxWidth: .infinity)
@@ -496,12 +492,15 @@ private struct iOSPDFPreview: UIViewRepresentable {
         view.autoScales = true
         view.displayDirection = .vertical
         view.displayMode = .singlePageContinuous
-        view.document = document
+        // Defer assignment so autoScales has a real frame to compute against.
+        DispatchQueue.main.async { view.document = self.document }
         return view
     }
 
     func updateUIView(_ uiView: PDFView, context: Context) {
-        uiView.document = document
+        if uiView.document !== document {
+            uiView.document = document
+        }
     }
 }
 #endif

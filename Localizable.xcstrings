@@ -4,108 +4,6 @@
     "#%lld" : {
 
     },
-    "We couldn't complete your purchase. Please try again." : {
-      "comment" : "Generic user-facing error when a purchase fails.",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "We couldn't complete your purchase. Please try again."
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "No se pudo completar la compra. Inténtalo de nuevo."
-          }
-        }
-      }
-    },
-    "We couldn't delete this item. Please try again." : {
-      "comment" : "Generic user-facing error when a delete fails.",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "We couldn't delete this item. Please try again."
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "No se pudo eliminar este elemento. Inténtalo de nuevo."
-          }
-        }
-      }
-    },
-    "We couldn't load your data. Please try again." : {
-      "comment" : "Generic user-facing error when a data load fails.",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "We couldn't load your data. Please try again."
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "No se pudieron cargar los datos. Inténtalo de nuevo."
-          }
-        }
-      }
-    },
-    "We couldn't read the selected image. Please try a clearer photo." : {
-      "comment" : "User-facing error when an imported invoice image cannot be read.",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "We couldn't read the selected image. Please try a clearer photo."
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "No se pudo leer la imagen seleccionada. Prueba con una foto más nítida."
-          }
-        }
-      }
-    },
-    "We couldn't save your changes. Please try again." : {
-      "comment" : "Generic user-facing error when a save fails.",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "We couldn't save your changes. Please try again."
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "No se pudieron guardar los cambios. Inténtalo de nuevo."
-          }
-        }
-      }
-    },
-    "We couldn't sync with iCloud. Your changes are saved on this device." : {
-      "comment" : "User-facing error when iCloud sync fails.",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "We couldn't sync with iCloud. Your changes are saved on this device."
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "No se pudo sincronizar con iCloud. Tus cambios están guardados en este dispositivo."
-          }
-        }
-      }
-    },
     "%@ (%@)" : {
       "localizations" : {
         "en" : {
@@ -787,6 +685,22 @@
         }
       }
     },
+    "advanced.options" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Advanced options"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Opciones avanzadas"
+          }
+        }
+      }
+    },
     "Ahorra 33%" : {
 
     },
@@ -1386,7 +1300,6 @@
       }
     },
     "Cerrar" : {
-      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -2182,6 +2095,54 @@
         }
       }
     },
+    "dashboard.invoice_action" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Invoice →"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Facturar →"
+          }
+        }
+      }
+    },
+    "dashboard.last_client" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Last client"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Último cliente"
+          }
+        }
+      }
+    },
+    "dashboard.needs_attention" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Needs attention"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Requiere atención"
+          }
+        }
+      }
+    },
     "Datos de la empresa" : {
 
     },
@@ -2518,6 +2479,7 @@
       }
     },
     "Duplicar este mes" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -2532,9 +2494,6 @@
           }
         }
       }
-    },
-    "Duplicar factura" : {
-
     },
     "Edit" : {
       "comment" : "A button to edit an existing invoice.",
@@ -2704,6 +2663,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Emisor"
+          }
+        }
+      }
+    },
+    "Emisor activo" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Active issuer"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Emisor activo"
           }
         }
       }
@@ -3063,9 +3038,6 @@
       }
     },
     "Facturacion profesional con cumplimiento VeriFactu integrado" : {
-
-    },
-    "Facturacion YTD" : {
 
     },
     "facturado" : {
@@ -3939,6 +3911,54 @@
         }
       }
     },
+    "invoice.detail.create_similar" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Create Similar"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Crear factura similar"
+          }
+        }
+      }
+    },
+    "invoice.quick.title" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Quick Invoice"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Factura rápida"
+          }
+        }
+      }
+    },
+    "invoice.status.overdue_since %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Overdue %@"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vencida %@"
+          }
+        }
+      }
+    },
     "Invoices" : {
       "comment" : "A tab label for viewing a list of invoices.",
       "isCommentAutoGenerated" : true,
@@ -4515,6 +4535,7 @@
 
     },
     "Modo" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -4834,9 +4855,6 @@
           }
         }
       }
-    },
-    "No hay facturas pendientes de cobro." : {
-
     },
     "No hay plantillas" : {
       "comment" : "A message displayed when a user has no invoice templates.",
@@ -5247,6 +5265,7 @@
       }
     },
     "Paso" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -6437,6 +6456,22 @@
     "Sin datos de emisor" : {
 
     },
+    "Sin emisor" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No issuer"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sin emisor"
+          }
+        }
+      }
+    },
     "Sin emisores" : {
 
     },
@@ -6591,6 +6626,50 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Manténgase organizado"
+          }
+        }
+      }
+    },
+    "Step %lld of %lld: %@" : {
+      "comment" : "A label describing a step in a multi-step process. The first argument is the step number. The second argument is the total number of steps. The third argument is the step description.",
+      "isCommentAutoGenerated" : true,
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Step %1$lld of %2$lld: %3$@"
+          }
+        }
+      }
+    },
+    "step.amounts" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Amounts"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Importes"
+          }
+        }
+      }
+    },
+    "step.who" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Who"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "¿Quién?"
           }
         }
       }
@@ -7052,9 +7131,6 @@
     "Tu perfil esta configurado. Puedes empezar a facturar." : {
 
     },
-    "Tus clientes con historial apareceran aqui." : {
-
-    },
     "Type: %@ | Regime: %@" : {
       "comment" : "PDF invoice type and regime",
       "localizations" : {
@@ -7071,9 +7147,6 @@
           }
         }
       }
-    },
-    "Ultima factura: %@" : {
-
     },
     "Ultimo mes" : {
 
@@ -7374,6 +7447,10 @@
     "Ver detalles" : {
 
     },
+    "Ver PDF" : {
+      "comment" : "A button that opens a share sheet to share the invoice as a PDF.",
+      "isCommentAutoGenerated" : true
+    },
     "Ver Pro" : {
       "comment" : "A button label that translates to \"View Pro\".",
       "isCommentAutoGenerated" : true,
@@ -7392,8 +7469,9 @@
         }
       }
     },
-    "Ver todos" : {
-
+    "Ver todas" : {
+      "comment" : "A button label that translates to \"See all\" in the current language.",
+      "isCommentAutoGenerated" : true
     },
     "VeriFactu" : {
       "comment" : "Verifactu badge\nVerifactu card title",
@@ -7481,6 +7559,108 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Vista previa del PDF"
+          }
+        }
+      }
+    },
+    "We couldn't complete your purchase. Please try again." : {
+      "comment" : "Generic user-facing error when a purchase fails.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "We couldn't complete your purchase. Please try again."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No se pudo completar la compra. Inténtalo de nuevo."
+          }
+        }
+      }
+    },
+    "We couldn't delete this item. Please try again." : {
+      "comment" : "Generic user-facing error when a delete fails.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "We couldn't delete this item. Please try again."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No se pudo eliminar este elemento. Inténtalo de nuevo."
+          }
+        }
+      }
+    },
+    "We couldn't load your data. Please try again." : {
+      "comment" : "Generic user-facing error when a data load fails.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "We couldn't load your data. Please try again."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No se pudieron cargar los datos. Inténtalo de nuevo."
+          }
+        }
+      }
+    },
+    "We couldn't read the selected image. Please try a clearer photo." : {
+      "comment" : "User-facing error when an imported invoice image cannot be read.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "We couldn't read the selected image. Please try a clearer photo."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No se pudo leer la imagen seleccionada. Prueba con una foto más nítida."
+          }
+        }
+      }
+    },
+    "We couldn't save your changes. Please try again." : {
+      "comment" : "Generic user-facing error when a save fails.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "We couldn't save your changes. Please try again."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No se pudieron guardar los cambios. Inténtalo de nuevo."
+          }
+        }
+      }
+    },
+    "We couldn't sync with iCloud. Your changes are saved on this device." : {
+      "comment" : "User-facing error when iCloud sync fails.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "We couldn't sync with iCloud. Your changes are saved on this device."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No se pudo sincronizar con iCloud. Tus cambios están guardados en este dispositivo."
           }
         }
       }

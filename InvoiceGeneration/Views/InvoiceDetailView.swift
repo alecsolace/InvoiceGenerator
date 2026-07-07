@@ -590,7 +590,7 @@ struct InvoiceDetailView: View {
                     Label("Enviar email", systemImage: "envelope")
                 }
                 Button(action: { composerSeed = .duplicate(invoice) }) {
-                    Label("Duplicar este mes", systemImage: "plus.square.on.square")
+                    Label(String(localized: "invoice.detail.create_similar"), systemImage: "plus.square.on.square")
                 }
                 Button(action: { saveTemplate() }) {
                     Label("Guardar como plantilla", systemImage: "doc.on.doc")

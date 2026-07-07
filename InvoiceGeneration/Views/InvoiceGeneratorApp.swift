@@ -2,7 +2,7 @@ import CloudKit
 import OSLog
 import SwiftData
 import SwiftUI
-#if DEBUG
+#if DEBUG && canImport(UIKit)
 import DebugBridgeCore
 import DebugBridgeUI
 #endif
@@ -14,7 +14,7 @@ struct InvoiceGeneratorApp: App {
     @StateObject private var subscriptionService = SubscriptionService.shared
 
     init() {
-        #if DEBUG
+        #if DEBUG && canImport(UIKit)
         DebugBridgeUIWiring.installAll()
         StateServer.shared.start()
         #endif

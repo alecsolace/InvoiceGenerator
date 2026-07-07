@@ -191,6 +191,18 @@ final class InvoiceViewModel {
         )
     }
 
+    func mostRecentInvoice(for issuer: Issuer?) -> Invoice? {
+        var descriptor = FetchDescriptor<Invoice>(
+            sortBy: [SortDescriptor(\.createdAt, order: .reverse)]
+        )
+        descriptor.fetchLimit = 10
+        guard let invoices = try? modelContext.fetch(descriptor) else { return nil }
+        if let issuer {
+            return invoices.first { $0.issuer?.id == issuer.id }
+        }
+        return invoices.first
+    }
+
     @discardableResult
     func duplicateInvoiceForNextMonth(_ invoice: Invoice) -> Invoice? {
         guard let issuer = resolveIssuer(for: invoice) else {
