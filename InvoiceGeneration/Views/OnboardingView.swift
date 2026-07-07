@@ -220,13 +220,10 @@ struct OnboardingView: View {
             issuerViewModel = IssuerViewModel(modelContext: modelContext)
         }
 
-        let code = InvoiceNumberingService.defaultCodeCandidate(from: companyName)
-
         if let issuer = issuerViewModel?.issuers.first {
             _ = issuerViewModel?.updateIssuer(
                 issuer,
                 name: companyName,
-                code: issuer.code,
                 ownerName: ownerName,
                 email: email,
                 phone: phone,
@@ -237,7 +234,6 @@ struct OnboardingView: View {
         } else {
             _ = issuerViewModel?.createIssuer(
                 name: companyName,
-                code: code,
                 ownerName: ownerName,
                 email: email,
                 phone: phone,

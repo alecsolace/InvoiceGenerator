@@ -1,27 +1,33 @@
 import SwiftData
 import SwiftUI
 
-/// iPhone-specific dashboard view matching the Stitch "Panel de Control - Móvil" design.
+/// iPhone-specific dashboard view — launch pad layout.
+/// Scoped to the active issuer; shows quick-resume card, FAB, needs-attention, and recent clients.
 struct iOSDashboardView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.scenePhase) private var scenePhase
+
+    @Query(sort: \Issuer.name) private var issuers: [Issuer]
 
     @State private var viewModel: HomeViewModel?
     @State private var invoiceViewModel: InvoiceViewModel?
     @State private var composerSeed: InvoiceComposerSeed?
     @State private var selectedInvoice: Invoice?
+    @State private var showingIssuerPicker = false
+
+    private var activeIssuer: Issuer? { issuers.first }
 
     var body: some View {
         NavigationStack {
             Group {
                 if let viewModel, let invoiceViewModel {
                     ScrollView {
-                        VStack(alignment: .leading, spacing: 20) {
-                            ytdBillingCard(viewModel: viewModel)
+                        VStack(alignment: .leading, spacing: 16) {
+                            quickResumeCard(viewModel: viewModel)
                             newInvoiceButton
+                            needsAttentionSection(viewModel: viewModel)
+                            recentClientsSection(viewModel: viewModel)
                             taxAlertsSection
-                            activeClientsSection(viewModel: viewModel)
-                            pendingInvoicesSection(viewModel: viewModel)
                         }
                         .padding(16)
                     }
@@ -41,10 +47,8 @@ struct iOSDashboardView: View {
             }
             .navigationTitle(String(localized: "Inicio"))
             .toolbar {
-                ToolbarItem(placement: .navigation) {
-                    Image(systemName: "person.crop.circle.fill")
-                        .font(.title3)
-                        .foregroundStyle(.secondary)
+                ToolbarItem(placement: .primaryAction) {
+                    issuerChip
                 }
             }
         }
@@ -57,41 +61,119 @@ struct iOSDashboardView: View {
             guard newValue == .active else { return }
             openComposerForPendingSharedImportIfNeeded()
         }
+        .sheet(isPresented: $showingIssuerPicker) {
+            issuerPickerSheet
+        }
     }
 
-    // MARK: - YTD Billing Card
+    // MARK: - Issuer Chip
 
-    private func ytdBillingCard(viewModel: HomeViewModel) -> some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text(String(localized: "Facturacion YTD"))
-                .font(.subheadline)
-                .fontWeight(.medium)
-                .foregroundStyle(.secondary)
-
-            Text(viewModel.yearToDateBilling.formattedAsCurrency)
-                .font(.system(size: 34, weight: .bold, design: .rounded))
-                .foregroundStyle(.primary)
-
-            if viewModel.yearOverYearGrowth != 0 {
-                HStack(spacing: 4) {
-                    Image(systemName: viewModel.yearOverYearGrowth >= 0 ? "arrow.up.right" : "arrow.down.right")
-                        .font(.caption.weight(.bold))
-                    Text(String(format: "%+.1f%% vs ano anterior", NSDecimalNumber(decimal: viewModel.yearOverYearGrowth).doubleValue))
-                        .font(.caption)
-                        .fontWeight(.medium)
+    private var issuerChip: some View {
+        Button {
+            if issuers.count > 1 { showingIssuerPicker = true }
+        } label: {
+            HStack(spacing: 6) {
+                Circle()
+                    .fill(Color.accentColor)
+                    .frame(width: 8, height: 8)
+                Text(activeIssuer?.name ?? String(localized: "Sin emisor"))
+                    .font(.subheadline)
+                    .fontWeight(.semibold)
+                    .foregroundStyle(Color.accentColor)
+                if issuers.count > 1 {
+                    Image(systemName: "chevron.down")
+                        .font(.system(size: 9, weight: .semibold))
+                        .foregroundStyle(Color.accentColor.opacity(0.7))
                 }
-                .foregroundStyle(viewModel.yearOverYearGrowth >= 0 ? .green : .red)
             }
-
-            SummaryCardRow(cards: [
-                SummaryCardData(title: String(localized: "Emitido"), value: viewModel.thisMonthIssued.formattedAsCurrency, tint: .blue),
-                SummaryCardData(title: String(localized: "Cobrado"), value: viewModel.thisMonthPaid.formattedAsCurrency, tint: .green),
-                SummaryCardData(title: String(localized: "Pendiente"), value: viewModel.pendingAmount.formattedAsCurrency, tint: .orange),
-            ])
+            .padding(.horizontal, 12)
+            .padding(.vertical, 6)
+            .background(Color.accentColor.opacity(0.1), in: Capsule())
+            .overlay(Capsule().strokeBorder(Color.accentColor.opacity(0.2), lineWidth: 1.5))
         }
-        .padding(20)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .prominentCardStyle(cornerRadius: 16)
+        .buttonStyle(.plain)
+    }
+
+    private var issuerPickerSheet: some View {
+        NavigationStack {
+            List(issuers) { issuer in
+                Button {
+                    showingIssuerPicker = false
+                } label: {
+                    HStack(spacing: 12) {
+                        Circle()
+                            .fill(Color.accentColor)
+                            .frame(width: 10, height: 10)
+                        Text(issuer.name)
+                            .foregroundStyle(.primary)
+                        Spacer()
+                        if issuer.id == activeIssuer?.id {
+                            Image(systemName: "checkmark")
+                                .foregroundStyle(Color.accentColor)
+                        }
+                    }
+                }
+            }
+            .navigationTitle(String(localized: "Emisor activo"))
+            #if os(iOS)
+            .navigationBarTitleDisplayMode(.inline)
+            #endif
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button(String(localized: "Cerrar")) { showingIssuerPicker = false }
+                }
+            }
+        }
+        .presentationDetents([.medium])
+    }
+
+    // MARK: - Quick Resume Card
+
+    private func quickResumeCard(viewModel: HomeViewModel) -> some View {
+        Group {
+            if let topClient = viewModel.frequentClients.first {
+                HStack(spacing: 14) {
+                    ClientAvatarView(
+                        name: topClient.client.name,
+                        accentColor: topClient.client.accentColor,
+                        size: 48
+                    )
+
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text(String(localized: "dashboard.last_client"))
+                            .font(.caption)
+                            .fontWeight(.medium)
+                            .foregroundStyle(.secondary)
+                            .textCase(.uppercase)
+                        Text(topClient.client.name)
+                            .font(.headline)
+                            .fontWeight(.bold)
+                        if let date = topClient.lastInvoiceDate {
+                            Text(date.relativeFormat)
+                                .font(.caption)
+                                .foregroundStyle(.tertiary)
+                        }
+                    }
+
+                    Spacer()
+
+                    Button {
+                        composerSeed = .client(topClient.client)
+                    } label: {
+                        Text(String(localized: "dashboard.invoice_action"))
+                            .font(.subheadline)
+                            .fontWeight(.semibold)
+                            .foregroundStyle(.white)
+                            .padding(.horizontal, 14)
+                            .padding(.vertical, 9)
+                            .background(Color.accentColor, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+                    }
+                    .buttonStyle(.plain)
+                }
+                .padding(16)
+                .prominentCardStyle(cornerRadius: 16)
+            }
+        }
     }
 
     // MARK: - New Invoice Button
@@ -109,103 +191,147 @@ struct iOSDashboardView: View {
         .accessibilityIdentifier("ios-dashboard-quick-create")
     }
 
-    // MARK: - Tax Alerts
+    // MARK: - Needs Attention
 
-    private var taxAlertsSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text(String(localized: "Alertas fiscales"))
-                .font(.headline)
+    private func needsAttentionSection(viewModel: HomeViewModel) -> some View {
+        let attention = attentionItems(viewModel: viewModel)
+        return Group {
+            if !attention.isEmpty {
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack {
+                        Text(String(localized: "dashboard.needs_attention"))
+                            .font(.subheadline)
+                            .fontWeight(.semibold)
+                            .foregroundStyle(.secondary)
+                            .textCase(.uppercase)
+                        Spacer()
+                        Text(String(localized: "Ver todas"))
+                            .font(.subheadline)
+                            .foregroundStyle(.tint)
+                    }
+                    .padding(.horizontal, 4)
 
-            ForEach(TaxAlertHelper.currentAlerts()) { alert in
-                TaxAlertCard(alert: alert)
-            }
-        }
-    }
+                    VStack(spacing: 0) {
+                        ForEach(Array(attention.prefix(3).enumerated()), id: \.element.id) { index, invoice in
+                            Button {
+                                selectedInvoice = invoice
+                            } label: {
+                                attentionRow(invoice: invoice)
+                            }
+                            .buttonStyle(.plain)
 
-    // MARK: - Active Clients
-
-    private func activeClientsSection(viewModel: HomeViewModel) -> some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack {
-                Text(String(localized: "Clientes activos"))
-                    .font(.headline)
-                Spacer()
-                Text(String(localized: "Ver todos"))
-                    .font(.subheadline)
-                    .foregroundStyle(.tint)
-            }
-
-            if viewModel.frequentClients.isEmpty {
-                helperCard(text: String(localized: "Tus clientes con historial apareceran aqui."))
-            } else {
-                ForEach(viewModel.frequentClients.prefix(3)) { summary in
-                    HStack(spacing: 14) {
-                        ClientAvatarView(
-                            name: summary.client.name,
-                            accentColor: summary.client.accentColor,
-                            size: 44
-                        )
-
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text(summary.client.name)
-                                .font(.subheadline)
-                                .fontWeight(.semibold)
-
-                            if let lastDate = summary.lastInvoiceDate {
-                                Text(String(localized: "Ultima factura: \(lastDate.relativeFormat)"))
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
+                            if index < min(attention.prefix(3).count, 3) - 1 {
+                                Divider().padding(.leading, 36)
                             }
                         }
-
-                        Spacer()
-
-                        Button {
-                            composerSeed = .client(summary.client)
-                        } label: {
-                            Image(systemName: "chevron.right")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
                     }
-                    .padding(14)
                     .cardStyle(cornerRadius: 12)
                 }
             }
         }
     }
 
-    // MARK: - Pending Invoices
+    private func attentionItems(viewModel: HomeViewModel) -> [Invoice] {
+        let overdue = viewModel.pendingInvoices.filter { $0.status == .overdue }
+        let pending = viewModel.pendingInvoices.filter { $0.status == .sent }
+        return (overdue + pending)
+    }
 
-    private func pendingInvoicesSection(viewModel: HomeViewModel) -> some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text(String(localized: "Cobros pendientes"))
-                .font(.headline)
+    private func attentionRow(invoice: Invoice) -> some View {
+        HStack(spacing: 12) {
+            Circle()
+                .fill(invoice.status == .overdue ? Color.red : Color.orange)
+                .frame(width: 8, height: 8)
 
-            if viewModel.pendingInvoices.isEmpty {
-                helperCard(text: String(localized: "No hay facturas pendientes de cobro."))
-            } else {
-                ForEach(viewModel.pendingInvoices.prefix(4)) { invoice in
-                    Button {
-                        selectedInvoice = invoice
-                    } label: {
-                        iOSCompactInvoiceCard(invoice: invoice)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(invoice.clientName)
+                    .font(.subheadline)
+                    .fontWeight(.semibold)
+                    .foregroundStyle(.primary)
+                Text(invoice.invoiceNumber)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .monospaced()
+                if invoice.status == .overdue {
+                    Text(String(localized: "invoice.status.overdue_since \(invoice.dueDate.relativeFormat)"))
+                        .font(.caption)
+                        .fontWeight(.medium)
+                        .foregroundStyle(.red)
+                }
+            }
+
+            Spacer()
+
+            Text(invoice.totalAmount.formattedAsCurrency)
+                .font(.subheadline)
+                .fontWeight(.bold)
+                .foregroundStyle(.primary)
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 12)
+    }
+
+    // MARK: - Recent Clients
+
+    private func recentClientsSection(viewModel: HomeViewModel) -> some View {
+        Group {
+            if !viewModel.frequentClients.isEmpty {
+                VStack(alignment: .leading, spacing: 10) {
+                    Text(String(localized: "Clientes activos"))
+                        .font(.subheadline)
+                        .fontWeight(.semibold)
+                        .foregroundStyle(.secondary)
+                        .textCase(.uppercase)
+                        .padding(.horizontal, 4)
+
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 16) {
+                            ForEach(viewModel.frequentClients) { summary in
+                                Button {
+                                    composerSeed = .client(summary.client)
+                                } label: {
+                                    VStack(spacing: 6) {
+                                        ClientAvatarView(
+                                            name: summary.client.name,
+                                            accentColor: summary.client.accentColor,
+                                            size: 52
+                                        )
+                                        Text(summary.client.name)
+                                            .font(.caption)
+                                            .fontWeight(.medium)
+                                            .foregroundStyle(.secondary)
+                                            .lineLimit(1)
+                                            .frame(maxWidth: 60)
+                                    }
+                                }
+                                .buttonStyle(.plain)
+                            }
+                        }
+                        .padding(.horizontal, 4)
+                        .padding(.vertical, 4)
                     }
-                    .buttonStyle(.plain)
                 }
             }
         }
     }
 
-    // MARK: - Helper Card
+    // MARK: - Tax Alerts
 
-    private func helperCard(text: String) -> some View {
-        Text(text)
-            .font(.subheadline)
-            .foregroundStyle(.secondary)
-            .padding(16)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .cardStyle(cornerRadius: 12)
+    private var taxAlertsSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            if !TaxAlertHelper.currentAlerts().isEmpty {
+                Text(String(localized: "Alertas fiscales"))
+                    .font(.subheadline)
+                    .fontWeight(.semibold)
+                    .foregroundStyle(.secondary)
+                    .textCase(.uppercase)
+                    .padding(.horizontal, 4)
+
+                ForEach(TaxAlertHelper.currentAlerts()) { alert in
+                    TaxAlertCard(alert: alert)
+                }
+            }
+        }
     }
 
     // MARK: - Private Methods
@@ -227,46 +353,6 @@ struct iOSDashboardView: View {
     private func refreshData() {
         viewModel?.refresh()
         invoiceViewModel?.fetchInvoices()
-    }
-}
-
-// MARK: - Compact Invoice Card (iOS-specific)
-
-private struct iOSCompactInvoiceCard: View {
-    let invoice: Invoice
-
-    var body: some View {
-        HStack(alignment: .top) {
-            VStack(alignment: .leading, spacing: 4) {
-                HStack(spacing: 8) {
-                    Text(invoice.invoiceNumber)
-                        .font(.subheadline)
-                        .fontWeight(.medium)
-                        .foregroundStyle(.secondary)
-                    StatusBadge(status: invoice.status)
-                }
-
-                Text(invoice.clientName)
-                    .font(.headline)
-                    .foregroundStyle(.primary)
-
-                Label(
-                    String(localized: "Vence \(invoice.dueDate.mediumFormat)"),
-                    systemImage: "calendar"
-                )
-                .font(.caption)
-                .foregroundStyle(.tertiary)
-            }
-
-            Spacer()
-
-            Text(invoice.totalAmount.formattedAsCurrency)
-                .font(.system(.title3, design: .rounded))
-                .fontWeight(.bold)
-                .foregroundStyle(.primary)
-        }
-        .padding(16)
-        .cardStyle(cornerRadius: 12)
     }
 }
 

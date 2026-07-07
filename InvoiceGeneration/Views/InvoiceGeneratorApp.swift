@@ -2,12 +2,23 @@ import CloudKit
 import OSLog
 import SwiftData
 import SwiftUI
+#if DEBUG && canImport(UIKit)
+import DebugBridgeCore
+import DebugBridgeUI
+#endif
 
 /// Main app entry point with SwiftData configuration
 @main
 struct InvoiceGeneratorApp: App {
     @Environment(\.scenePhase) private var scenePhase
     @StateObject private var subscriptionService = SubscriptionService.shared
+
+    init() {
+        #if DEBUG && canImport(UIKit)
+        DebugBridgeUIWiring.installAll()
+        StateServer.shared.start()
+        #endif
+    }
 
     private static let containerResult: Result<ModelContainer, Error> = {
         do {
@@ -91,7 +102,6 @@ private func performCloudKitFetch(container: ModelContainer) async {
                     clientIdentificationNumber: record["clientIdentificationNumber"] as? String ?? "",
                     clientAddress: record["clientAddress"] as? String ?? "",
                     issuerName: record["issuerName"] as? String ?? "",
-                    issuerCode: record["issuerCode"] as? String ?? "",
                     issuerOwnerName: record["issuerOwnerName"] as? String ?? "",
                     issuerEmail: record["issuerEmail"] as? String ?? "",
                     issuerPhone: record["issuerPhone"] as? String ?? "",
@@ -165,21 +175,18 @@ private func performCloudKitFetch(container: ModelContainer) async {
             if let issuer = existing {
                 guard cloudDate > issuer.updatedAt else { continue }
                 if let name = record["name"] as? String { issuer.name = name }
-                if let code = record["code"] as? String { issuer.code = code }
                 if let ownerName = record["ownerName"] as? String { issuer.ownerName = ownerName }
                 if let email = record["email"] as? String { issuer.email = email }
                 if let phone = record["phone"] as? String { issuer.phone = phone }
                 if let address = record["address"] as? String { issuer.address = address }
                 if let taxId = record["taxId"] as? String { issuer.taxId = taxId }
-                if let seq = record["nextInvoiceSequence"] as? Int { issuer.nextInvoiceSequence = seq }
                 if let asset = record["logoData"] as? CKAsset, let fileURL = asset.fileURL {
                     issuer.logoData = try? Data(contentsOf: fileURL)
                 } else {
                     issuer.logoData = nil
                 }
             } else {
-                guard let name = record["name"] as? String,
-                      let code = record["code"] as? String else { continue }
+                guard let name = record["name"] as? String else { continue }
                 let logoData: Data?
                 if let asset = record["logoData"] as? CKAsset, let fileURL = asset.fileURL {
                     logoData = try? Data(contentsOf: fileURL)
@@ -188,14 +195,12 @@ private func performCloudKitFetch(container: ModelContainer) async {
                 }
                 let issuer = Issuer(
                     name: name,
-                    code: code,
                     ownerName: record["ownerName"] as? String ?? "",
                     email: record["email"] as? String ?? "",
                     phone: record["phone"] as? String ?? "",
                     address: record["address"] as? String ?? "",
                     taxId: record["taxId"] as? String ?? "",
-                    logoData: logoData,
-                    nextInvoiceSequence: record["nextInvoiceSequence"] as? Int ?? 1
+                    logoData: logoData
                 )
                 context.insert(issuer)
             }
@@ -259,7 +264,7 @@ struct ContentView: View {
             return
         }
 
-        let issuer = Issuer(name: "Acme Studio", code: "ACM", ownerName: "Alex", email: "hola@acme.test", nextInvoiceSequence: 3)
+        let issuer = Issuer(name: "Acme Studio", ownerName: "Alex", email: "hola@acme.test")
         let client = Client(
             name: "Cliente Mensual",
             email: "facturas@cliente.test",
@@ -284,7 +289,7 @@ struct ContentView: View {
         client.preferredTemplateID = template.id
 
         let sentInvoice = Invoice(
-            invoiceNumber: "ACM-0001",
+            invoiceNumber: "1041",
             clientName: client.name,
             clientEmail: client.email,
             clientIdentificationNumber: client.identificationNumber,
@@ -306,7 +311,7 @@ struct ContentView: View {
         sentInvoice.calculateTotal()
 
         let draftInvoice = Invoice(
-            invoiceNumber: "ACM-0002",
+            invoiceNumber: "1042",
             clientName: client.name,
             clientEmail: client.email,
             clientIdentificationNumber: client.identificationNumber,

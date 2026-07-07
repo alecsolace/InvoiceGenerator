@@ -54,8 +54,6 @@ struct AddInvoiceView: View {
     @State private var editingDraftItem: DraftInvoiceItem?
     @State private var hasManuallyEditedInvoiceNumber = false
     @State private var lastSuggestedInvoiceNumber = ""
-    @State private var pendingInvoiceSequenceByIssuerID: [UUID: Int] = [:]
-    @State private var pendingInvoiceSequenceByClientID: [UUID: Int] = [:]
     @State private var generatedPDFURL: URL?
     @State private var invoicePendingShareCompletion: Invoice?
     @State private var importWarnings: [String] = []
@@ -81,24 +79,38 @@ struct AddInvoiceView: View {
 
     var body: some View {
         NavigationStack {
-            Form {
-                modePickerSection
-                importSection
-
+            VStack(spacing: 0) {
                 if creationMode == .quick {
-                    quickStepSection
-                    if quickStep == .base {
-                        quickBaseSection
-                    } else {
-                        quickAmountsSection
-                    }
-                } else {
-                    advancedSections
+                    StepProgressView(
+                        steps: [
+                            String(localized: "step.who"),
+                            String(localized: "step.amounts")
+                        ],
+                        currentStep: quickStep == .base ? 0 : 1,
+                        onStepTap: { index in
+                            if index == 0 { quickStep = .base }
+                        }
+                    )
                 }
-            }
+
+                Form {
+                    importSection
+
+                    if creationMode == .quick {
+                        if quickStep == .base {
+                            quickBaseSection
+                        } else {
+                            quickAmountsSection
+                            advancedOptionsSection
+                        }
+                    } else {
+                        advancedSections
+                    }
+                }
 #if os(macOS)
-            .formStyle(.grouped)
+                .formStyle(.grouped)
 #endif
+            }
             .navigationTitle(seedTitle)
 #if os(iOS)
             .navigationBarTitleDisplayMode(.inline)
@@ -206,35 +218,6 @@ struct AddInvoiceView: View {
 #endif
     }
 
-    private var modePickerSection: some View {
-        Section {
-            Picker("Modo", selection: $creationMode) {
-                ForEach(InvoiceCreationMode.allCases) { mode in
-                    Text(mode.title).tag(mode)
-                }
-            }
-            .pickerStyle(.segmented)
-#if os(macOS)
-            .frame(maxWidth: 300)
-#endif
-            .accessibilityIdentifier("invoice-composer-mode")
-        }
-    }
-
-    private var quickStepSection: some View {
-        Section {
-            Picker("Paso", selection: $quickStep) {
-                ForEach(QuickInvoiceStep.allCases) { step in
-                    Text(step.title).tag(step)
-                }
-            }
-            .pickerStyle(.segmented)
-#if os(macOS)
-            .frame(maxWidth: 300)
-#endif
-        }
-    }
-
     @ViewBuilder
     private var importSection: some View {
         Section("Importar captura") {
@@ -318,8 +301,14 @@ struct AddInvoiceView: View {
                     Label("Crear cliente", systemImage: "plus")
                 }
 
-                if let currentIssuer {
-                    LabeledContent("Emisor", value: "\(currentIssuer.name) (\(currentIssuer.code))")
+                if let issuers = issuerViewModel?.issuers, !issuers.isEmpty {
+                    Picker("Emisor", selection: $selectedIssuerID) {
+                        ForEach(issuers) { issuer in
+                            Text(issuer.name)
+                                .tag(Optional(issuer.id))
+                        }
+                    }
+                    .accessibilityIdentifier("invoice-issuer-picker")
                 } else {
                     Text("Necesitas crear un emisor antes de facturar.")
                         .foregroundStyle(.secondary)
@@ -355,7 +344,17 @@ struct AddInvoiceView: View {
         Group {
             itemsSection
             taxesSection
-            notesSection
+        }
+    }
+
+    private var advancedOptionsSection: some View {
+        Section {
+            DisclosureGroup(String(localized: "advanced.options")) {
+                TextField(String(localized: "Notas para esta factura"), text: $notes, axis: .vertical)
+                    .lineLimit(3...6)
+                Stepper(String(localized: "Vencimiento: \(dueDays) dias"), value: $dueDays, in: 0...120)
+                LabeledContent(String(localized: "Fecha de vencimiento"), value: dueDate.mediumFormat)
+            }
         }
     }
 
@@ -499,23 +498,16 @@ struct AddInvoiceView: View {
         }
     }
 
-    private var notesSection: some View {
-        Section("Notas") {
-            TextField("Notas para esta factura", text: $notes, axis: .vertical)
-                .lineLimit(3...6)
-        }
-    }
-
     private var seedTitle: String {
         switch seed {
         case .quick:
-            return creationMode == .quick ? "Factura rapida" : "Nueva factura"
+            return String(localized: "invoice.quick.title")
         case .client(let client):
             return "Facturar a \(client.name)"
         case .template(let template):
             return template.name
         case .duplicate:
-            return "Duplicar factura"
+            return String(localized: "invoice.detail.create_similar")
         }
     }
 
@@ -624,6 +616,9 @@ struct AddInvoiceView: View {
             creationMode = .quick
             dueDays = appDefaultDueDays
             dueDate = issueDate.addingDays(dueDays)
+            if let recent = viewModel.mostRecentInvoice(for: currentIssuer) {
+                applyQuickDefaults(from: recent)
+            }
         case .client(let client):
             creationMode = .quick
             selectedClientID = client.id
@@ -717,6 +712,16 @@ struct AddInvoiceView: View {
         applySuggestedInvoiceNumber(force: true)
     }
 
+    private func applyQuickDefaults(from invoice: Invoice) {
+        selectedClientID = invoice.client?.id
+        clientName = invoice.clientName
+        clientEmail = invoice.clientEmail
+        clientIdentificationNumber = invoice.clientIdentificationNumber
+        clientAddress = invoice.clientAddress
+        ivaPercentage = NSDecimalNumber(decimal: invoice.ivaPercentage).stringValue
+        irpfPercentage = NSDecimalNumber(decimal: invoice.irpfPercentage).stringValue
+    }
+
     private func handleAddClientTap() {
         let count = clientViewModel?.clients.count ?? 0
         if subscriptionService.canAddClient(currentCount: count) {
@@ -730,46 +735,24 @@ struct AddInvoiceView: View {
         guard let issuer = currentIssuer else { return }
         let replacing = force || invoiceNumber.isEmpty || !hasManuallyEditedInvoiceNumber
 
-        if let client = clientViewModel?.client(with: selectedClientID) {
-            let sequence = pendingInvoiceSequenceByClientID[client.id] ?? client.nextInvoiceSequence
-            setSuggestedInvoiceNumber(for: client, issuer: issuer, sequence: max(sequence, 1), replacingCurrentValue: replacing)
-        } else {
-            let sequence = pendingInvoiceSequenceByIssuerID[issuer.id] ?? issuer.nextInvoiceSequence
-            setSuggestedInvoiceNumber(for: issuer, sequence: max(sequence, 1), replacingCurrentValue: replacing)
+        let client = clientViewModel?.client(with: selectedClientID)
+        let suggestion = InvoiceNumberingService.nextInvoiceNumber(issuer: issuer, client: client)
+        lastSuggestedInvoiceNumber = suggestion
+
+        if replacing {
+            invoiceNumber = suggestion
+            hasManuallyEditedInvoiceNumber = false
         }
     }
 
     private func incrementSuggestedInvoiceNumber() {
-        guard let issuer = currentIssuer else { return }
-
-        if let client = clientViewModel?.client(with: selectedClientID) {
-            let current = pendingInvoiceSequenceByClientID[client.id] ?? client.nextInvoiceSequence
-            setSuggestedInvoiceNumber(for: client, issuer: issuer, sequence: max(current, 1) + 1, replacingCurrentValue: true)
+        if let current = InvoiceNumberingService.sequence(from: invoiceNumber) {
+            let next = String(current + 1)
+            lastSuggestedInvoiceNumber = next
+            invoiceNumber = next
+            hasManuallyEditedInvoiceNumber = false
         } else {
-            let current = pendingInvoiceSequenceByIssuerID[issuer.id] ?? issuer.nextInvoiceSequence
-            setSuggestedInvoiceNumber(for: issuer, sequence: max(current, 1) + 1, replacingCurrentValue: true)
-        }
-    }
-
-    private func setSuggestedInvoiceNumber(for client: Client, issuer: Issuer, sequence: Int, replacingCurrentValue: Bool) {
-        let suggestion = InvoiceNumberingService.invoiceNumber(for: client, issuer: issuer, sequence: sequence)
-        pendingInvoiceSequenceByClientID[client.id] = sequence
-        lastSuggestedInvoiceNumber = suggestion
-
-        if replacingCurrentValue {
-            invoiceNumber = suggestion
-            hasManuallyEditedInvoiceNumber = false
-        }
-    }
-
-    private func setSuggestedInvoiceNumber(for issuer: Issuer, sequence: Int, replacingCurrentValue: Bool) {
-        let suggestion = InvoiceNumberingService.invoiceNumber(for: issuer, sequence: sequence)
-        pendingInvoiceSequenceByIssuerID[issuer.id] = sequence
-        lastSuggestedInvoiceNumber = suggestion
-
-        if replacingCurrentValue {
-            invoiceNumber = suggestion
-            hasManuallyEditedInvoiceNumber = false
+            applySuggestedInvoiceNumber(force: true)
         }
     }
 
@@ -945,6 +928,73 @@ struct AddInvoiceView: View {
     }
 }
 
+// MARK: - Step Progress View
+
+private struct StepProgressView: View {
+    let steps: [String]
+    let currentStep: Int
+    let onStepTap: (Int) -> Void
+
+    var body: some View {
+        HStack(spacing: 0) {
+            ForEach(steps.indices, id: \.self) { index in
+                HStack(spacing: 6) {
+                    Button {
+                        onStepTap(index)
+                    } label: {
+                        HStack(spacing: 6) {
+                            ZStack {
+                                Circle()
+                                    .fill(dotColor(for: index))
+                                    .frame(width: 22, height: 22)
+                                if index < currentStep {
+                                    Image(systemName: "checkmark")
+                                        .font(.system(size: 10, weight: .bold))
+                                        .foregroundStyle(.white)
+                                } else {
+                                    Text("\(index + 1)")
+                                        .font(.system(size: 11, weight: .bold))
+                                        .foregroundStyle(index == currentStep ? .white : .secondary)
+                                }
+                            }
+                            Text(steps[index])
+                                .font(.subheadline)
+                                .fontWeight(index == currentStep ? .semibold : .regular)
+                                .foregroundStyle(index == currentStep ? .primary : .secondary)
+                        }
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(index >= currentStep)
+                    .accessibilityLabel("Step \(index + 1) of \(steps.count): \(steps[index])")
+
+                    if index < steps.count - 1 {
+                        Rectangle()
+                            .fill(index < currentStep ? Color.accentColor : Color.secondary.opacity(0.3))
+                            .frame(height: 1.5)
+                            .frame(maxWidth: .infinity)
+                    }
+                }
+                if index < steps.count - 1 {
+                    EmptyView()
+                }
+            }
+        }
+        .padding(.horizontal, 20)
+        .padding(.vertical, 12)
+        #if os(iOS)
+        .background(Color(UIColor.systemGroupedBackground))
+        #else
+        .background(Color(NSColor.windowBackgroundColor))
+        #endif
+    }
+
+    private func dotColor(for index: Int) -> Color {
+        if index < currentStep { return .accentColor }
+        if index == currentStep { return .accentColor }
+        return Color(.quaternarySystemFill)
+    }
+}
+
 private enum InvoiceCreationMode: String, CaseIterable, Identifiable {
     case quick
     case advanced
@@ -990,7 +1040,7 @@ private enum QuickInvoiceStep: String, CaseIterable, Identifiable {
         configurations: config
     )
 
-    let issuer = Issuer(name: "Acme Studio", code: "ACM")
+    let issuer = Issuer(name: "Acme Studio")
     let client = Client(name: "Cliente ejemplo", email: "facturacion@cliente.com", defaultDueDays: 15)
     container.mainContext.insert(issuer)
     container.mainContext.insert(client)

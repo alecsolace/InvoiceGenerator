@@ -9,7 +9,6 @@ struct iOSOnboardingView: View {
     @State private var currentStep = 0
     @State private var companyName = ""
     @State private var taxId = ""
-    @State private var issuerCode = ""
 
     private let totalSteps = 3
 
@@ -99,15 +98,6 @@ struct iOSOnboardingView: View {
 
                 TextField("NIF/CIF", text: $taxId)
                     .textFieldStyle(.roundedBorder)
-
-                HStack {
-                    TextField(String(localized: "Codigo emisor (3 letras)"), text: $issuerCode)
-                        .textFieldStyle(.roundedBorder)
-                        .textCase(.uppercase)
-                        .onChange(of: issuerCode) { _, newValue in
-                            issuerCode = String(newValue.uppercased().prefix(5))
-                        }
-                }
             }
             .padding(.horizontal, 32)
         }
@@ -135,8 +125,8 @@ struct iOSOnboardingView: View {
                     Text(companyName)
                         .font(.headline)
 
-                    if !issuerCode.isEmpty {
-                        Text(String(localized: "Codigo: \(issuerCode)"))
+                    if !taxId.isEmpty {
+                        Text(taxId)
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
                     }
@@ -200,17 +190,8 @@ struct iOSOnboardingView: View {
         // Save issuer if data provided
         if !companyName.isEmpty {
             let issuerVM = IssuerViewModel(modelContext: modelContext)
-            let finalCode = issuerCode.isEmpty
-                ? InvoiceNumberingService.defaultCodeCandidate(from: companyName)
-                : issuerCode.uppercased()
-
             issuerVM.createIssuer(
                 name: companyName,
-                code: finalCode,
-                ownerName: "",
-                email: "",
-                phone: "",
-                address: "",
                 taxId: taxId
             )
         }

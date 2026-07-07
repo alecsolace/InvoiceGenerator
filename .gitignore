@@ -69,3 +69,7 @@ fastlane/test_output
 # Xcode generated
 xcshareddata/xcschememanagement.plist
 **/xcschememanagement.plist
+
+# Claude Code
+.claude/
+.build-*/

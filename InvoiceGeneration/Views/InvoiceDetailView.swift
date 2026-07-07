@@ -231,9 +231,6 @@ struct InvoiceDetailView: View {
             if !invoice.issuerName.isEmpty {
                 infoRow(title: "Emisor", value: invoice.issuerName)
             }
-            if !invoice.issuerCode.isEmpty {
-                infoRow(title: "Codigo emisor", value: invoice.issuerCode)
-            }
             infoRow(title: "Fecha de emision", value: invoice.issueDate.mediumFormat)
             infoRow(title: "Fecha de vencimiento", value: invoice.dueDate.mediumFormat)
             if let updated = invoice.pdfLastGeneratedAt {
@@ -593,7 +590,7 @@ struct InvoiceDetailView: View {
                     Label("Enviar email", systemImage: "envelope")
                 }
                 Button(action: { composerSeed = .duplicate(invoice) }) {
-                    Label("Duplicar este mes", systemImage: "plus.square.on.square")
+                    Label(String(localized: "invoice.detail.create_similar"), systemImage: "plus.square.on.square")
                 }
                 Button(action: { saveTemplate() }) {
                     Label("Guardar como plantilla", systemImage: "doc.on.doc")

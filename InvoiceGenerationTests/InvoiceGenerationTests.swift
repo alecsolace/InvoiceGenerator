@@ -163,33 +163,53 @@ struct InvoiceGenerationTests {
     }
 
     @MainActor
-    @Test func issuerNumberingIncrementsSequence() async throws {
-        let issuer = Issuer(name: "Family", code: "FAM")
+    @Test func numberingRecommendsNextNaturalNumberPerIssuerClientPair() async throws {
+        let container = try makeContainer()
+        let context = container.mainContext
 
-        #expect(InvoiceNumberingService.nextInvoiceNumber(for: issuer) == "FAM-0001")
+        let issuer = Issuer(name: "Family")
+        let clientA = Client(name: "Cliente A")
+        let clientB = Client(name: "Cliente B")
+        context.insert(issuer)
+        context.insert(clientA)
+        context.insert(clientB)
 
-        InvoiceNumberingService.registerUsedInvoiceNumber("FAM-0001", for: issuer)
-        #expect(issuer.nextInvoiceSequence == 2)
-        #expect(InvoiceNumberingService.nextInvoiceNumber(for: issuer) == "FAM-0002")
+        // No invoices yet: every pair starts at 1.
+        #expect(InvoiceNumberingService.nextInvoiceNumber(issuer: issuer, client: clientA) == "1")
+
+        let first = Invoice(invoiceNumber: "1", clientName: clientA.name, client: clientA, issuer: issuer)
+        let second = Invoice(invoiceNumber: "2", clientName: clientA.name, client: clientA, issuer: issuer)
+        let other = Invoice(invoiceNumber: "7", clientName: clientB.name, client: clientB, issuer: issuer)
+        context.insert(first)
+        context.insert(second)
+        context.insert(other)
+        try context.save()
+
+        // Each issuer-client pair has its own series based on the last number used.
+        #expect(InvoiceNumberingService.nextInvoiceNumber(issuer: issuer, client: clientA) == "3")
+        #expect(InvoiceNumberingService.nextInvoiceNumber(issuer: issuer, client: clientB) == "8")
+        #expect(InvoiceNumberingService.nextInvoiceNumber(issuer: issuer, client: nil) == "1")
     }
 
     @MainActor
-    @Test func issuerManualOverrideBumpsSequenceWhenHigher() async throws {
-        let issuer = Issuer(name: "Family", code: "FAM", nextInvoiceSequence: 2)
+    @Test func numberingIgnoresNonNumericLegacyInvoiceNumbers() async throws {
+        let container = try makeContainer()
+        let context = container.mainContext
 
-        InvoiceNumberingService.registerUsedInvoiceNumber("FAM-0150", for: issuer)
+        let issuer = Issuer(name: "Family")
+        let client = Client(name: "Cliente")
+        context.insert(issuer)
+        context.insert(client)
 
-        #expect(issuer.nextInvoiceSequence == 151)
-        #expect(InvoiceNumberingService.nextInvoiceNumber(for: issuer) == "FAM-0151")
-    }
+        let legacy = Invoice(invoiceNumber: "FAM-0150", clientName: client.name, client: client, issuer: issuer)
+        let numeric = Invoice(invoiceNumber: "4", clientName: client.name, client: client, issuer: issuer)
+        context.insert(legacy)
+        context.insert(numeric)
+        try context.save()
 
-    @MainActor
-    @Test func explicitInvoiceNumberSequenceFormatsPerIssuer() async throws {
-        let issuer = Issuer(name: "Family", code: "FAM", nextInvoiceSequence: 8)
-
-        #expect(InvoiceNumberingService.invoiceNumber(for: issuer, sequence: 8) == "FAM-0008")
-        #expect(InvoiceNumberingService.invoiceNumber(for: issuer, sequence: 12) == "FAM-0012")
-        #expect(InvoiceNumberingService.sequence(from: "FAM-0012", for: issuer) == 12)
+        #expect(InvoiceNumberingService.sequence(from: "FAM-0150") == nil)
+        #expect(InvoiceNumberingService.sequence(from: " 12 ") == 12)
+        #expect(InvoiceNumberingService.nextInvoiceNumber(issuer: issuer, client: client) == "5")
     }
 
     @MainActor
@@ -238,12 +258,12 @@ struct InvoiceGenerationTests {
         let context = container.mainContext
         let viewModel = IssuerViewModel(modelContext: context)
 
-        guard let issuer = viewModel.createIssuer(name: "Main", code: "MNN") else {
+        guard let issuer = viewModel.createIssuer(name: "Main") else {
             Issue.record("Failed to create issuer")
             return
         }
 
-        let invoice = Invoice(invoiceNumber: "MNN-0001", clientName: "Client", issuer: issuer)
+        let invoice = Invoice(invoiceNumber: "1", clientName: "Client", issuer: issuer)
         invoice.captureIssuerSnapshot(from: issuer)
         context.insert(invoice)
         try context.save()
@@ -257,7 +277,7 @@ struct InvoiceGenerationTests {
     @Test func createInvoiceFromTemplateAppliesTemplateValues() async throws {
         let container = try makeContainer()
         let context = container.mainContext
-        let issuer = Issuer(name: "Acme", code: "ACM")
+        let issuer = Issuer(name: "Acme")
         let client = Client(name: "Cliente", email: "hola@cliente.com", identificationNumber: "B12345678")
         let template = InvoiceTemplate(
             name: "Cliente mensual",
@@ -285,7 +305,7 @@ struct InvoiceGenerationTests {
 
         #expect(created != nil)
         #expect(created?.clientName == "Cliente")
-        #expect(created?.invoiceNumber == "ACM-0001")
+        #expect(created?.invoiceNumber == "1")
         #expect(created?.items?.count == 1)
         #expect(created?.ivaPercentage == 21)
         #expect(created?.irpfPercentage == 15)
@@ -298,10 +318,10 @@ struct InvoiceGenerationTests {
     @Test func duplicateInvoiceForNextMonthAdvancesDatesAndNumbering() async throws {
         let container = try makeContainer()
         let context = container.mainContext
-        let issuer = Issuer(name: "Acme", code: "ACM", nextInvoiceSequence: 2)
+        let issuer = Issuer(name: "Acme")
         let client = Client(name: "Cliente")
         let original = Invoice(
-            invoiceNumber: "ACM-0001",
+            invoiceNumber: "1",
             clientName: client.name,
             client: client,
             issuer: issuer,
@@ -322,15 +342,11 @@ struct InvoiceGenerationTests {
         context.insert(item)
         try context.save()
 
-        // Invoice numbering is per-client; mirror what createInvoice does for the
-        // original so the duplicate advances the client's sequence to ACM-0002.
-        InvoiceNumberingService.registerUsedInvoiceNumber("ACM-0001", for: client, issuer: issuer)
-
         let viewModel = InvoiceViewModel(modelContext: context)
         let copy = viewModel.duplicateInvoiceForNextMonth(original)
 
         #expect(copy != nil)
-        #expect(copy?.invoiceNumber == "ACM-0002")
+        #expect(copy?.invoiceNumber == "2")
         #expect(copy?.issueDate == original.issueDate.addingMonths(1))
         #expect(copy?.dueDate == original.issueDate.addingMonths(1).addingDays(15))
         #expect(copy?.items?.count == 1)
@@ -341,10 +357,10 @@ struct InvoiceGenerationTests {
     @Test func createTemplateFromInvoiceSetsPreferredTemplateOnClient() async throws {
         let container = try makeContainer()
         let context = container.mainContext
-        let issuer = Issuer(name: "Acme", code: "ACM")
+        let issuer = Issuer(name: "Acme")
         let client = Client(name: "Cliente")
         let invoice = Invoice(
-            invoiceNumber: "ACM-0001",
+            invoiceNumber: "1",
             clientName: "Cliente",
             client: client,
             issuer: issuer,
@@ -376,8 +392,8 @@ struct InvoiceGenerationTests {
     @Test func markSentAndPaidUpdateStatus() async throws {
         let container = try makeContainer()
         let context = container.mainContext
-        let issuer = Issuer(name: "Acme", code: "ACM")
-        let invoice = Invoice(invoiceNumber: "ACM-0001", clientName: "Cliente", issuer: issuer)
+        let issuer = Issuer(name: "Acme")
+        let invoice = Invoice(invoiceNumber: "1", clientName: "Cliente", issuer: issuer)
         invoice.captureIssuerSnapshot(from: issuer)
         context.insert(issuer)
         context.insert(invoice)
@@ -396,10 +412,10 @@ struct InvoiceGenerationTests {
     @Test func syncLinkedDataCopiesCurrentClientAndIssuerSnapshots() async throws {
         let container = try makeContainer()
         let context = container.mainContext
-        let issuer = Issuer(name: "Acme", code: "ACM", address: "Linea 1\nLinea 2", taxId: "B123")
+        let issuer = Issuer(name: "Acme", address: "Linea 1\nLinea 2", taxId: "B123")
         let client = Client(name: "Cliente", email: "hola@cliente.com", address: "Calle 1\n28001 Madrid", identificationNumber: "X123")
         let invoice = Invoice(
-            invoiceNumber: "ACM-0001",
+            invoiceNumber: "1",
             clientName: "Nombre viejo",
             clientEmail: "",
             clientIdentificationNumber: "",
@@ -430,10 +446,10 @@ struct InvoiceGenerationTests {
 
     @MainActor
     @Test func pdfGenerationSupportsMultilineAddressContent() async throws {
-        let issuer = Issuer(name: "Acme", code: "ACM", address: "Linea 1\nLinea 2\nLinea 3")
+        let issuer = Issuer(name: "Acme", address: "Linea 1\nLinea 2\nLinea 3")
         let client = Client(name: "Cliente", address: "Direccion muy larga\nSegunda linea\nTercera linea")
         let invoice = Invoice(
-            invoiceNumber: "ACM-0001",
+            invoiceNumber: "1",
             clientName: client.name,
             clientEmail: "cliente@example.com",
             clientAddress: client.address,

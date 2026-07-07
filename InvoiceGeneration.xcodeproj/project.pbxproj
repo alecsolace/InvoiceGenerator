@@ -18,7 +18,9 @@
 		0D2DB2AC2EE1E500000C327E /* Localizable.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = 0D2DB2AB2EE1E500000C327E /* Localizable.xcstrings */; };
 		0DA31A9C2F66AE18005C2C4F /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 0DA31A9B2F66AE17005C2C4F /* PrivacyInfo.xcprivacy */; };
 		0DD00BBE2F6302A3008DEA72 /* storekit.storekit in Resources */ = {isa = PBXBuildFile; fileRef = 0DD00BBD2F6302A3008DEA72 /* storekit.storekit */; };
+		74E00BB44FFD4E8C9ABA8984 /* DebugBridgeUI in Frameworks */ = {isa = PBXBuildFile; productRef = 8EBD1699FAF9750E149A98EA /* DebugBridgeUI */; };
 		A1B2C3D42EE1D2B8000C327E /* InvoiceImageShareExtension.appex in Embed App Extensions */ = {isa = PBXBuildFile; fileRef = A1B2C3CF2EE1D2B8000C327E /* InvoiceImageShareExtension.appex */; platformFilter = ios; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		C0C74C796602D8B9E0B9B34B /* DebugBridgeGenerated in Frameworks */ = {isa = PBXBuildFile; productRef = 3746FE80C810F34F18C181C7 /* DebugBridgeGenerated */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -105,11 +107,15 @@
 		};
 		0D2DB2322EE1D277000C327E /* InvoiceGenerationTests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+			);
 			path = InvoiceGenerationTests;
 			sourceTree = "<group>";
 		};
 		0D2DB23C2EE1D277000C327E /* InvoiceGenerationUITests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+			);
 			path = InvoiceGenerationUITests;
 			sourceTree = "<group>";
 		};
@@ -128,6 +134,8 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				74E00BB44FFD4E8C9ABA8984 /* DebugBridgeUI in Frameworks */,
+				C0C74C796602D8B9E0B9B34B /* DebugBridgeGenerated in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -210,6 +218,8 @@
 			);
 			name = InvoiceGeneration;
 			packageProductDependencies = (
+				8EBD1699FAF9750E149A98EA /* DebugBridgeUI */,
+				3746FE80C810F34F18C181C7 /* DebugBridgeGenerated */,
 			);
 			productName = InvoiceGeneration;
 			productReference = 0D2DB21E2EE1D275000C327E /* InvoiceGeneration.app */;
@@ -232,8 +242,6 @@
 				0D2DB2322EE1D277000C327E /* InvoiceGenerationTests */,
 			);
 			name = InvoiceGenerationTests;
-			packageProductDependencies = (
-			);
 			productName = InvoiceGenerationTests;
 			productReference = 0D2DB22F2EE1D277000C327E /* InvoiceGenerationTests.xctest */;
 			productType = "com.apple.product-type.bundle.unit-test";
@@ -255,8 +263,6 @@
 				0D2DB23C2EE1D277000C327E /* InvoiceGenerationUITests */,
 			);
 			name = InvoiceGenerationUITests;
-			packageProductDependencies = (
-			);
 			productName = InvoiceGenerationUITests;
 			productReference = 0D2DB2392EE1D277000C327E /* InvoiceGenerationUITests.xctest */;
 			productType = "com.apple.product-type.bundle.ui-testing";
@@ -277,8 +283,6 @@
 				A1B2C3D52EE1D2B8000C327E /* InvoiceImageShareExtension */,
 			);
 			name = InvoiceImageShareExtension;
-			packageProductDependencies = (
-			);
 			productName = InvoiceImageShareExtension;
 			productReference = A1B2C3CF2EE1D2B8000C327E /* InvoiceImageShareExtension.appex */;
 			productType = "com.apple.product-type.app-extension";
@@ -319,6 +323,9 @@
 			);
 			mainGroup = 0D2DB2152EE1D275000C327E;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				4E52C1B728EB5F4A19A251B1 /* XCLocalSwiftPackageReference "DebugBridge" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 0D2DB21F2EE1D275000C327E /* Products */;
 			projectDirPath = "";
@@ -849,6 +856,26 @@
 			defaultConfigurationName = Debug;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCLocalSwiftPackageReference section */
+		4E52C1B728EB5F4A19A251B1 /* XCLocalSwiftPackageReference "DebugBridge" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = DebugBridge;
+		};
+/* End XCLocalSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		3746FE80C810F34F18C181C7 /* DebugBridgeGenerated */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 4E52C1B728EB5F4A19A251B1 /* XCLocalSwiftPackageReference "DebugBridge" */;
+			productName = DebugBridgeGenerated;
+		};
+		8EBD1699FAF9750E149A98EA /* DebugBridgeUI */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 4E52C1B728EB5F4A19A251B1 /* XCLocalSwiftPackageReference "DebugBridge" */;
+			productName = DebugBridgeUI;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 0D2DB2162EE1D275000C327E /* Project object */;
 }

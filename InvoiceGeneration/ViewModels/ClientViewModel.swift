@@ -54,7 +54,6 @@ final class ClientViewModel {
         defaultIVAPercentage: Decimal? = nil,
         defaultIRPFPercentage: Decimal? = nil,
         defaultNotes: String = "",
-        invoiceCode: String = "",
         preferredTemplateID: UUID? = nil,
         countryCode: String = "ES",
         locationType: ClientLocationType = .national
@@ -69,7 +68,6 @@ final class ClientViewModel {
             defaultIVAPercentage: defaultIVAPercentage,
             defaultIRPFPercentage: defaultIRPFPercentage,
             defaultNotes: defaultNotes,
-            invoiceCode: invoiceCode,
             preferredTemplateID: preferredTemplateID,
             countryCode: countryCode,
             locationType: locationType
@@ -101,7 +99,6 @@ final class ClientViewModel {
         defaultIVAPercentage: Decimal?,
         defaultIRPFPercentage: Decimal?,
         defaultNotes: String,
-        invoiceCode: String = "",
         preferredTemplateID: UUID?,
         countryCode: String = "ES",
         locationType: ClientLocationType = .national
@@ -115,7 +112,6 @@ final class ClientViewModel {
         client.defaultIVAPercentage = defaultIVAPercentage
         client.defaultIRPFPercentage = defaultIRPFPercentage
         client.defaultNotes = defaultNotes
-        client.invoiceCode = invoiceCode
         client.preferredTemplateID = preferredTemplateID
         client.countryCode = countryCode
         client.locationType = locationType

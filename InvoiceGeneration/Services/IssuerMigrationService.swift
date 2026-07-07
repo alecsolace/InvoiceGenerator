@@ -15,12 +15,9 @@ enum IssuerMigrationService {
                 let companyProfile = try modelContext.fetch(FetchDescriptor<CompanyProfile>()).first
                 let name = companyProfile?.companyName.trimmingCharacters(in: .whitespacesAndNewlines)
                 let issuerName = (name?.isEmpty == false) ? name! : "Default Issuer"
-                let rawCode = companyProfile?.companyName ?? issuerName
-                let code = InvoiceNumberingService.defaultCodeCandidate(from: rawCode)
 
                 let defaultIssuer = Issuer(
                     name: issuerName,
-                    code: code,
                     ownerName: companyProfile?.ownerName ?? "",
                     email: companyProfile?.email ?? "",
                     phone: companyProfile?.phone ?? "",
@@ -49,14 +46,6 @@ enum IssuerMigrationService {
                         invoice.captureIssuerSnapshot(from: primaryIssuer)
                     }
                     changed = true
-                }
-
-                if let issuer = invoice.issuer {
-                    let before = issuer.nextInvoiceSequence
-                    InvoiceNumberingService.registerUsedInvoiceNumber(invoice.invoiceNumber, for: issuer)
-                    if issuer.nextInvoiceSequence != before {
-                        changed = true
-                    }
                 }
             }
 

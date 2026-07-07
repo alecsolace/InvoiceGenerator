@@ -237,7 +237,6 @@ final class CloudKitService {
 
         record["invoiceNumber"] = invoice.invoiceNumber as CKRecordValue
         record["issuerName"] = invoice.issuerName as CKRecordValue
-        record["issuerCode"] = invoice.issuerCode as CKRecordValue
         record["issuerOwnerName"] = invoice.issuerOwnerName as CKRecordValue
         record["issuerEmail"] = invoice.issuerEmail as CKRecordValue
         record["issuerPhone"] = invoice.issuerPhone as CKRecordValue
@@ -293,13 +292,11 @@ final class CloudKitService {
         let record = CKRecord(recordType: issuerRecordType, recordID: recordID)
 
         record["name"] = issuer.name as CKRecordValue
-        record["code"] = issuer.code as CKRecordValue
         record["ownerName"] = issuer.ownerName as CKRecordValue
         record["email"] = issuer.email as CKRecordValue
         record["phone"] = issuer.phone as CKRecordValue
         record["address"] = issuer.address as CKRecordValue
         record["taxId"] = issuer.taxId as CKRecordValue
-        record["nextInvoiceSequence"] = issuer.nextInvoiceSequence as CKRecordValue
         record["createdAt"] = issuer.createdAt as CKRecordValue
         record["updatedAt"] = issuer.updatedAt as CKRecordValue
 

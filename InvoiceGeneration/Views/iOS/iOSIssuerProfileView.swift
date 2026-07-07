@@ -50,7 +50,7 @@ struct iOSIssuerProfileView: View {
                     .multilineTextAlignment(.center)
 
                 Button {
-                    viewModel.createIssuer(name: "", code: "", ownerName: "", email: "", phone: "", address: "", taxId: "")
+                    viewModel.createIssuer(name: String(localized: "Mi empresa"))
                 } label: {
                     Label(String(localized: "Crear perfil"), systemImage: "plus.circle.fill")
                         .font(.headline)
@@ -83,7 +83,6 @@ private struct iOSIssuerFormView: View {
 
     @State private var name: String = ""
     @State private var ownerName: String = ""
-    @State private var code: String = ""
     @State private var email: String = ""
     @State private var phone: String = ""
     @State private var address: String = ""
@@ -97,13 +96,6 @@ private struct iOSIssuerFormView: View {
             Section(String(localized: "Datos de la empresa")) {
                 TextField(String(localized: "Nombre de la empresa"), text: $name)
                 TextField(String(localized: "Nombre del titular"), text: $ownerName)
-                HStack {
-                    TextField(String(localized: "Codigo emisor"), text: $code)
-                        .textCase(.uppercase)
-                    Text(String(localized: "Ej: EDL-0001"))
-                        .font(.caption)
-                        .foregroundStyle(.tertiary)
-                }
             }
 
             Section(String(localized: "Datos fiscales")) {
@@ -194,7 +186,6 @@ private struct iOSIssuerFormView: View {
     private func loadIssuerData() {
         name = issuer.name
         ownerName = issuer.ownerName
-        code = issuer.code
         email = issuer.email
         phone = issuer.phone
         address = issuer.address
@@ -206,7 +197,6 @@ private struct iOSIssuerFormView: View {
         viewModel.updateIssuer(
             issuer,
             name: name,
-            code: code.uppercased(),
             ownerName: ownerName,
             email: email,
             phone: phone,

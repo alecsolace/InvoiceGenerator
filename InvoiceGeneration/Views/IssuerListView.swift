@@ -63,18 +63,8 @@ struct IssuerListView: View {
 
     private func issuerRow(_ issuer: Issuer, viewModel: IssuerViewModel) -> some View {
         VStack(alignment: .leading, spacing: 6) {
-            HStack {
-                Text(issuer.name)
-                    .font(.headline)
-                Spacer()
-                Text(issuer.code)
-                    .font(.caption)
-                    .fontWeight(.semibold)
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 3)
-                    .background(Color.blue.opacity(0.1), in: Capsule())
-                    .foregroundStyle(.blue)
-            }
+            Text(issuer.name)
+                .font(.headline)
 
             if !issuer.email.isEmpty {
                 Label(issuer.email, systemImage: "envelope")
@@ -127,7 +117,6 @@ private struct IssuerEditorView: View {
     @Bindable var viewModel: IssuerViewModel
 
     @State private var name = ""
-    @State private var code = ""
     @State private var ownerName = ""
     @State private var email = ""
     @State private var phone = ""
@@ -142,11 +131,6 @@ private struct IssuerEditorView: View {
             Form {
                 Section(String(localized: "Emisor")) {
                     TextField(String(localized: "Nombre"), text: $name)
-                    TextField(String(localized: "Código"), text: $code)
-#if os(iOS)
-                        .textInputAutocapitalization(.characters)
-                        .autocorrectionDisabled(true)
-#endif
                 }
 
                 Section(String(localized: "Contacto")) {
@@ -205,7 +189,7 @@ private struct IssuerEditorView: View {
                     Button(String(localized: "Guardar")) {
                         persist()
                     }
-                    .disabled(name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || code.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                    .disabled(name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                 }
             }
         }
@@ -224,7 +208,6 @@ private struct IssuerEditorView: View {
     private func hydrateIfNeeded() {
         guard case .edit(let issuer) = mode else { return }
         name = issuer.name
-        code = issuer.code
         ownerName = issuer.ownerName
         email = issuer.email
         phone = issuer.phone
@@ -239,7 +222,6 @@ private struct IssuerEditorView: View {
         case .create:
             guard viewModel.createIssuer(
                 name: name,
-                code: code,
                 ownerName: ownerName,
                 email: email,
                 phone: phone,
@@ -257,7 +239,6 @@ private struct IssuerEditorView: View {
             let success = viewModel.updateIssuer(
                 issuer,
                 name: name,
-                code: code,
                 ownerName: ownerName,
                 email: email,
                 phone: phone,

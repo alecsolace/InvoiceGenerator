@@ -47,10 +47,10 @@ final class PDFGeneratorService {
 
         context.beginPDFPage(nil)
         context.saveGState()
-        // Place origin at top-left for easier layout; flip CoreText back upright.
+        // Place origin at top-left for easier layout. Text drawing helpers
+        // locally un-flip the context so CoreText renders upright and top-down.
         context.translateBy(x: 0, y: pageHeight)
         context.scaleBy(x: 1, y: -1)
-        context.textMatrix = CGAffineTransform(scaleX: 1, y: -1)
 
         var yPosition: CGFloat = 24
         let pageRect = mediaBox
@@ -633,28 +633,14 @@ private extension PDFGeneratorService {
     static func issuerDetails(from invoice: Invoice) -> PDFIssuerDetails {
         let fallbackIssuer = invoice.issuer
         let name = invoice.issuerName.isEmpty ? (fallbackIssuer?.name ?? "") : invoice.issuerName
-        let code = invoice.issuerCode.isEmpty ? (fallbackIssuer?.code ?? "") : invoice.issuerCode
         let ownerName = invoice.issuerOwnerName.isEmpty ? (fallbackIssuer?.ownerName ?? "") : invoice.issuerOwnerName
         let email = invoice.issuerEmail.isEmpty ? (fallbackIssuer?.email ?? "") : invoice.issuerEmail
         let phone = invoice.issuerPhone.isEmpty ? (fallbackIssuer?.phone ?? "") : invoice.issuerPhone
         let address = invoice.issuerAddress.isEmpty ? (fallbackIssuer?.address ?? "") : invoice.issuerAddress
         let taxId = invoice.issuerTaxId.isEmpty ? (fallbackIssuer?.taxId ?? "") : invoice.issuerTaxId
 
-        if name.isEmpty {
-            return PDFIssuerDetails(
-                name: localized("Invoice Generator", comment: "Fallback issuer name"),
-                code: code,
-                ownerName: ownerName,
-                email: email,
-                phone: phone,
-                address: address,
-                taxId: taxId
-            )
-        }
-
         return PDFIssuerDetails(
-            name: name,
-            code: code,
+            name: name.isEmpty ? localized("Invoice Generator", comment: "Fallback issuer name") : name,
             ownerName: ownerName,
             email: email,
             phone: phone,
@@ -666,7 +652,6 @@ private extension PDFGeneratorService {
 
 private struct PDFIssuerDetails {
     let name: String
-    let code: String
     let ownerName: String
     let email: String
     let phone: String
@@ -752,9 +737,13 @@ private func drawText(
     let attributedString = NSAttributedString(string: text, attributes: style.attributes)
     let line = CTLineCreateWithAttributedString(attributedString)
 
+    // The page context is flipped top-down; un-flip locally at the baseline so
+    // CoreText draws upright glyphs.
     context.saveGState()
-    let position = CGPoint(x: point.x, y: point.y + style.baselineOffset)
-    context.textPosition = position
+    context.translateBy(x: point.x, y: point.y + style.baselineOffset)
+    context.scaleBy(x: 1, y: -1)
+    context.textMatrix = .identity
+    context.textPosition = .zero
     CTLineDraw(line, context)
     context.restoreGState()
 
@@ -769,14 +758,23 @@ private func drawMultilineText(
 ) -> CGFloat {
     let normalizedText = normalizedPDFText(text)
     let actualHeight = height(for: normalizedText, style: style, width: rect.width)
-    let drawingRect = CGRect(x: rect.origin.x, y: rect.origin.y, width: rect.width, height: max(rect.height, actualHeight))
+    let drawingHeight = max(rect.height, actualHeight)
     let attributedString = NSAttributedString(string: normalizedText, attributes: style.attributes)
     let framesetter = CTFramesetterCreateWithAttributedString(attributedString)
-    let path = CGMutablePath()
-    path.addRect(drawingRect)
+    let path = CGPath(
+        rect: CGRect(x: 0, y: 0, width: rect.width, height: drawingHeight),
+        transform: nil
+    )
     let frame = CTFramesetterCreateFrame(framesetter, CFRangeMake(0, attributedString.length), path, nil)
 
+    // CTFrameDraw expects a bottom-up coordinate system; un-flip locally so
+    // lines stack top-down inside the rect instead of in reverse order.
+    context.saveGState()
+    context.translateBy(x: rect.origin.x, y: rect.origin.y + drawingHeight)
+    context.scaleBy(x: 1, y: -1)
+    context.textMatrix = .identity
     CTFrameDraw(frame, context)
+    context.restoreGState()
 
     return actualHeight
 }
