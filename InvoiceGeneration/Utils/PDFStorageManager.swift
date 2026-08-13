@@ -6,7 +6,7 @@ import AppKit
 /// Handles where generated PDFs are stored depending on platform and user preference.
 enum PDFStorageManager {
     private static let macDirectoryKey = "macPDFSavePath"
-    
+
     /// Returns the URL where a PDF with the provided file name should be saved.
     static func targetURL(for fileName: String) -> URL? {
         #if os(macOS)
@@ -16,7 +16,72 @@ enum PDFStorageManager {
         return applicationSupportDirectory()?.appendingPathComponent("\(fileName).pdf")
         #endif
     }
-    
+
+    /// Returns the stable cache URL for an invoice's generated PDF.
+    static func cacheURL(for invoice: Invoice) -> URL? {
+        #if os(macOS)
+        // macOS's target directory is the user's own chosen save folder (see
+        // `macSaveDirectory`/`setMacDirectory`), so the file itself is a user-visible
+        // artifact — keep it under its display name there, as before.
+        return targetURL(for: exportFileName(for: invoice))
+        #else
+        // iOS's target directory is an internal Application Support cache the user
+        // never sees directly, so key it by the invoice's unique id. Invoice numbers
+        // are only unique per issuer-client pair (see InvoiceNumberingService), so two
+        // different invoices sharing the same display number would otherwise silently
+        // overwrite each other's cached PDF.
+        return targetURL(for: invoice.id.uuidString)
+        #endif
+    }
+
+    /// The human-readable file name used when handing a PDF off to share/export UI.
+    /// This is the single source of truth for that name — do not reconstruct it elsewhere.
+    static func exportFileName(for invoice: Invoice) -> String {
+        String(format: NSLocalizedString("Factura_%@", comment: "Saved invoice PDF file name format"), invoice.invoiceNumber)
+    }
+
+    /// Returns a URL for the cached PDF under its human-readable export name, so share
+    /// sheets and mail composers show a friendly file name instead of the UUID used for
+    /// iOS's internal on-disk cache. When the cache is already stored under that name
+    /// (macOS), the original file is reused rather than making a redundant copy.
+    static func exportURL(copyingFrom cachedURL: URL, for invoice: Invoice) -> URL? {
+        let desiredFileName = "\(exportFileName(for: invoice)).pdf"
+        if cachedURL.lastPathComponent == desiredFileName {
+            return cachedURL
+        }
+        let tempURL = FileManager.default.temporaryDirectory.appendingPathComponent(desiredFileName)
+        do {
+            if FileManager.default.fileExists(atPath: tempURL.path) {
+                try FileManager.default.removeItem(at: tempURL)
+            }
+            try FileManager.default.copyItem(at: cachedURL, to: tempURL)
+            return tempURL
+        } catch {
+            return nil
+        }
+    }
+
+    /// One-shot cleanup of legacy `Factura_<number>.pdf` cache files that predate the
+    /// per-invoice UUID cache scheme. Those names collided across issuer-client pairs
+    /// that reused the same invoice number, so they are no longer read; this just
+    /// reclaims the disk space. Safe to call repeatedly.
+    static func removeLegacyInvoiceNumberCacheFiles() {
+        #if os(macOS)
+        guard let folderURL = macSaveDirectory() ?? defaultDocumentsDirectory() else { return }
+        #else
+        guard let folderURL = applicationSupportDirectory() else { return }
+        #endif
+        guard let contents = try? FileManager.default.contentsOfDirectory(
+            at: folderURL, includingPropertiesForKeys: nil
+        ) else { return }
+
+        for url in contents {
+            let name = url.deletingPathExtension().lastPathComponent
+            guard url.pathExtension.lowercased() == "pdf", name.hasPrefix("Factura_") else { continue }
+            try? FileManager.default.removeItem(at: url)
+        }
+    }
+
     #if os(macOS)
     /// Updates the preferred macOS directory path.
     static func setMacDirectory(path: String) {

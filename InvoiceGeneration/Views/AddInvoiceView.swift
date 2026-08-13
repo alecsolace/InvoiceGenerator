@@ -26,7 +26,8 @@ struct AddInvoiceView: View {
     @State private var hasAppliedSeed = false
     @State private var showingAddClient = false
     @State private var showingPaywall = false
-    @State private var showingShareSheet = false
+    @State private var shareItem: PDFShareItem?
+    @State private var pdfErrorMessage: String?
 
     @State private var selectedTemplateID: UUID?
     @State private var selectedClientID: UUID?
@@ -54,7 +55,6 @@ struct AddInvoiceView: View {
     @State private var editingDraftItem: DraftInvoiceItem?
     @State private var hasManuallyEditedInvoiceNumber = false
     @State private var lastSuggestedInvoiceNumber = ""
-    @State private var generatedPDFURL: URL?
     @State private var invoicePendingShareCompletion: Invoice?
     @State private var importWarnings: [String] = []
     @State private var importErrorMessage: String?
@@ -154,13 +154,19 @@ struct AddInvoiceView: View {
                 PaywallView(reason: .clientLimit)
                     .environmentObject(subscriptionService)
             }
-            .sheet(
-                isPresented: $showingShareSheet,
-                onDismiss: finalizePendingShareCompletion
+            .sheet(item: $shareItem, onDismiss: finalizePendingShareCompletion) { item in
+                ShareSheet(items: [item.url])
+            }
+            .alert(
+                String(localized: "No se pudo generar el PDF"),
+                isPresented: Binding(
+                    get: { pdfErrorMessage != nil },
+                    set: { isPresented in if !isPresented { pdfErrorMessage = nil } }
+                )
             ) {
-                if let generatedPDFURL {
-                    ShareSheet(items: [generatedPDFURL])
-                }
+                Button(String(localized: "Aceptar"), role: .cancel) { pdfErrorMessage = nil }
+            } message: {
+                Text(pdfErrorMessage ?? "")
             }
         }
 #if os(macOS)
@@ -803,22 +809,16 @@ struct AddInvoiceView: View {
             onComplete?(invoice)
             dismiss()
         case .generatePDF:
-            guard let pdfDocument = PDFGeneratorService.generateInvoicePDF(invoice: invoice),
-                  let url = PDFGeneratorService.savePDF(
-                    pdfDocument,
-                    fileName: "Factura_\(invoice.invoiceNumber)"
-                  )
-            else {
+            do {
+                let prepared = try InvoicePDFService.preparePDF(for: invoice, context: modelContext)
+                let url = PDFStorageManager.exportURL(copyingFrom: prepared.url, for: invoice) ?? prepared.url
+                invoicePendingShareCompletion = invoice
+                shareItem = PDFShareItem(url: url)
+            } catch {
+                pdfErrorMessage = UserFacingError.message(for: .pdfGeneration, error: error)
                 onComplete?(invoice)
                 dismiss()
-                return
             }
-
-            generatedPDFURL = url
-            invoice.pdfLastGeneratedAt = Date()
-            viewModel.updateInvoice(invoice)
-            invoicePendingShareCompletion = invoice
-            showingShareSheet = true
         }
     }
 

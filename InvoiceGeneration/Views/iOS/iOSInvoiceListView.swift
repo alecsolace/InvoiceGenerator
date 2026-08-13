@@ -10,8 +10,8 @@ struct iOSInvoiceListView: View {
     @State private var selectedFilter: InvoiceFilter = .all
     @State private var composerSeed: InvoiceComposerSeed?
     @State private var selectedInvoice: Invoice?
-    @State private var shareURL: URL?
-    @State private var showingShareSheet = false
+    @State private var shareItem: PDFShareItem?
+    @State private var pdfErrorMessage: String?
 
     @Query(sort: [SortDescriptor(\Client.name)]) private var clients: [Client]
     @Query(sort: [SortDescriptor(\Issuer.name)]) private var issuers: [Issuer]
@@ -50,10 +50,19 @@ struct iOSInvoiceListView: View {
                     }
                 }
             }
-            .sheet(isPresented: $showingShareSheet) {
-                if let shareURL {
-                    ShareSheet(items: [shareURL])
-                }
+            .sheet(item: $shareItem) { item in
+                ShareSheet(items: [item.url])
+            }
+            .alert(
+                String(localized: "No se pudo generar el PDF"),
+                isPresented: Binding(
+                    get: { pdfErrorMessage != nil },
+                    set: { isPresented in if !isPresented { pdfErrorMessage = nil } }
+                )
+            ) {
+                Button(String(localized: "Aceptar"), role: .cancel) { pdfErrorMessage = nil }
+            } message: {
+                Text(pdfErrorMessage ?? "")
             }
         }
         .onAppear {
@@ -256,17 +265,12 @@ struct iOSInvoiceListView: View {
     }
 
     private func share(_ invoice: Invoice) {
-        let fileName = "Factura_\(invoice.invoiceNumber)"
-        if let url = PDFStorageManager.targetURL(for: fileName),
-           FileManager.default.fileExists(atPath: url.path) {
-            shareURL = url
-            showingShareSheet = true
-            return
-        }
-        guard let pdfDocument = PDFGeneratorService.generateInvoicePDF(invoice: invoice) else { return }
-        if let url = PDFGeneratorService.savePDF(pdfDocument, fileName: fileName) {
-            shareURL = url
-            showingShareSheet = true
+        do {
+            let prepared = try InvoicePDFService.preparePDF(for: invoice, context: modelContext)
+            let url = PDFStorageManager.exportURL(copyingFrom: prepared.url, for: invoice) ?? prepared.url
+            shareItem = PDFShareItem(url: url)
+        } catch {
+            pdfErrorMessage = UserFacingError.message(for: .pdfGeneration, error: error)
         }
     }
 }

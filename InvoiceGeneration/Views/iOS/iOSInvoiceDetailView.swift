@@ -14,16 +14,15 @@ struct iOSInvoiceDetailView: View {
     @Bindable var invoice: Invoice
     @Bindable var viewModel: InvoiceViewModel
 
-    @State private var showingShareSheet = false
     @State private var showingEditInvoice = false
     @State private var composerSeed: InvoiceComposerSeed?
     @State private var duplicatedInvoice: Invoice?
-    @State private var pdfURL: URL?
     @State private var templateViewModel: InvoiceTemplateViewModel?
     @State private var syncResultMessage: String?
     @State private var showingSyncResult = false
-    @State private var previewDocument: PDFDocument?
-    @State private var showingPreview = false
+    @State private var previewItem: PDFPreviewItem?
+    @State private var shareItem: PDFShareItem?
+    @State private var pdfErrorMessage: String?
 
     var body: some View {
         ScrollView {
@@ -84,10 +83,8 @@ struct iOSInvoiceDetailView: View {
         .sheet(isPresented: $showingEditInvoice) {
             EditInvoiceView(invoice: invoice, viewModel: viewModel)
         }
-        .sheet(isPresented: $showingShareSheet) {
-            if let pdfURL {
-                ShareSheet(items: [pdfURL])
-            }
+        .sheet(item: $shareItem) { item in
+            ShareSheet(items: [item.url])
         }
         .sheet(item: $composerSeed) { seed in
             AddInvoiceView(viewModel: viewModel, seed: seed) { created in
@@ -95,32 +92,22 @@ struct iOSInvoiceDetailView: View {
             }
         }
         #if canImport(UIKit)
-        .fullScreenCover(isPresented: $showingPreview) {
-            if let previewDocument {
-                NavigationStack {
-                    iOSPDFPreview(document: previewDocument)
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                        .ignoresSafeArea()
-                        .navigationTitle(invoice.invoiceNumber)
-                        .navigationBarTitleDisplayMode(.inline)
-                        .toolbar {
-                            ToolbarItem(placement: .cancellationAction) {
-                                Button(String(localized: "Cerrar")) { showingPreview = false }
-                            }
-                            ToolbarItem(placement: .primaryAction) {
-                                Button {
-                                    showingPreview = false
-                                    sharePDF()
-                                } label: {
-                                    Image(systemName: "square.and.arrow.up")
-                                }
-                            }
-                        }
-                }
-            }
+        .fullScreenCover(item: $previewItem) { item in
+            PDFPreviewScreen(item: item)
         }
         #endif
         // Email compose uses the shared InvoiceDetailView flow
+        .alert(
+            String(localized: "No se pudo generar el PDF"),
+            isPresented: Binding(
+                get: { pdfErrorMessage != nil },
+                set: { isPresented in if !isPresented { pdfErrorMessage = nil } }
+            )
+        ) {
+            Button(String(localized: "Aceptar"), role: .cancel) { pdfErrorMessage = nil }
+        } message: {
+            Text(pdfErrorMessage ?? "")
+        }
         .onAppear {
             if templateViewModel == nil {
                 templateViewModel = InvoiceTemplateViewModel(modelContext: modelContext)
@@ -452,57 +439,27 @@ struct iOSInvoiceDetailView: View {
     }
 
     private func sharePDF() {
-        let fileName = "Factura_\(invoice.invoiceNumber)"
-        if let url = PDFStorageManager.targetURL(for: fileName),
-           FileManager.default.fileExists(atPath: url.path) {
-            pdfURL = url
-            showingShareSheet = true
-            return
-        }
-        guard let doc = PDFGeneratorService.generateInvoicePDF(invoice: invoice) else { return }
-        if let url = PDFGeneratorService.savePDF(doc, fileName: fileName) {
-            pdfURL = url
-            showingShareSheet = true
+        do {
+            let prepared = try InvoicePDFService.preparePDF(for: invoice, context: modelContext)
+            let exportURL = PDFStorageManager.exportURL(copyingFrom: prepared.url, for: invoice) ?? prepared.url
+            shareItem = PDFShareItem(url: exportURL)
+        } catch {
+            pdfErrorMessage = UserFacingError.message(for: .pdfGeneration, error: error)
         }
     }
 
     private func viewPDF() {
-        let fileName = "Factura_\(invoice.invoiceNumber)"
-        if let url = PDFStorageManager.targetURL(for: fileName),
-           FileManager.default.fileExists(atPath: url.path),
-           let document = PDFDocument(url: url) {
-            previewDocument = document
-            showingPreview = true
-            return
-        }
-        guard let document = PDFGeneratorService.generateInvoicePDF(invoice: invoice) else { return }
-        previewDocument = document
-        showingPreview = true
-    }
-}
-
-// MARK: - PDF Preview
-
-#if canImport(UIKit)
-private struct iOSPDFPreview: UIViewRepresentable {
-    let document: PDFDocument
-
-    func makeUIView(context: Context) -> PDFView {
-        let view = PDFView()
-        view.autoScales = true
-        view.displayDirection = .vertical
-        view.displayMode = .singlePageContinuous
-        // Defer assignment so autoScales has a real frame to compute against.
-        DispatchQueue.main.async { view.document = self.document }
-        return view
-    }
-
-    func updateUIView(_ uiView: PDFView, context: Context) {
-        if uiView.document !== document {
-            uiView.document = document
+        do {
+            let prepared = try InvoicePDFService.preparePDF(for: invoice, context: modelContext)
+            let exportURL = PDFStorageManager.exportURL(copyingFrom: prepared.url, for: invoice) ?? prepared.url
+            previewItem = PDFPreviewItem(document: prepared.document, shareURL: exportURL, title: invoice.invoiceNumber)
+        } catch {
+            pdfErrorMessage = UserFacingError.message(for: .pdfGeneration, error: error)
         }
     }
 }
-#endif
+
+// Full-screen PDF preview uses the shared `PDFPreviewScreen` in
+// Views/Components/PDFKitView.swift.
 
 // Preview requires a managed Invoice — use the app's PersistenceController.preview container.

@@ -470,6 +470,99 @@ struct InvoiceGenerationTests {
     }
 
     @MainActor
+    @Test func preparePDFWritesFileAndSetsGeneratedTimestamp() async throws {
+        let container = try makeContainer()
+        let invoice = try makeBillableInvoice(number: "1", in: container)
+
+        let prepared = try InvoicePDFService.preparePDF(for: invoice, context: container.mainContext)
+        defer { try? FileManager.default.removeItem(at: prepared.url) }
+
+        #expect(prepared.document.pageCount == 1)
+        #expect(FileManager.default.fileExists(atPath: prepared.url.path))
+        #expect(invoice.pdfLastGeneratedAt != nil)
+    }
+
+    @MainActor
+    @Test func preparePDFDoesNotRegenerateWhenInvoiceUnchanged() async throws {
+        let container = try makeContainer()
+        let invoice = try makeBillableInvoice(number: "1", in: container)
+
+        let first = try InvoicePDFService.preparePDF(for: invoice, context: container.mainContext)
+        defer { try? FileManager.default.removeItem(at: first.url) }
+        let firstGeneratedAt = try #require(invoice.pdfLastGeneratedAt)
+
+        let second = try InvoicePDFService.preparePDF(for: invoice, context: container.mainContext)
+
+        #expect(second.url == first.url)
+        #expect(invoice.pdfLastGeneratedAt == firstGeneratedAt)
+    }
+
+    @MainActor
+    @Test func preparePDFRegeneratesWhenInvoiceEditedAfterCache() async throws {
+        let container = try makeContainer()
+        let invoice = try makeBillableInvoice(number: "1", in: container)
+
+        let first = try InvoicePDFService.preparePDF(for: invoice, context: container.mainContext)
+        defer { try? FileManager.default.removeItem(at: first.url) }
+        let firstGeneratedAt = try #require(invoice.pdfLastGeneratedAt)
+
+        invoice.notes = "Nota actualizada tras editar la factura"
+        invoice.updateTimestamp()
+
+        let second = try InvoicePDFService.preparePDF(for: invoice, context: container.mainContext)
+
+        let secondGeneratedAt = try #require(invoice.pdfLastGeneratedAt)
+        #expect(secondGeneratedAt > firstGeneratedAt)
+        #expect(second.document.pageCount == 1)
+    }
+
+    @MainActor
+    @Test func preparePDFProducesDistinctURLsForSameInvoiceNumberAcrossIssuerClientPairs() async throws {
+        // Invoice numbers are only unique per issuer-client pair (see
+        // InvoiceNumberingService), so two different invoices can legitimately
+        // share the same display number. Their cached PDFs must not collide.
+        let container = try makeContainer()
+        let invoiceA = try makeBillableInvoice(number: "12", clientName: "Cliente A", in: container)
+        let invoiceB = try makeBillableInvoice(number: "12", clientName: "Cliente B", in: container)
+
+        let preparedA = try InvoicePDFService.preparePDF(for: invoiceA, context: container.mainContext)
+        let preparedB = try InvoicePDFService.preparePDF(for: invoiceB, context: container.mainContext)
+        defer {
+            try? FileManager.default.removeItem(at: preparedA.url)
+            try? FileManager.default.removeItem(at: preparedB.url)
+        }
+
+        #expect(preparedA.url != preparedB.url)
+        #expect(FileManager.default.fileExists(atPath: preparedA.url.path))
+        #expect(FileManager.default.fileExists(atPath: preparedB.url.path))
+    }
+
+    @MainActor
+    private func makeBillableInvoice(number: String, clientName: String = "Cliente", in container: ModelContainer) throws -> Invoice {
+        let issuer = Issuer(name: "Acme", address: "Linea 1", taxId: "B123")
+        let client = Client(name: clientName, address: "Calle 1")
+        let invoice = Invoice(
+            invoiceNumber: number,
+            clientName: client.name,
+            clientAddress: client.address,
+            client: client,
+            issuer: issuer
+        )
+        invoice.captureIssuerSnapshot(from: issuer)
+        let item = InvoiceItem(description: "Servicio", quantity: 1, unitPrice: 100)
+        item.invoice = invoice
+        invoice.items = [item]
+        invoice.calculateTotal()
+
+        container.mainContext.insert(issuer)
+        container.mainContext.insert(client)
+        container.mainContext.insert(invoice)
+        try container.mainContext.save()
+
+        return invoice
+    }
+
+    @MainActor
     @Test func createClientPersistsMonthlyDefaults() async throws {
         let container = try makeContainer()
         let viewModel = ClientViewModel(modelContext: container.mainContext)
