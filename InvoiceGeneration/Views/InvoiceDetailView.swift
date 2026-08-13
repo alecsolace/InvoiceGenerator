@@ -21,10 +21,9 @@ struct InvoiceDetailView: View {
 
     @State private var showingAddItem = false
     @State private var showingEditInvoice = false
-    @State private var showingShareSheet = false
     @State private var showingPDFSaveConfirmation = false
     @State private var emailDraft: EmailDraft?
-    @State private var pdfURL: URL?
+    @State private var shareItem: PDFShareItem?
     @State private var savedPDFURL: URL?
     @State private var previewDocument: PDFDocument?
     @State private var templateViewModel: InvoiceTemplateViewModel?
@@ -36,8 +35,7 @@ struct InvoiceDetailView: View {
     @State private var syncResultMessage: String?
     @State private var showingSyncResult = false
     #if canImport(UIKit)
-    @State private var showingFullScreenPreview = false
-    @State private var fullScreenDocument: PDFDocument?
+    @State private var previewItem: PDFPreviewItem?
     #endif
 
     var body: some View {
@@ -76,10 +74,8 @@ struct InvoiceDetailView: View {
             .sheet(isPresented: $showingEditInvoice) {
                 EditInvoiceView(invoice: invoice, viewModel: viewModel)
             }
-            .sheet(isPresented: $showingShareSheet) {
-                if let pdfURL = pdfURL {
-                    ShareSheet(items: [pdfURL])
-                }
+            .sheet(item: $shareItem) { item in
+                ShareSheet(items: [item.url])
             }
             #if canImport(UIKit) && canImport(MessageUI)
             .sheet(item: $emailDraft) { draft in
@@ -87,21 +83,8 @@ struct InvoiceDetailView: View {
             }
             #endif
             #if canImport(UIKit)
-            .fullScreenCover(isPresented: $showingFullScreenPreview) {
-                if let document = fullScreenDocument {
-                    NavigationStack {
-                        PDFPreview(document: document)
-                            .ignoresSafeArea()
-                            .navigationTitle(String(localized: "Document Preview", comment: "Title for full-screen PDF preview"))
-                            .toolbar {
-                                ToolbarItem(placement: .cancellationAction) {
-                                    Button(String(localized: "Close", comment: "Dismiss full-screen PDF preview")) {
-                                        showingFullScreenPreview = false
-                                    }
-                                }
-                            }
-                    }
-                }
+            .fullScreenCover(item: $previewItem) { item in
+                PDFPreviewScreen(item: item)
             }
             #endif
             .sheet(item: $editingItem) { item in
@@ -438,8 +421,7 @@ struct InvoiceDetailView: View {
     private func exportVerifactuXML(record: VerifactuRecord) {
         guard let issuer = invoice.issuer else { return }
         if let url = VerifactuSubmissionService.exportAltaXML(record: record, invoice: invoice, issuer: issuer) {
-            pdfURL = url
-            showingShareSheet = true
+            shareItem = PDFShareItem(url: url)
         }
     }
 
@@ -457,7 +439,7 @@ struct InvoiceDetailView: View {
                 if isPreviewLoading {
                     ProgressView("Generando vista previa…")
                 } else if let previewDocument {
-                    PDFPreview(document: previewDocument)
+                    PDFKitView(document: previewDocument)
                         .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
                         .contentShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
                         .onTapGesture { handlePreviewTap() }
@@ -738,16 +720,6 @@ struct InvoiceDetailView: View {
         invoice.status.color
     }
 
-    private var pdfFileName: String {
-        String(
-            format: NSLocalizedString(
-                "Factura_%@",
-                comment: "Saved invoice PDF file name format"
-            ),
-            invoice.invoiceNumber
-        )
-    }
-
     // MARK: - Actions
 
     private func refreshPreview() {
@@ -763,40 +735,43 @@ struct InvoiceDetailView: View {
         #if canImport(AppKit)
         openInPreviewApp(document: previewDocument)
         #else
-        fullScreenDocument = previewDocument
-        showingFullScreenPreview = true
+        let shareURL = savedPDFURL.flatMap { PDFStorageManager.exportURL(copyingFrom: $0, for: invoice) }
+        previewItem = PDFPreviewItem(
+            document: previewDocument,
+            shareURL: shareURL,
+            title: String(localized: "Document Preview", comment: "Title for full-screen PDF preview")
+        )
         #endif
     }
 
     private func hydrateSavedPDFIfNeeded() {
-        guard invoice.hasGeneratedPDF else {
+        guard invoice.hasGeneratedPDF, let url = PDFStorageManager.cacheURL(for: invoice),
+              FileManager.default.fileExists(atPath: url.path) else {
             savedPDFURL = nil
             previewDocument = nil
             previewNeedsRefresh = true
             return
         }
-        if let url = PDFStorageManager.targetURL(for: pdfFileName),
-           FileManager.default.fileExists(atPath: url.path) {
-            savedPDFURL = url
-            previewDocument = PDFDocument(url: url)
-            previewNeedsRefresh = false
-        } else {
-            previewDocument = nil
-            previewNeedsRefresh = true
-        }
+        savedPDFURL = url
+        previewDocument = PDFDocument(url: url)
+        previewNeedsRefresh = false
     }
 
     #if canImport(AppKit)
     private func openInPreviewApp(document: PDFDocument) {
-        if let url = savedPDFURL ?? persistTemporaryPDF(document: document) {
+        if let savedPDFURL {
+            let url = PDFStorageManager.exportURL(copyingFrom: savedPDFURL, for: invoice) ?? savedPDFURL
             NSWorkspace.shared.open(url)
+        } else if let tempURL = persistTemporaryPDF(document: document) {
+            NSWorkspace.shared.open(tempURL)
         }
     }
     #endif
 
     private func persistTemporaryPDF(document: PDFDocument) -> URL? {
         guard let data = document.dataRepresentation() else { return nil }
-        let tempURL = FileManager.default.temporaryDirectory.appendingPathComponent("\(pdfFileName)-preview-\(UUID().uuidString).pdf")
+        let tempURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent("\(PDFStorageManager.exportFileName(for: invoice))-preview-\(UUID().uuidString).pdf")
         do {
             try data.write(to: tempURL, options: .atomic)
             return tempURL
@@ -808,11 +783,11 @@ struct InvoiceDetailView: View {
     @discardableResult
     private func generatePDF(showConfirmation: Bool = true) -> URL? {
         guard let pdfDocument = PDFGeneratorService.generateInvoicePDF(invoice: invoice),
-              let url = PDFGeneratorService.savePDF(pdfDocument, fileName: pdfFileName) else {
+              let cacheURL = PDFStorageManager.cacheURL(for: invoice),
+              let url = PDFGeneratorService.savePDF(pdfDocument, fileName: cacheURL.deletingPathExtension().lastPathComponent) else {
             return nil
         }
 
-        pdfURL = url
         savedPDFURL = url
         invoice.pdfLastGeneratedAt = Date()
         viewModel.updateInvoice(invoice)
@@ -824,12 +799,14 @@ struct InvoiceDetailView: View {
     }
 
     private func ensurePDFExists() -> URL? {
-        if let savedPDFURL,
-           FileManager.default.fileExists(atPath: savedPDFURL.path) {
-            return savedPDFURL
+        let cacheURL: URL?
+        if let savedPDFURL, FileManager.default.fileExists(atPath: savedPDFURL.path) {
+            cacheURL = savedPDFURL
+        } else {
+            cacheURL = generatePDF(showConfirmation: false)
         }
-
-        return generatePDF(showConfirmation: false)
+        guard let cacheURL else { return nil }
+        return PDFStorageManager.exportURL(copyingFrom: cacheURL, for: invoice) ?? cacheURL
     }
 
     private func sendInvoiceByEmail() {
@@ -844,24 +821,21 @@ struct InvoiceDetailView: View {
         if EmailService.canComposeOnIOS {
             emailDraft = draft
         } else {
-            pdfURL = url
-            showingShareSheet = true
+            shareItem = PDFShareItem(url: url)
         }
         #elseif canImport(AppKit)
         if !EmailService.composeOnMac(draft) {
-            pdfURL = url
-            showingShareSheet = true
+            shareItem = PDFShareItem(url: url)
         }
         #else
-        pdfURL = url
-        showingShareSheet = true
+        shareItem = PDFShareItem(url: url)
         #endif
     }
 
     private func shareSavedPDF() {
-        guard let url = savedPDFURL else { return }
-        pdfURL = url
-        showingShareSheet = true
+        guard let savedPDFURL else { return }
+        let url = PDFStorageManager.exportURL(copyingFrom: savedPDFURL, for: invoice) ?? savedPDFURL
+        shareItem = PDFShareItem(url: url)
     }
 
     private func syncAndRegeneratePDF() {
@@ -878,63 +852,17 @@ struct InvoiceDetailView: View {
 
     #if canImport(AppKit)
     private func revealPDFInFinder() {
-        guard let url = savedPDFURL else { return }
+        guard let savedPDFURL else { return }
+        let url = PDFStorageManager.exportURL(copyingFrom: savedPDFURL, for: invoice) ?? savedPDFURL
         NSWorkspace.shared.activateFileViewerSelecting([url])
     }
     #endif
 }
 
 // MARK: - Supporting Views
-
-private struct PDFPreview: View {
-    let document: PDFDocument
-
-    var body: some View {
-        #if canImport(UIKit)
-        PDFKitView(document: document)
-        #elseif canImport(AppKit)
-        PDFKitNSView(document: document)
-        #else
-        EmptyView()
-        #endif
-    }
-}
-
-#if canImport(UIKit)
-private struct PDFKitView: UIViewRepresentable {
-    let document: PDFDocument
-
-    func makeUIView(context: Context) -> PDFView {
-        let view = PDFView()
-        view.autoScales = true
-        view.displayDirection = .vertical
-        view.displayMode = .singlePageContinuous
-        view.document = document
-        return view
-    }
-
-    func updateUIView(_ uiView: PDFView, context: Context) {
-        uiView.document = document
-    }
-}
-#elseif canImport(AppKit)
-private struct PDFKitNSView: NSViewRepresentable {
-    let document: PDFDocument
-
-    func makeNSView(context: Context) -> PDFView {
-        let view = PDFView()
-        view.autoScales = true
-        view.displayDirection = .vertical
-        view.displayMode = .singlePageContinuous
-        view.document = document
-        return view
-    }
-
-    func updateNSView(_ nsView: PDFView, context: Context) {
-        nsView.document = document
-    }
-}
-#endif
+//
+// `PDFKitView` (the PDFKit host) and `PDFPreviewScreen` (the full-screen cover)
+// are shared with iOSInvoiceDetailView.swift — see Views/Components/PDFKitView.swift.
 
 #if canImport(UIKit)
 struct ShareSheet: UIViewControllerRepresentable {

@@ -7745,6 +7745,56 @@
     },
     "Your purchase is pending approval. Access will unlock automatically once Apple confirms it." : {
       "comment" : "Pending purchase helper"
+    },
+    "Aceptar" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "OK"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aceptar"
+          }
+        }
+      }
+    },
+    "No se pudo generar el PDF" : {
+      "comment" : "Title of the alert shown when generating or opening an invoice PDF fails.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Couldn't generate PDF"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No se pudo generar el PDF"
+          }
+        }
+      }
+    },
+    "We couldn't generate the invoice PDF. Please try again." : {
+      "comment" : "Generic user-facing error when PDF generation fails.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "We couldn't generate the invoice PDF. Please try again."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No se pudo generar el PDF de la factura. Inténtalo de nuevo."
+          }
+        }
+      }
     }
   },
   "version" : "1.1"

@@ -16,6 +16,7 @@ enum UserFacingError {
         case delete
         case imageImport
         case purchase
+        case pdfGeneration
     }
 
     /// Returns a localized, user-friendly message for the given operation.
@@ -41,6 +42,8 @@ enum UserFacingError {
             return String(localized: "We couldn't read the selected image. Please try a clearer photo.")
         case .purchase:
             return String(localized: "We couldn't complete your purchase. Please try again.")
+        case .pdfGeneration:
+            return String(localized: "We couldn't generate the invoice PDF. Please try again.")
         }
     }
 }
