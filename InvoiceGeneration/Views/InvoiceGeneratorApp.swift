@@ -84,7 +84,9 @@ private func performCloudKitFetch(container: ModelContainer) async {
 
             if let invoice = existing {
                 guard cloudDate > invoice.updatedAt else { continue }
-                if let invoiceNumber = record["invoiceNumber"] as? String { invoice.invoiceNumber = invoiceNumber }
+                if let invoiceNumber = record["invoiceNumber"] as? String {
+                    invoice.invoiceNumber = InvoiceNumberingService.normalized(invoiceNumber) ?? invoiceNumber
+                }
                 if let status = record["status"] as? String, let s = InvoiceStatus(rawValue: status) { invoice.status = s }
                 if let notes = record["notes"] as? String { invoice.notes = notes }
                 if let dueDate = record["dueDate"] as? Date { invoice.dueDate = dueDate }
@@ -96,7 +98,7 @@ private func performCloudKitFetch(container: ModelContainer) async {
                       let status = InvoiceStatus(rawValue: statusRaw) else { continue }
 
                 let invoice = Invoice(
-                    invoiceNumber: invoiceNumber,
+                    invoiceNumber: InvoiceNumberingService.normalized(invoiceNumber) ?? invoiceNumber,
                     clientName: record["clientName"] as? String ?? "",
                     clientEmail: record["clientEmail"] as? String ?? "",
                     clientIdentificationNumber: record["clientIdentificationNumber"] as? String ?? "",
@@ -219,6 +221,7 @@ struct ContentView: View {
     @AppStorage("hasCompletedOnboarding") private var hasCompletedOnboarding = false
     @State private var showingOnboarding = false
     @State private var hasRunIssuerMigration = false
+    @State private var hasRunInvoiceNumberMigration = false
     @State private var hasPreparedUITestState = false
 
     var body: some View {
@@ -227,6 +230,12 @@ struct ContentView: View {
                 if !hasRunIssuerMigration {
                     IssuerMigrationService.runIfNeeded(modelContext: modelContext)
                     hasRunIssuerMigration = true
+                }
+                if !hasRunInvoiceNumberMigration {
+                    // Must run after IssuerMigrationService, which guarantees
+                    // every invoice has an issuer to group by.
+                    InvoiceNumberMigrationService.runIfNeeded(modelContext: modelContext)
+                    hasRunInvoiceNumberMigration = true
                 }
                 prepareUITestStateIfNeeded()
                 showingOnboarding = !hasCompletedOnboarding

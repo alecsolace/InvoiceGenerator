@@ -33,6 +33,23 @@ enum InvoiceNumberingService {
         return value
     }
 
+    // MARK: - Normalization
+
+    /// Canonical plain-number form of a stored invoice number, or nil when
+    /// the value is already canonical or is a free-form number (e.g. a
+    /// prefixed legacy number like "FAM-0150") that must not be touched.
+    ///
+    /// Used to clean up zero-padded legacy numbers ("0010" -> "10") left
+    /// behind by the pre-refactor numbering scheme, without ever inventing
+    /// a number for a value `sequence(from:)` doesn't already understand.
+    static func normalized(_ invoiceNumber: String) -> String? {
+        let trimmed = invoiceNumber.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard trimmed.allSatisfy({ $0.isASCII && $0.isNumber }) else { return nil }
+        guard let value = sequence(from: trimmed) else { return nil }
+        let canonical = String(value)
+        return canonical == invoiceNumber ? nil : canonical
+    }
+
     // MARK: - Private
 
     private static func invoices(for issuer: Issuer, client: Client?) -> [Invoice] {
