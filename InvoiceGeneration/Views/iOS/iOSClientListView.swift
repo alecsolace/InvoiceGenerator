@@ -145,6 +145,7 @@ struct iOSClientListView: View {
                     .padding(.horizontal, 16)
                     .padding(.bottom, 16)
                 }
+                .tabBarSafeAreaPadding()
             }
         } else {
             Spacer()

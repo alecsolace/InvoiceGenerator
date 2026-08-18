@@ -19,6 +19,7 @@ struct iOSSettingsView: View {
                 dataSection
                 aboutSection
             }
+            .tabBarSafeAreaPadding()
             .navigationTitle(String(localized: "Ajustes"))
             .sheet(isPresented: $showingPaywall) {
                 iOSPaywallView()

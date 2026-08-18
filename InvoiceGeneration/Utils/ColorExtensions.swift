@@ -160,3 +160,15 @@ extension CGColor {
         Color(hex: hex)?.cgColorRepresentation ?? defaultColor
     }
 }
+
+// MARK: - Tab Bar Safe Area Padding
+
+extension View {
+    /// Reserves extra space below scrollable content so the last row isn't
+    /// obscured by the floating tab bar on iPhone.
+    func tabBarSafeAreaPadding() -> some View {
+        safeAreaInset(edge: .bottom) {
+            Color.clear.frame(height: 16)
+        }
+    }
+}

@@ -59,6 +59,7 @@ struct IssuerListView: View {
                 issuerRow(issuer, viewModel: viewModel)
             }
         }
+        .tabBarSafeAreaPadding()
     }
 
     private func issuerRow(_ issuer: Issuer, viewModel: IssuerViewModel) -> some View {

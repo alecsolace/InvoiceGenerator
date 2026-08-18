@@ -141,6 +141,7 @@ private struct iOSIssuerFormView: View {
                 }
             }
         }
+        .tabBarSafeAreaPadding()
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 Button(String(localized: "Guardar")) {
