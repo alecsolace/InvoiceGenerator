@@ -252,6 +252,42 @@ struct InvoiceGenerationTests {
     }
 
     @MainActor
+    @Test func issuerMigrationUsesLocalizedFallbackNameWithoutCompanyProfile() async throws {
+        let container = try makeContainer()
+        let context = container.mainContext
+
+        IssuerMigrationService.runIfNeeded(modelContext: context)
+
+        let issuers = try context.fetch(FetchDescriptor<Issuer>())
+        #expect(issuers.count == 1)
+        #expect(issuers[0].name != "Default Issuer")
+        #expect(!issuers[0].name.isEmpty)
+    }
+
+    @MainActor
+    @Test func issuerMigrationRenamesLegacyHardcodedDefaultIssuer() async throws {
+        let container = try makeContainer()
+        let context = container.mainContext
+
+        let legacyIssuer = Issuer(name: "Default Issuer")
+        context.insert(legacyIssuer)
+
+        let invoice = Invoice(invoiceNumber: "1", clientName: "Client", issuer: legacyIssuer)
+        invoice.captureIssuerSnapshot(from: legacyIssuer)
+        context.insert(invoice)
+        try context.save()
+
+        IssuerMigrationService.runIfNeeded(modelContext: context)
+
+        let issuers = try context.fetch(FetchDescriptor<Issuer>())
+        let invoices = try context.fetch(FetchDescriptor<Invoice>())
+
+        #expect(issuers.count == 1)
+        #expect(issuers[0].name != "Default Issuer")
+        #expect(invoices[0].issuerName == issuers[0].name)
+    }
+
+    @MainActor
     @Test(.disabled("deleteIssuer currently soft-deletes unconditionally; whether deletion should be blocked when invoices exist is an unresolved product decision. Re-enable once decided."))
     func issuerDeleteBlockedWhenInvoicesExist() async throws {
         let container = try makeContainer()
