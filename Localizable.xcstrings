@@ -34,7 +34,7 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "%1$@ (%2$@) esta seleccionado globalmente para paneles y creacion de facturas."
+            "value" : "%1$@ (%2$@) está seleccionado globalmente para paneles y creación de facturas."
           }
         }
       }
@@ -478,7 +478,14 @@
       }
     },
     "Accion tras guardar" : {
-
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Acción tras guardar"
+          }
+        }
+      }
     },
     "Activa Pro para clientes ilimitados y sincronizacion iCloud." : {
       "comment" : "A description of the benefits of upgrading to the Pro plan.",
@@ -493,7 +500,7 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Activa Pro para clientes ilimitados y sincronizacion iCloud."
+            "value" : "Activa Pro para clientes ilimitados y sincronización iCloud."
           }
         }
       }
@@ -607,7 +614,7 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Anadir emisor"
+            "value" : "Añadir emisor"
           }
         }
       }
@@ -773,7 +780,7 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Todos los emisores estan seleccionados en el contexto global."
+            "value" : "Todos los emisores están seleccionados en el contexto global."
           }
         }
       }
@@ -811,7 +818,7 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Anade los conceptos para calcular total, IVA e IRPF desde el principio."
+            "value" : "Añade los conceptos para calcular total, IVA e IRPF desde el principio."
           }
         }
       }
@@ -830,7 +837,7 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Anadir concepto"
+            "value" : "Añadir concepto"
           }
         }
       }
@@ -891,7 +898,7 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Aun no hay conceptos. Anadelos para calcular los totales."
+            "value" : "Aún no hay conceptos. Añádelos para calcular los totales."
           }
         }
       }
@@ -925,7 +932,7 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Aun no tienes clientes guardados."
+            "value" : "Aún no tienes clientes guardados."
           }
         }
       }
@@ -1074,7 +1081,7 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Buscar por cliente, numero o emisor"
+            "value" : "Buscar por cliente, número o emisor"
           }
         }
       }
@@ -1875,7 +1882,7 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Crea tu primera factura rapida para empezar."
+            "value" : "Crea tu primera factura rápida para empezar."
           }
         }
       }
@@ -1919,7 +1926,7 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Crear factura rapida"
+            "value" : "Crear factura rápida"
           }
         }
       }
@@ -2213,7 +2220,7 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Defaults de facturacion"
+            "value" : "Valores por defecto de facturación"
           }
         }
       }
@@ -2276,7 +2283,7 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Descripcion"
+            "value" : "Descripción"
           }
         }
       }
@@ -2310,7 +2317,7 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Despues de guardar"
+            "value" : "Después de guardar"
           }
         }
       }
@@ -2334,7 +2341,14 @@
       }
     },
     "Dias de vencimiento: %lld" : {
-
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Días de vencimiento: %lld"
+          }
+        }
+      }
     },
     "Direccion" : {
       "localizations" : {
@@ -2347,7 +2361,7 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Direccion"
+            "value" : "Dirección"
           }
         }
       }
@@ -2356,7 +2370,14 @@
 
     },
     "Direccion fiscal" : {
-
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dirección fiscal"
+          }
+        }
+      }
     },
     "Document Preview" : {
       "comment" : "Title for full-screen PDF preview",
@@ -2830,7 +2851,14 @@
       }
     },
     "Esta informacion aparecera en todas tus facturas" : {
-
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Esta información aparecerá en todas tus facturas"
+          }
+        }
+      }
     },
     "Estado" : {
       "comment" : "Chart label for invoice status",
@@ -3032,13 +3060,20 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Facturacion mensual"
+            "value" : "Facturación mensual"
           }
         }
       }
     },
     "Facturacion profesional con cumplimiento VeriFactu integrado" : {
-
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Facturación profesional con cumplimiento VeriFactu integrado"
+          }
+        }
+      }
     },
     "facturado" : {
 
@@ -3091,7 +3126,7 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Fecha de emision"
+            "value" : "Fecha de emisión"
           }
         }
       }
@@ -3258,7 +3293,14 @@
       }
     },
     "Genera registros encadenados con hash SHA-256 y codigos QR segun el RD 1007/2023" : {
-
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Genera registros encadenados con hash SHA-256 y códigos QR según el RD 1007/2023"
+          }
+        }
+      }
     },
     "General (21%)" : {
       "comment" : "VAT rate general",
@@ -3347,13 +3389,27 @@
       }
     },
     "Gestiona tu cartera y emite facturas rapidamente" : {
-
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gestiona tu cartera y emite facturas rápidamente"
+          }
+        }
+      }
     },
     "Gestiona tus cobros pendientes y realizados" : {
 
     },
     "Gestionar suscripcion" : {
-
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gestionar suscripción"
+          }
+        }
+      }
     },
     "Guarda clientes para reutilizar datos y plantillas." : {
 
@@ -3385,7 +3441,7 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Guarda una factura como plantilla desde el detalle para reutilizarla el proximo mes."
+            "value" : "Guarda una factura como plantilla desde el detalle para reutilizarla el próximo mes."
           }
         }
       }
@@ -3613,7 +3669,14 @@
       }
     },
     "Informacion" : {
-
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Información"
+          }
+        }
+      }
     },
     "Ingresos" : {
       "comment" : "Chart label for revenue",
@@ -4288,7 +4351,7 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "La sincronizacion esta disponible con Pro. En gratis todo se guarda localmente."
+            "value" : "La sincronización está disponible con Pro. En gratis todo se guarda localmente."
           }
         }
       }
@@ -4310,7 +4373,14 @@
       }
     },
     "Liquidacion IVA %@" : {
-
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Liquidación IVA %@"
+          }
+        }
+      }
     },
     "Loading clients..." : {
       "comment" : "A message indicating that client data is being loaded.",
@@ -4489,7 +4559,7 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Mas"
+            "value" : "Más"
           }
         }
       }
@@ -4609,7 +4679,14 @@
 
     },
     "Multiples emisores" : {
-
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Múltiples emisores"
+          }
+        }
+      }
     },
     "Name" : {
       "comment" : "A label for the name field in a form.",
@@ -5136,7 +5213,7 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Numero de factura"
+            "value" : "Número de factura"
           }
         }
       }
@@ -5152,7 +5229,7 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Numero previsto"
+            "value" : "Número previsto"
           }
         }
       }
@@ -5517,7 +5594,14 @@
 
     },
     "Politica de privacidad" : {
-
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Política de privacidad"
+          }
+        }
+      }
     },
     "Precio unitario" : {
       "localizations" : {
@@ -5627,7 +5711,7 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Pro activo. La sincronizacion puede quedar siempre encendida."
+            "value" : "Pro activo. La sincronización puede quedar siempre encendida."
           }
         }
       }
@@ -5719,7 +5803,14 @@
       "isCommentAutoGenerated" : true
     },
     "Proximo" : {
-
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Próximo"
+          }
+        }
+      }
     },
     "Prueba a limpiar filtros o cambiar la busqueda." : {
       "localizations" : {
@@ -6508,7 +6599,14 @@
       }
     },
     "Sincronizacion activa" : {
-
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sincronización activa"
+          }
+        }
+      }
     },
     "Sincronizacion completada" : {
       "comment" : "A title for an alert that appears when a data synchronization process completes.",
@@ -6525,7 +6623,7 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Sincronizacion iCloud"
+            "value" : "Sincronización iCloud"
           }
         }
       }
@@ -6940,17 +7038,38 @@
       }
     },
     "Telefono" : {
-
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Teléfono"
+          }
+        }
+      }
     },
     "Teléfono" : {
       "comment" : "A label for the phone number field.",
       "isCommentAutoGenerated" : true
     },
     "Terminos" : {
-
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Términos"
+          }
+        }
+      }
     },
     "Terminos y condiciones" : {
-
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Términos y condiciones"
+          }
+        }
+      }
     },
     "The PDF \"%@\" is stored securely inside the app. Share it from here whenever you need." : {
       "comment" : "Alert message when PDF stored inside the app sandbox",
@@ -7116,7 +7235,7 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Tu facturacion del mes"
+            "value" : "Tu facturación del mes"
           }
         }
       }
@@ -7126,10 +7245,24 @@
       "isCommentAutoGenerated" : true
     },
     "Tu nombre, CIF y datos de contacto apareceran en cada factura." : {
-
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tu nombre, CIF y datos de contacto aparecerán en cada factura."
+          }
+        }
+      }
     },
     "Tu perfil esta configurado. Puedes empezar a facturar." : {
-
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tu perfil está configurado. Puedes empezar a facturar."
+          }
+        }
+      }
     },
     "Type: %@ | Regime: %@" : {
       "comment" : "PDF invoice type and regime",
@@ -7149,7 +7282,14 @@
       }
     },
     "Ultimo mes" : {
-
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Último mes"
+          }
+        }
+      }
     },
     "Unable to load product information. Please try again." : {
       "comment" : "Missing product error",
@@ -7303,7 +7443,7 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Usar siguiente numero"
+            "value" : "Usar siguiente número"
           }
         }
       }
@@ -7377,7 +7517,7 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Vence en %lld dias"
+            "value" : "Vence en %lld días"
           }
         }
       }
@@ -7392,7 +7532,14 @@
 
     },
     "Vencido hace %lld dias" : {
-
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vencido hace %lld días"
+          }
+        }
+      }
     },
     "Vencimiento por defecto (dias)" : {
       "localizations" : {
@@ -7405,7 +7552,7 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Vencimiento por defecto (dias)"
+            "value" : "Vencimiento por defecto (días)"
           }
         }
       }
@@ -7423,7 +7570,7 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Vencimiento por defecto: %lld dias"
+            "value" : "Vencimiento por defecto: %lld días"
           }
         }
       }
@@ -7439,7 +7586,7 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Vencimiento: %lld dias"
+            "value" : "Vencimiento: %lld días"
           }
         }
       }
@@ -7511,7 +7658,14 @@
 
     },
     "Version" : {
-
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Versión"
+          }
+        }
+      }
     },
     "View Pro options" : {
       "comment" : "Button to open paywall from client list",
