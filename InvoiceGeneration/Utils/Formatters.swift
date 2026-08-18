@@ -10,11 +10,18 @@ enum Formatters {
 
     // MARK: - Number Formatters
 
-    /// Currency formatter following the current locale.
+    /// Currency formatter pinned to Spanish/EUR formatting (comma decimal
+    /// separator, € symbol), independent of the device's region setting.
+    /// The app's fiscal documents (invoices, VeriFACTU) are always EUR, so
+    /// following `Locale.current` here would render `$1,234.56`-style output
+    /// on a non-Spanish-region device rather than `1.234,56 €`.
     static let currency: NumberFormatter = {
         let formatter = NumberFormatter()
         formatter.numberStyle = .currency
-        formatter.locale = Locale.current
+        formatter.locale = Locale(identifier: "es_ES")
+        formatter.currencyCode = "EUR"
+        formatter.minimumFractionDigits = 2
+        formatter.maximumFractionDigits = 2
         return formatter
     }()
 

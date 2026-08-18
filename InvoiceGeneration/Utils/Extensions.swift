@@ -3,7 +3,7 @@ import Foundation
 /// Extension for decimal formatting
 extension Decimal {
     var formattedAsCurrency: String {
-        Formatters.currency.string(from: self as NSDecimalNumber) ?? "$0.00"
+        Formatters.currency.string(from: self as NSDecimalNumber) ?? "0,00 €"
     }
 
     var formattedAsPercent: String {

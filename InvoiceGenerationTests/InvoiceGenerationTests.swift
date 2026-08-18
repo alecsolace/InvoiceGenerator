@@ -212,6 +212,325 @@ struct InvoiceGenerationTests {
         #expect(InvoiceNumberingService.nextInvoiceNumber(issuer: issuer, client: client) == "5")
     }
 
+    @Test func invoiceNumberNormalizationStripsLeadingZeros() {
+        #expect(InvoiceNumberingService.normalized("0010") == "10")
+        #expect(InvoiceNumberingService.normalized("0011") == "11")
+        #expect(InvoiceNumberingService.normalized(" 0007 ") == "7")
+    }
+
+    @Test func invoiceNumberNormalizationLeavesFreeFormNumbersAlone() {
+        #expect(InvoiceNumberingService.normalized("FAM-0150") == nil)
+        #expect(InvoiceNumberingService.normalized("007-A") == nil)
+        #expect(InvoiceNumberingService.normalized("12") == nil)
+        #expect(InvoiceNumberingService.normalized("") == nil)
+        #expect(InvoiceNumberingService.normalized("0") == nil)
+        #expect(InvoiceNumberingService.normalized("0000") == nil)
+        #expect(InvoiceNumberingService.normalized("+0010") == nil)
+    }
+
+    @MainActor
+    @Test func invoiceNumberMigrationNormalizesPaddedNumbers() async throws {
+        let container = try makeContainer()
+        let context = container.mainContext
+
+        let issuer = Issuer(name: "Family")
+        let client = Client(name: "Cliente")
+        context.insert(issuer)
+        context.insert(client)
+
+        let padded = Invoice(invoiceNumber: "0010", clientName: client.name, client: client, issuer: issuer)
+        let legacy = Invoice(invoiceNumber: "FAM-0150", clientName: client.name, client: client, issuer: issuer)
+        context.insert(padded)
+        context.insert(legacy)
+        try context.save()
+
+        InvoiceNumberMigrationService.runIfNeeded(modelContext: context)
+
+        #expect(padded.invoiceNumber == "10")
+        #expect(legacy.invoiceNumber == "FAM-0150")
+    }
+
+    @MainActor
+    @Test func invoiceNumberMigrationIsIdempotentOnSecondRun() async throws {
+        let container = try makeContainer()
+        let context = container.mainContext
+
+        let issuer = Issuer(name: "Family")
+        let client = Client(name: "Cliente")
+        context.insert(issuer)
+        context.insert(client)
+
+        let padded = Invoice(invoiceNumber: "0010", clientName: client.name, client: client, issuer: issuer)
+        context.insert(padded)
+        try context.save()
+
+        InvoiceNumberMigrationService.runIfNeeded(modelContext: context)
+        #expect(padded.invoiceNumber == "10")
+        let updatedAtAfterFirstRun = padded.updatedAt
+
+        InvoiceNumberMigrationService.runIfNeeded(modelContext: context)
+
+        #expect(padded.invoiceNumber == "10")
+        #expect(padded.updatedAt == updatedAtAfterFirstRun)
+    }
+
+    @MainActor
+    @Test func invoiceNumberMigrationSkipsCollidingNumbersWithinIssuerClientPair() async throws {
+        let container = try makeContainer()
+        let context = container.mainContext
+
+        let issuer = Issuer(name: "Family")
+        let client = Client(name: "Cliente")
+        context.insert(issuer)
+        context.insert(client)
+
+        let padded = Invoice(invoiceNumber: "0011", clientName: client.name, client: client, issuer: issuer)
+        let plain = Invoice(invoiceNumber: "11", clientName: client.name, client: client, issuer: issuer)
+        context.insert(padded)
+        context.insert(plain)
+        try context.save()
+
+        InvoiceNumberMigrationService.runIfNeeded(modelContext: context)
+
+        // "0011" collides with the already-existing "11" for this pair, so it
+        // is left untouched rather than overwriting/duplicating "11".
+        #expect(padded.invoiceNumber == "0011")
+        #expect(plain.invoiceNumber == "11")
+    }
+
+    @MainActor
+    @Test func invoiceNumberMigrationNormalizesRectifiedInvoiceReferences() async throws {
+        let container = try makeContainer()
+        let context = container.mainContext
+
+        let issuer = Issuer(name: "Family")
+        let client = Client(name: "Cliente")
+        context.insert(issuer)
+        context.insert(client)
+
+        let rectifying = Invoice(
+            invoiceNumber: "1",
+            clientName: client.name,
+            client: client,
+            issuer: issuer,
+            rectifiedInvoiceNumber: "0010"
+        )
+        context.insert(rectifying)
+        try context.save()
+
+        InvoiceNumberMigrationService.runIfNeeded(modelContext: context)
+
+        #expect(rectifying.rectifiedInvoiceNumber == "10")
+    }
+
+    @MainActor
+    @Test func invoiceNumberMigrationRechainsVerifactuRecordsAfterRenumbering() async throws {
+        let container = try makeContainer()
+        let context = container.mainContext
+
+        let issuer = Issuer(name: "Family", taxId: "B12345678")
+        let client = Client(name: "Cliente")
+        context.insert(issuer)
+        context.insert(client)
+
+        let first = Invoice(invoiceNumber: "0010", clientName: client.name, client: client, issuer: issuer)
+        let second = Invoice(invoiceNumber: "11", clientName: client.name, client: client, issuer: issuer)
+        context.insert(first)
+        context.insert(second)
+        try context.save()
+
+        let firstRecord = VerifactuHashService.createRecord(for: first, issuer: issuer, context: context)
+        let secondRecord = VerifactuHashService.createRecord(for: second, issuer: issuer, context: context)
+        try context.save()
+
+        let originalFirstHash = firstRecord.recordHash
+        let originalSecondHash = secondRecord.recordHash
+
+        InvoiceNumberMigrationService.runIfNeeded(modelContext: context)
+
+        #expect(first.invoiceNumber == "10")
+        #expect(firstRecord.invoiceNumber == "10")
+        #expect(firstRecord.recordHash != originalFirstHash)
+        #expect(secondRecord.previousHash == firstRecord.recordHash)
+        #expect(secondRecord.recordHash != originalSecondHash)
+        #expect(issuer.lastVerifactuHash == secondRecord.recordHash)
+
+        let verification = VerifactuHashService.verifyChain(for: issuer, context: context)
+        #expect(verification.isValid)
+    }
+
+    @MainActor
+    @Test func invoiceNumberMigrationPreservesSubmittedRecordStatus() async throws {
+        let container = try makeContainer()
+        let context = container.mainContext
+
+        let issuer = Issuer(name: "Family", taxId: "B12345678")
+        let client = Client(name: "Cliente")
+        context.insert(issuer)
+        context.insert(client)
+
+        let invoice = Invoice(invoiceNumber: "0010", clientName: client.name, client: client, issuer: issuer)
+        context.insert(invoice)
+        try context.save()
+
+        let record = VerifactuHashService.createRecord(for: invoice, issuer: issuer, context: context)
+        record.submissionStatus = .accepted
+        record.submissionResponse = "AEAT-CSV-123"
+        try context.save()
+
+        InvoiceNumberMigrationService.runIfNeeded(modelContext: context)
+
+        #expect(record.invoiceNumber == "10")
+        #expect(record.submissionStatus == .accepted)
+        #expect(record.submissionResponse == "AEAT-CSV-123")
+
+        let verification = VerifactuHashService.verifyChain(for: issuer, context: context)
+        #expect(verification.isValid)
+    }
+
+    @MainActor
+    @Test func invoiceNumberMigrationRechainsCancellationRecordsWithoutInvoiceLink() async throws {
+        let container = try makeContainer()
+        let context = container.mainContext
+
+        let issuer = Issuer(name: "Family", taxId: "B12345678")
+        let client = Client(name: "Cliente")
+        context.insert(issuer)
+        context.insert(client)
+
+        let invoice = Invoice(invoiceNumber: "0010", clientName: client.name, client: client, issuer: issuer)
+        context.insert(invoice)
+        try context.save()
+
+        let record = VerifactuHashService.createRecord(for: invoice, issuer: issuer, context: context)
+        let cancellation = VerifactuHashService.createCancellationRecord(for: invoice, issuer: issuer, context: context)
+        // Cancellation records never link back to their invoice.
+        cancellation.invoice = nil
+        try context.save()
+
+        InvoiceNumberMigrationService.runIfNeeded(modelContext: context)
+
+        #expect(record.invoiceNumber == "10")
+        #expect(cancellation.invoiceNumber == "10")
+
+        let verification = VerifactuHashService.verifyChain(for: issuer, context: context)
+        #expect(verification.isValid)
+    }
+
+    @MainActor
+    @Test func invoiceNumberMigrationLeavesUnaffectedIssuerChainUntouched() async throws {
+        let container = try makeContainer()
+        let context = container.mainContext
+
+        let paddedIssuer = Issuer(name: "Padded", taxId: "B11111111")
+        let cleanIssuer = Issuer(name: "Clean", taxId: "B22222222")
+        let client = Client(name: "Cliente")
+        context.insert(paddedIssuer)
+        context.insert(cleanIssuer)
+        context.insert(client)
+
+        let paddedInvoice = Invoice(invoiceNumber: "0010", clientName: client.name, client: client, issuer: paddedIssuer)
+        let cleanInvoice = Invoice(invoiceNumber: "5", clientName: client.name, client: client, issuer: cleanIssuer)
+        context.insert(paddedInvoice)
+        context.insert(cleanInvoice)
+        try context.save()
+
+        VerifactuHashService.createRecord(for: paddedInvoice, issuer: paddedIssuer, context: context)
+        let cleanRecord = VerifactuHashService.createRecord(for: cleanInvoice, issuer: cleanIssuer, context: context)
+        try context.save()
+        let cleanHashBefore = cleanRecord.recordHash
+
+        InvoiceNumberMigrationService.runIfNeeded(modelContext: context)
+
+        #expect(cleanRecord.recordHash == cleanHashBefore)
+        #expect(cleanInvoice.invoiceNumber == "5")
+    }
+
+    @MainActor
+    @Test func invoiceNumberMigrationLeavesChainWithDuplicateSequenceNumbersFullyUntouched() async throws {
+        let container = try makeContainer()
+        let context = container.mainContext
+
+        let issuer = Issuer(name: "Family", taxId: "B12345678")
+        let client = Client(name: "Cliente")
+        context.insert(issuer)
+        context.insert(client)
+
+        let invoice = Invoice(invoiceNumber: "0010", clientName: client.name, client: client, issuer: issuer)
+        let otherInvoice = Invoice(invoiceNumber: "9", clientName: "Otro", issuer: issuer)
+        context.insert(invoice)
+        context.insert(otherInvoice)
+        try context.save()
+
+        let record = VerifactuHashService.createRecord(for: invoice, issuer: issuer, context: context)
+        let otherRecord = VerifactuHashService.createRecord(for: otherInvoice, issuer: issuer, context: context)
+        // Simulate pre-existing data corruption: two records in the same
+        // issuer's chain sharing a sequence number. verifyChain sorts by
+        // sequenceNumber alone, so this makes chain order ambiguous.
+        otherRecord.sequenceNumber = record.sequenceNumber
+        try context.save()
+
+        let originalNumber = record.invoiceNumber
+        let originalHash = record.recordHash
+
+        InvoiceNumberMigrationService.runIfNeeded(modelContext: context)
+
+        // Neither the invoice's own number nor the VeriFACTU record may be
+        // touched: renaming the invoice but leaving the record's hash stale
+        // (or vice versa) would desynchronize invoiceNumber from recordHash,
+        // which is worse than leaving the padded number as-is.
+        #expect(invoice.invoiceNumber == "0010")
+        #expect(record.invoiceNumber == originalNumber)
+        #expect(record.recordHash == originalHash)
+    }
+
+    @MainActor
+    @Test func createInvoiceNormalizesPaddedInvoiceNumber() async throws {
+        let container = try makeContainer()
+        let context = container.mainContext
+        let issuer = Issuer(name: "Family")
+        context.insert(issuer)
+        try context.save()
+
+        let viewModel = InvoiceViewModel(modelContext: context)
+        let created = viewModel.createInvoice(invoiceNumber: "0042", issuer: issuer, clientName: "Cliente")
+
+        #expect(created?.invoiceNumber == "42")
+    }
+
+    @MainActor
+    @Test func updateInvoiceNormalizesPaddedInvoiceNumber() async throws {
+        let container = try makeContainer()
+        let context = container.mainContext
+        let issuer = Issuer(name: "Family")
+        let client = Client(name: "Cliente")
+        let invoice = Invoice(invoiceNumber: "1", clientName: client.name, client: client, issuer: issuer)
+        context.insert(issuer)
+        context.insert(client)
+        context.insert(invoice)
+        try context.save()
+
+        let viewModel = InvoiceViewModel(modelContext: context)
+        viewModel.updateInvoice(
+            invoice,
+            invoiceNumber: "0042",
+            issuer: issuer,
+            clientName: client.name,
+            clientEmail: "",
+            clientIdentificationNumber: "",
+            clientAddress: "",
+            client: client,
+            issueDate: invoice.issueDate,
+            dueDate: invoice.dueDate,
+            notes: "",
+            ivaPercentage: 0,
+            irpfPercentage: 0,
+            items: []
+        )
+
+        #expect(invoice.invoiceNumber == "42")
+    }
+
     @MainActor
     @Test func issuerMigrationCreatesDefaultAndLinksInvoices() async throws {
         let container = try makeContainer()
@@ -249,6 +568,71 @@ struct InvoiceGenerationTests {
         let issuers = try context.fetch(FetchDescriptor<Issuer>())
         #expect(issuers.count == 1)
         #expect(issuers[0].name == "No Invoices Co")
+    }
+
+    @MainActor
+    @Test func issuerMigrationUsesLocalizedFallbackNameWithoutCompanyProfile() async throws {
+        let container = try makeContainer()
+        let context = container.mainContext
+
+        IssuerMigrationService.runIfNeeded(modelContext: context)
+
+        let issuers = try context.fetch(FetchDescriptor<Issuer>())
+        #expect(issuers.count == 1)
+        // Compared against the same catalog lookup the service uses, rather
+        // than a hardcoded literal, so this doesn't depend on which locale
+        // the test happens to run under (on English it legitimately equals
+        // "Default Issuer" - see the localized-fallback catalog entry).
+        #expect(issuers[0].name == String(localized: "Emisor predeterminado"))
+    }
+
+    @MainActor
+    @Test func issuerMigrationRenamesLegacyHardcodedDefaultIssuer() async throws {
+        let container = try makeContainer()
+        let context = container.mainContext
+
+        let legacyIssuer = Issuer(name: "Default Issuer")
+        context.insert(legacyIssuer)
+
+        let invoice = Invoice(invoiceNumber: "1", clientName: "Client", issuer: legacyIssuer)
+        invoice.captureIssuerSnapshot(from: legacyIssuer)
+        context.insert(invoice)
+        try context.save()
+
+        IssuerMigrationService.runIfNeeded(modelContext: context)
+
+        let issuers = try context.fetch(FetchDescriptor<Issuer>())
+        let invoices = try context.fetch(FetchDescriptor<Invoice>())
+
+        #expect(issuers.count == 1)
+        #expect(issuers[0].name == String(localized: "Emisor predeterminado"))
+        #expect(invoices[0].issuerName == issuers[0].name)
+    }
+
+    @MainActor
+    @Test func issuerMigrationDoesNotSpuriouslyReTouchAnAlreadyCorrectDefaultIssuer() async throws {
+        let container = try makeContainer()
+        let context = container.mainContext
+
+        let legacyIssuer = Issuer(name: "Default Issuer")
+        context.insert(legacyIssuer)
+        try context.save()
+
+        let localizedFallback = String(localized: "Emisor predeterminado")
+
+        IssuerMigrationService.runIfNeeded(modelContext: context)
+        let updatedAtAfterFirstRun = legacyIssuer.updatedAt
+
+        IssuerMigrationService.runIfNeeded(modelContext: context)
+        let updatedAtAfterSecondRun = legacyIssuer.updatedAt
+
+        // Regardless of which locale resolves at test time, a second run must
+        // never re-touch the issuer: either the localized fallback matches the
+        // legacy literal (English, so the first run already left it alone) or
+        // it differs (Spanish, so the rename already happened on the first run
+        // and the issuer no longer matches the legacy literal on the second).
+        #expect(updatedAtAfterSecondRun == updatedAtAfterFirstRun)
+        #expect(legacyIssuer.name == localizedFallback)
     }
 
     @MainActor
@@ -671,6 +1055,8 @@ struct InvoiceGenerationTests {
             Issuer.self,
             InvoiceTemplate.self,
             InvoiceTemplateItem.self,
+            TaxBreakdown.self,
+            VerifactuRecord.self,
             configurations: configuration
         )
     }

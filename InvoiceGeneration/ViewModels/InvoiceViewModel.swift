@@ -97,8 +97,9 @@ final class InvoiceViewModel {
         operationDescription: String = "",
         items: [InvoiceLineItemInput] = []
     ) -> Invoice? {
+        let trimmedNumber = invoiceNumber.trimmingCharacters(in: .whitespacesAndNewlines)
         let invoice = Invoice(
-            invoiceNumber: invoiceNumber,
+            invoiceNumber: InvoiceNumberingService.normalized(trimmedNumber) ?? trimmedNumber,
             clientName: clientName,
             clientEmail: clientEmail,
             clientIdentificationNumber: clientIdentificationNumber,
@@ -264,7 +265,8 @@ final class InvoiceViewModel {
         irpfPercentage: Decimal,
         items: [InvoiceLineItemInput]
     ) {
-        invoice.invoiceNumber = invoiceNumber.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmedNumber = invoiceNumber.trimmingCharacters(in: .whitespacesAndNewlines)
+        invoice.invoiceNumber = InvoiceNumberingService.normalized(trimmedNumber) ?? trimmedNumber
         invoice.clientName = clientName
         invoice.clientEmail = clientEmail
         invoice.clientIdentificationNumber = clientIdentificationNumber

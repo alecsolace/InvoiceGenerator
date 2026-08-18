@@ -11,7 +11,7 @@ struct IssuerListView: View {
         Group {
             if let viewModel {
                 if viewModel.isLoading {
-                    ProgressView("Loading emitters...")
+                    ProgressView(String(localized: "Cargando emisores…"))
                 } else if viewModel.issuers.isEmpty {
                     EmptyStateView(
                         icon: "building.2.crop.circle",

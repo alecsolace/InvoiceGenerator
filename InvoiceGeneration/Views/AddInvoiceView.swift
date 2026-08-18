@@ -487,15 +487,25 @@ struct AddInvoiceView: View {
 
     private var taxesSection: some View {
         Section("Totales") {
-            TextField("IVA %", text: $ivaPercentage)
+            LabeledContent(String(localized: "IVA %")) {
+                TextField("", text: $ivaPercentage)
+                    .multilineTextAlignment(.trailing)
 #if os(iOS)
-                .keyboardType(.decimalPad)
+                    .keyboardType(.decimalPad)
 #endif
+                    .accessibilityIdentifier("invoice-iva-rate")
+                    .accessibilityLabel(String(localized: "IVA %"))
+            }
 
-            TextField("IRPF %", text: $irpfPercentage)
+            LabeledContent(String(localized: "IRPF %")) {
+                TextField("", text: $irpfPercentage)
+                    .multilineTextAlignment(.trailing)
 #if os(iOS)
-                .keyboardType(.decimalPad)
+                    .keyboardType(.decimalPad)
 #endif
+                    .accessibilityIdentifier("invoice-irpf-rate")
+                    .accessibilityLabel(String(localized: "IRPF %"))
+            }
 
             LabeledContent("Subtotal", value: itemsTotal.formattedAsCurrency)
             LabeledContent("IVA (\(ivaPercentageValue.formattedAsPercent))", value: ivaAmount.formattedAsCurrency)
