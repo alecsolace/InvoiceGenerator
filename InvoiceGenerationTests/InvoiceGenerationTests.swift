@@ -447,6 +447,44 @@ struct InvoiceGenerationTests {
     }
 
     @MainActor
+    @Test func invoiceNumberMigrationLeavesChainWithDuplicateSequenceNumbersFullyUntouched() async throws {
+        let container = try makeContainer()
+        let context = container.mainContext
+
+        let issuer = Issuer(name: "Family", taxId: "B12345678")
+        let client = Client(name: "Cliente")
+        context.insert(issuer)
+        context.insert(client)
+
+        let invoice = Invoice(invoiceNumber: "0010", clientName: client.name, client: client, issuer: issuer)
+        let otherInvoice = Invoice(invoiceNumber: "9", clientName: "Otro", issuer: issuer)
+        context.insert(invoice)
+        context.insert(otherInvoice)
+        try context.save()
+
+        let record = VerifactuHashService.createRecord(for: invoice, issuer: issuer, context: context)
+        let otherRecord = VerifactuHashService.createRecord(for: otherInvoice, issuer: issuer, context: context)
+        // Simulate pre-existing data corruption: two records in the same
+        // issuer's chain sharing a sequence number. verifyChain sorts by
+        // sequenceNumber alone, so this makes chain order ambiguous.
+        otherRecord.sequenceNumber = record.sequenceNumber
+        try context.save()
+
+        let originalNumber = record.invoiceNumber
+        let originalHash = record.recordHash
+
+        InvoiceNumberMigrationService.runIfNeeded(modelContext: context)
+
+        // Neither the invoice's own number nor the VeriFACTU record may be
+        // touched: renaming the invoice but leaving the record's hash stale
+        // (or vice versa) would desynchronize invoiceNumber from recordHash,
+        // which is worse than leaving the padded number as-is.
+        #expect(invoice.invoiceNumber == "0010")
+        #expect(record.invoiceNumber == originalNumber)
+        #expect(record.recordHash == originalHash)
+    }
+
+    @MainActor
     @Test func createInvoiceNormalizesPaddedInvoiceNumber() async throws {
         let container = try makeContainer()
         let context = container.mainContext
@@ -541,8 +579,11 @@ struct InvoiceGenerationTests {
 
         let issuers = try context.fetch(FetchDescriptor<Issuer>())
         #expect(issuers.count == 1)
-        #expect(issuers[0].name != "Default Issuer")
-        #expect(!issuers[0].name.isEmpty)
+        // Compared against the same catalog lookup the service uses, rather
+        // than a hardcoded literal, so this doesn't depend on which locale
+        // the test happens to run under (on English it legitimately equals
+        // "Default Issuer" - see the localized-fallback catalog entry).
+        #expect(issuers[0].name == String(localized: "Emisor predeterminado"))
     }
 
     @MainActor
@@ -564,8 +605,34 @@ struct InvoiceGenerationTests {
         let invoices = try context.fetch(FetchDescriptor<Invoice>())
 
         #expect(issuers.count == 1)
-        #expect(issuers[0].name != "Default Issuer")
+        #expect(issuers[0].name == String(localized: "Emisor predeterminado"))
         #expect(invoices[0].issuerName == issuers[0].name)
+    }
+
+    @MainActor
+    @Test func issuerMigrationDoesNotSpuriouslyReTouchAnAlreadyCorrectDefaultIssuer() async throws {
+        let container = try makeContainer()
+        let context = container.mainContext
+
+        let legacyIssuer = Issuer(name: "Default Issuer")
+        context.insert(legacyIssuer)
+        try context.save()
+
+        let localizedFallback = String(localized: "Emisor predeterminado")
+
+        IssuerMigrationService.runIfNeeded(modelContext: context)
+        let updatedAtAfterFirstRun = legacyIssuer.updatedAt
+
+        IssuerMigrationService.runIfNeeded(modelContext: context)
+        let updatedAtAfterSecondRun = legacyIssuer.updatedAt
+
+        // Regardless of which locale resolves at test time, a second run must
+        // never re-touch the issuer: either the localized fallback matches the
+        // legacy literal (English, so the first run already left it alone) or
+        // it differs (Spanish, so the rename already happened on the first run
+        // and the issuer no longer matches the legacy literal on the second).
+        #expect(updatedAtAfterSecondRun == updatedAtAfterFirstRun)
+        #expect(legacyIssuer.name == localizedFallback)
     }
 
     @MainActor

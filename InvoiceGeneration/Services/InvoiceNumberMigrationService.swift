@@ -27,7 +27,18 @@ enum InvoiceNumberMigrationService {
             let invoices = try modelContext.fetch(FetchDescriptor<Invoice>())
             guard !invoices.isEmpty else { return }
 
-            let (renames, rectifiedNumbersChanged) = renameInvoices(invoices)
+            // Detect issuers whose VeriFACTU chain can't be safely rebuilt
+            // *before* touching any record, so we never rewrite a record's
+            // invoiceNumber and then bail out of recomputing its hash - that
+            // would leave a record whose stored recordHash no longer matches
+            // its own invoiceNumber, breaking verifyChain immediately.
+            let issuers = try modelContext.fetch(FetchDescriptor<Issuer>())
+            let unrechainableIssuerIDs = issuersWithDuplicateSequenceNumbers(issuers)
+
+            let (renames, rectifiedNumbersChanged) = renameInvoices(
+                invoices,
+                unrechainableIssuerIDs: unrechainableIssuerIDs
+            )
             guard !renames.isEmpty || rectifiedNumbersChanged else { return }
 
             if !renames.isEmpty {
@@ -44,8 +55,7 @@ enum InvoiceNumberMigrationService {
                 // can only be found by matching their stale number within the
                 // issuer's chain. Only attempt this where the rename is
                 // unambiguous.
-                let issuers = try modelContext.fetch(FetchDescriptor<Issuer>())
-                for issuer in issuers {
+                for issuer in issuers where !unrechainableIssuerIDs.contains(issuer.id) {
                     guard let issuerRenames = perIssuerOldToNew(for: issuer, renames: renames) else { continue }
                     var touchedThisIssuer = false
                     for record in issuer.verifactuRecords ?? [] where record.invoice == nil {
@@ -70,6 +80,23 @@ enum InvoiceNumberMigrationService {
         }
     }
 
+    /// Issuers whose VeriFACTU records contain duplicate sequence numbers.
+    /// `verifyChain` sorts by that field alone, so a tie makes chain order
+    /// ambiguous; renumbering and rechaining such an issuer could produce a
+    /// chain that fails its own verification. Logged once, up front.
+    private static func issuersWithDuplicateSequenceNumbers(_ issuers: [Issuer]) -> Set<UUID> {
+        var result: Set<UUID> = []
+        for issuer in issuers {
+            let sequenceNumbers = (issuer.verifactuRecords ?? []).map(\.sequenceNumber)
+            guard Set(sequenceNumbers).count != sequenceNumbers.count else { continue }
+            PersistenceController.logger.error(
+                "Invoice number migration will not rename invoices whose VeriFACTU record belongs to issuer \(issuer.id): duplicate VeriFACTU sequence numbers make the chain order ambiguous"
+            )
+            result.insert(issuer.id)
+        }
+        return result
+    }
+
     // MARK: - Invoice Renumbering
 
     private struct Rename {
@@ -85,8 +112,14 @@ enum InvoiceNumberMigrationService {
     /// Applied renames keyed by invoice id, plus whether any
     /// `rectifiedInvoiceNumber` reference was normalized. Invoices whose
     /// normalized number would collide with another invoice already using it
-    /// within the same issuer-client pair are left untouched and logged.
-    private static func renameInvoices(_ invoices: [Invoice]) -> (renames: [UUID: Rename], rectifiedNumbersChanged: Bool) {
+    /// within the same issuer-client pair are left untouched and logged, as
+    /// are invoices whose VeriFACTU record belongs to an issuer we can't
+    /// safely rechain - keeping `invoice.invoiceNumber` in sync with its
+    /// record's `invoiceNumber` in that case.
+    private static func renameInvoices(
+        _ invoices: [Invoice],
+        unrechainableIssuerIDs: Set<UUID>
+    ) -> (renames: [UUID: Rename], rectifiedNumbersChanged: Bool) {
         var byPair: [PairKey: [Invoice]] = [:]
         for invoice in invoices {
             byPair[pairKey(for: invoice), default: []].append(invoice)
@@ -99,7 +132,9 @@ enum InvoiceNumberMigrationService {
             var candidates: [(invoice: Invoice, new: String)] = []
 
             for invoice in pairInvoices {
-                if let normalized = InvoiceNumberingService.normalized(invoice.invoiceNumber) {
+                let recordIssuerID = invoice.verifactuRecord?.issuer?.id
+                let blockedByChain = recordIssuerID.map(unrechainableIssuerIDs.contains) ?? false
+                if !blockedByChain, let normalized = InvoiceNumberingService.normalized(invoice.invoiceNumber) {
                     candidates.append((invoice, normalized))
                 } else {
                     taken.insert(invoice.invoiceNumber)
@@ -172,17 +207,20 @@ enum InvoiceNumberMigrationService {
     }
 
     /// Rebuilds the issuer's VeriFACTU hash chain after one or more of its
-    /// records had their `invoiceNumber` rewritten. Skips issuers whose
-    /// records contain duplicate sequence numbers, since `verifyChain` sorts
-    /// by that field alone and a tie would make the rebuilt order unverifiable.
+    /// records had their `invoiceNumber` rewritten. Callers are expected to
+    /// have already excluded issuers with duplicate sequence numbers via
+    /// `issuersWithDuplicateSequenceNumbers` *before* any record was
+    /// mutated - the check below is only a defense-in-depth backstop so this
+    /// method can never leave a record's `recordHash` out of sync with its
+    /// own `invoiceNumber`.
     private static func rechain(_ issuer: Issuer) {
         let records = (issuer.verifactuRecords ?? []).sorted { $0.sequenceNumber < $1.sequenceNumber }
         guard !records.isEmpty else { return }
 
         let sequenceNumbers = records.map(\.sequenceNumber)
         guard Set(sequenceNumbers).count == sequenceNumbers.count else {
-            PersistenceController.logger.error(
-                "Invoice number migration skipped re-chaining issuer \(issuer.id): duplicate VeriFACTU sequence numbers"
+            PersistenceController.logger.fault(
+                "Invoice number migration reached rechain(_:) for issuer \(issuer.id) with duplicate VeriFACTU sequence numbers - this issuer should have been excluded upstream. Not touching its records."
             )
             return
         }

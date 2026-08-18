@@ -38,8 +38,16 @@ enum IssuerMigrationService {
 
             // Backfill: rename any issuer still carrying the old hardcoded English
             // fallback name, and refresh the issuer-name snapshot on its invoices.
+            // Guarded by "actually different": on an English-language device
+            // `defaultIssuerName` itself localizes back to "Default Issuer", so
+            // without this guard every launch would re-touch (and re-save) an
+            // English-locale issuer that never actually changed, which both
+            // wastes a write and makes CloudKit's last-writer-wins comparison
+            // treat this row as newer than it is, blocking legitimate remote edits.
             for issuer in issuers where issuer.name == legacyDefaultIssuerName {
-                issuer.name = defaultIssuerName
+                let localizedName = defaultIssuerName
+                guard issuer.name != localizedName else { continue }
+                issuer.name = localizedName
                 issuer.updateTimestamp()
                 changed = true
             }
@@ -58,9 +66,13 @@ enum IssuerMigrationService {
                     } else {
                         invoice.captureIssuerSnapshot(from: primaryIssuer)
                     }
+                    invoice.updateTimestamp()
                     changed = true
-                } else if invoice.issuerName == legacyDefaultIssuerName, let issuer = invoice.issuer {
+                } else if invoice.issuerName == legacyDefaultIssuerName,
+                          let issuer = invoice.issuer,
+                          invoice.issuerName != issuer.name {
                     invoice.captureIssuerSnapshot(from: issuer)
+                    invoice.updateTimestamp()
                     changed = true
                 }
             }
