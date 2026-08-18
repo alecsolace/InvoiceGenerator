@@ -173,15 +173,23 @@ struct InvoiceEditorSections: View {
 
     private var taxesSection: some View {
         Section("Totales") {
-            TextField("IVA %", text: $ivaPercentage)
+            LabeledContent("IVA %") {
+                TextField("", text: $ivaPercentage)
+                    .multilineTextAlignment(.trailing)
 #if os(iOS)
-                .keyboardType(.decimalPad)
+                    .keyboardType(.decimalPad)
 #endif
+                    .accessibilityIdentifier("invoice-iva-rate")
+            }
 
-            TextField("IRPF %", text: $irpfPercentage)
+            LabeledContent("IRPF %") {
+                TextField("", text: $irpfPercentage)
+                    .multilineTextAlignment(.trailing)
 #if os(iOS)
-                .keyboardType(.decimalPad)
+                    .keyboardType(.decimalPad)
 #endif
+                    .accessibilityIdentifier("invoice-irpf-rate")
+            }
 
             LabeledContent("Subtotal", value: itemsTotal.formattedAsCurrency)
             LabeledContent("IVA (\(ivaPercentageValue.formattedAsPercent))", value: ivaAmount.formattedAsCurrency)
