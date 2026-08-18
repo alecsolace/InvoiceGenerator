@@ -375,8 +375,8 @@ final class PDFGeneratorService {
             )
             _ = drawMultilineText(item.itemDescription, style: cellStyle, in: descriptionRect, context: context)
             drawText("\(item.quantity)", style: cellStyle, at: CGPoint(x: quantityX, y: textTop), in: context)
-            drawText(currencyString(for: item.unitPrice), style: cellStyle, at: CGPoint(x: unitPriceX, y: textTop), in: context)
-            drawText(currencyString(for: item.total), style: cellStyle, at: CGPoint(x: totalX, y: textTop), in: context)
+            drawText(item.unitPrice.formattedAsCurrency, style: cellStyle, at: CGPoint(x: unitPriceX, y: textTop), in: context)
+            drawText(item.total.formattedAsCurrency, style: cellStyle, at: CGPoint(x: totalX, y: textTop), in: context)
 
             yPosition += rowHeight
             context.setStrokeColor(palette.divider)
@@ -426,7 +426,7 @@ final class PDFGeneratorService {
 
         // Subtotal
         drawText(localized("Subtotal", comment: "PDF subtotal label"), style: labelStyle, at: CGPoint(x: xOrigin + 16, y: yPosition), in: context)
-        drawText(currencyString(for: invoice.itemsSubtotal), style: valueStyle, at: CGPoint(x: xOrigin + 180, y: yPosition), in: context)
+        drawText(invoice.itemsSubtotal.formattedAsCurrency, style: valueStyle, at: CGPoint(x: xOrigin + 180, y: yPosition), in: context)
         yPosition += rowSpacing
 
         if useMultiRate {
@@ -437,7 +437,7 @@ final class PDFGeneratorService {
                     breakdown.taxRate.formattedAsPercent
                 )
                 drawText(ivaLabel, style: labelStyle, at: CGPoint(x: xOrigin + 16, y: yPosition), in: context)
-                drawText(currencyString(for: breakdown.taxAmount), style: valueStyle, at: CGPoint(x: xOrigin + 180, y: yPosition), in: context)
+                drawText(breakdown.taxAmount.formattedAsCurrency, style: valueStyle, at: CGPoint(x: xOrigin + 180, y: yPosition), in: context)
                 yPosition += rowSpacing
 
                 // Surcharge if applicable
@@ -447,7 +447,7 @@ final class PDFGeneratorService {
                         breakdown.surchargeRate.formattedAsPercent
                     )
                     drawText(surchargeLabel, style: labelStyle, at: CGPoint(x: xOrigin + 16, y: yPosition), in: context)
-                    drawText(currencyString(for: breakdown.surchargeAmount), style: valueStyle, at: CGPoint(x: xOrigin + 180, y: yPosition), in: context)
+                    drawText(breakdown.surchargeAmount.formattedAsCurrency, style: valueStyle, at: CGPoint(x: xOrigin + 180, y: yPosition), in: context)
                     yPosition += rowSpacing
                 }
             }
@@ -458,7 +458,7 @@ final class PDFGeneratorService {
                 invoice.ivaPercentage.formattedAsPercent
             )
             drawText(ivaLabel, style: labelStyle, at: CGPoint(x: xOrigin + 16, y: yPosition), in: context)
-            drawText(currencyString(for: invoice.ivaAmount), style: valueStyle, at: CGPoint(x: xOrigin + 180, y: yPosition), in: context)
+            drawText(invoice.ivaAmount.formattedAsCurrency, style: valueStyle, at: CGPoint(x: xOrigin + 180, y: yPosition), in: context)
             yPosition += rowSpacing
         }
 
@@ -469,7 +469,7 @@ final class PDFGeneratorService {
                 invoice.irpfPercentage.formattedAsPercent
             )
             drawText(irpfLabel, style: labelStyle, at: CGPoint(x: xOrigin + 16, y: yPosition), in: context)
-            drawText(currencyString(for: -invoice.irpfAmount), style: valueStyle, at: CGPoint(x: xOrigin + 180, y: yPosition), in: context)
+            drawText((-invoice.irpfAmount).formattedAsCurrency, style: valueStyle, at: CGPoint(x: xOrigin + 180, y: yPosition), in: context)
             yPosition += rowSpacing
         }
 
@@ -484,7 +484,7 @@ final class PDFGeneratorService {
 
         // Total
         drawText(localized("TOTAL", comment: "PDF total label"), style: totalStyle, at: CGPoint(x: xOrigin + 16, y: yPosition), in: context)
-        drawText(currencyString(for: invoice.totalAmount), style: totalStyle, at: CGPoint(x: xOrigin + 180, y: yPosition), in: context)
+        drawText(invoice.totalAmount.formattedAsCurrency, style: totalStyle, at: CGPoint(x: xOrigin + 180, y: yPosition), in: context)
 
         return container.maxY
     }
@@ -797,11 +797,4 @@ private func normalizedPDFText(_ text: String) -> String {
     text
         .replacingOccurrences(of: "\r\n", with: "\n")
         .replacingOccurrences(of: "\r", with: "\n")
-}
-
-private func currencyString(for value: Decimal) -> String {
-    let formatter = NumberFormatter()
-    formatter.numberStyle = .currency
-    formatter.locale = Locale.current
-    return formatter.string(from: value as NSDecimalNumber) ?? "$0.00"
 }
