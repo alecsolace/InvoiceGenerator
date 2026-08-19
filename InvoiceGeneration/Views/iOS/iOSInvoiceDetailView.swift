@@ -56,11 +56,13 @@ struct iOSInvoiceDetailView: View {
                     } label: {
                         Label(String(localized: "Ver PDF"), systemImage: "doc.richtext")
                     }
+                    .accessibilityIdentifier(PDFPreviewAccessibility.invoiceDetailViewPDF)
                     Button {
                         sharePDF()
                     } label: {
                         Label(String(localized: "Compartir PDF"), systemImage: "square.and.arrow.up")
                     }
+                    .accessibilityIdentifier(PDFPreviewAccessibility.invoiceDetailSharePDF)
                     Button {
                         showingEditInvoice = true
                     } label: {
@@ -76,6 +78,7 @@ struct iOSInvoiceDetailView: View {
                 } label: {
                     Image(systemName: "ellipsis.circle")
                 }
+                .accessibilityIdentifier(PDFPreviewAccessibility.invoiceDetailMenu)
             }
         }
         .navigationDestination(item: $duplicatedInvoice) { dup in
