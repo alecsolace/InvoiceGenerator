@@ -31,6 +31,7 @@ struct iOSDashboardView: View {
                         }
                         .padding(16)
                     }
+                    .tabBarSafeAreaPadding()
                     .background(Color.appBackground.ignoresSafeArea())
                     .navigationDestination(item: $selectedInvoice) { invoice in
                         iOSInvoiceDetailView(invoice: invoice, viewModel: invoiceViewModel)

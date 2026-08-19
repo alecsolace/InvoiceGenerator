@@ -169,6 +169,7 @@ struct iOSInvoiceListView: View {
                     .padding(.horizontal, 16)
                     .padding(.bottom, 80) // Space for FAB
                 }
+                .tabBarSafeAreaPadding()
             }
         } else {
             Spacer()

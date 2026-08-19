@@ -42,6 +42,7 @@ struct iOSInvoiceDetailView: View {
             }
             .padding(16)
         }
+        .tabBarSafeAreaPadding()
         .background(Color.appBackground.ignoresSafeArea())
         .navigationTitle(invoice.invoiceNumber)
         #if os(iOS)
